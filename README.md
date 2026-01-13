@@ -1,1 +1,1 @@
-# Proyecto-Equipo-Sist-Info
+# Proyecto-Equipo-2-Sist-Info
