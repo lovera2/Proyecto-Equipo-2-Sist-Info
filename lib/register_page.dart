@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'payment_page.dart';
 
 class RegisterPage extends StatefulWidget { // Cambiado a StatefulWidget
   const RegisterPage({super.key});
@@ -24,7 +25,7 @@ class _RegisterPageState extends State<RegisterPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("¡Correo válido! Redirigiendo al pago..."))
       );
-      // Aqui voy a disenar el campo para la pantalla de campo tentativa (no funcional, por ahora)
+      Navigator.push(context, MaterialPageRoute(builder: (_) => const PaymentPage()));
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Error: Usa tu correo @unimet.edu.ve"))
