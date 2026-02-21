@@ -30,7 +30,14 @@ class HomePage extends StatelessWidget {
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Text(titulo, style: const TextStyle(color: unimetBlue, fontWeight: FontWeight.bold)),
-          content: Text(contenido, style: const TextStyle(fontSize: 16, height: 1.5), textAlign: TextAlign.justify),
+          content: SizedBox(
+            width: 450, // Ajusta este valor a tu gusto (400-500 suele ser ideal)
+            child: Text(
+              contenido, 
+              style: const TextStyle(fontSize: 16, height: 1.5), 
+              textAlign: TextAlign.justify,
+            ),
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -136,9 +143,9 @@ class _TopBar extends StatelessWidget {
           const Text('BookLoop', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800)),
           const Spacer(),
           if (isWide) ...[
-            _NavLink('¿Qué es?', onTap: () => onShowInfo("¿Qué es BookLoop?", "Es una plataforma exclusiva para la comunidad UNIMET.")),
-            _NavLink('Misión', onTap: () => onShowInfo("Nuestra Misión", "Garantizar la circulación fluida de material educativo.")),
-            _NavLink('Términos', onTap: onTerms),
+            _NavLink('¿Qué es?', onTap: () => onShowInfo("¿Qué es BookLoop?", "Es una plataforma exclusiva para la comunidad UNIMET de préstamo y circulación de material académico. Nuestra plataforma busca conectar a estudiantes y profesores dentro de un entorno seguro, facilitando el acceso equitativo a recursos edicativos mediante la reutilización organizada.")),
+            _NavLink('Misión', onTap: () => onShowInfo("Nuestra Misión", "Proporcionar a la comunidad docente y estudiantil de la Universidad Metropolitana una plataforma centralizada, segura y exclusiva, que facilite el préstamo y circulación de material académico, fomentando la reutilización de recursos y el acceso equitativo a las herramientas de aprendizaje.")),
+            _NavLink('Visión', onTap:  () => onShowInfo("Nuestra Visión", "Ser la plataforma de referencia para la comunidad de la Universidad Metropolitana en la reutilización organizada de material académico, reduciendo la dependencia de canales informales y la incertidumbre al momento de conseguir recursos.")),
             const SizedBox(width: 12),
           ],
           
@@ -182,17 +189,60 @@ class _LeftHero extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: const [
-          Text('Más que\nlibros', style: TextStyle(color: Colors.white, fontSize: 54, fontWeight: FontWeight.w900, height: 1.0)),
-          SizedBox(height: 16),
-          Text('BookLoop es una plataforma exclusiva para la comunidad UNIMET que centraliza el préstamo de material académico físico.', style: TextStyle(color: Colors.white70, fontSize: 16, height: 1.5)),
+          Center(
+            child: Text(
+              'Más que libros', 
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white, 
+                fontSize: 48,
+                fontWeight: FontWeight.w900, 
+              )
+            ),
+          ),
           SizedBox(height: 24),
-          Text('Misión', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-          Text('Proporcionar una plataforma segura que facilite el préstamo y circulación de material académico.', style: TextStyle(color: Colors.white70, height: 1.4)),
-          SizedBox(height: 16),
-          Text('Visión', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-          Text('Ser la plataforma de referencia en la UNIMET para la reutilización organizada de material académico.', style: TextStyle(color: Colors.white70, height: 1.4)),
+          Text(
+            'La red oficial de intercambio académico de la UNIMET.', 
+            style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)
+          ),
+          SizedBox(height: 32),
+          
+          _BenefitItem(icon: Icons.check_circle_outline, title: 'Préstamos Seguros', subtitle: 'Gestiona tus libros con miembros verificados.'),
+          SizedBox(height: 20),
+          _BenefitItem(icon: Icons.history_edu, title: 'Acceso Equitativo', subtitle: 'Encuentra material sin depender de terceros.'),
+          SizedBox(height: 20),
+          _BenefitItem(icon: Icons.volunteer_activism, title: 'Cultura Responsable', subtitle: 'Fomenta la reutilización entre unimetanos.'),
         ],
       ),
+    );
+  }
+}
+
+//Esta clase fue creada con ayuda de Gemini AI, funciona para mantener los textos alineados a la izquierda, a excepción del título. 
+
+class _BenefitItem extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  const _BenefitItem({required this.icon, required this.title, required this.subtitle});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: const Color.fromARGB(255, 255, 255, 255), size: 28),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              Text(subtitle, style: const TextStyle(color: Colors.white70, fontSize: 14, height: 1.3)),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
