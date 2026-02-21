@@ -1,26 +1,43 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
-class ProfilePage extends StatelessWidget {
+import '../viewmodels/profile_viewmodel.dart';
+
+class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
 
-  // Chicos, aquí puse los colores que acordamos en las láminas:
-  // El azul marino para fondos y el naranja Unimet para lo que resalte.
-  static const Color unimetBlue = Color(0xFF1B3A57);   //
-  static const Color unimetOrange = Color(0xFFF28B31); //
+  @override
+  State<ProfilePage> createState() => _ProfilePageState();
+}
+
+class _ProfilePageState extends State<ProfilePage> {
+  static const Color unimetBlue = Color(0xFF1B3A57);
+  static const Color unimetOrange = Color(0xFFF28B31);
+
+  @override
+  void initState() {
+    super.initState();
+    // Carga de perfil apenas entra (sin romper UI)
+    Future.microtask(() => context.read<ProfileViewModel>().cargarPerfil());
+  }
 
   @override
   Widget build(BuildContext context) {
+    final vm=context.watch<ProfileViewModel>();
+
+    final String nombreMostrado=vm.nombre ?? "Nombre del Estudiante";
+    final String emailMostrado=vm.email ?? "usuario.unimet@correo.unimet.edu.ve";
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('Mi Perfil - BookLoop', style: TextStyle(color: Colors.white)),
         backgroundColor: unimetBlue,
-        elevation: 0, // Quitamos la sombra para que se vea más moderno y plano
+        elevation: 0,
       ),
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // Este es el encabezado azul con las curvas de abajo, como en el diseño.
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 30),
@@ -31,30 +48,45 @@ class ProfilePage extends StatelessWidget {
                   bottomRight: Radius.circular(30),
                 ),
               ),
-              child: const Column(
+              child: Column(
                 children: [
-                  CircleAvatar(
+                  const CircleAvatar(
                     radius: 50,
                     backgroundColor: Colors.white,
                     child: Icon(Icons.person, size: 60, color: unimetBlue),
                   ),
-                  SizedBox(height: 15),
+                  const SizedBox(height: 15),
                   Text(
-                    "Nombre del Estudiante", 
-                    style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+                    nombreMostrado,
+                    style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
                   ),
                   Text(
-                    "usuario.unimet@correo.unimet.edu.ve", 
-                    style: TextStyle(color: Colors.white70, fontSize: 14),
+                    emailMostrado,
+                    style: const TextStyle(color: Colors.white70, fontSize: 14),
                   ),
+
+                  if(vm.isLoading) ...[
+                    const SizedBox(height: 12),
+                    const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    ),
+                  ],
+
+                  if(!vm.isLoading && vm.errorMessage!=null) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      vm.errorMessage!,
+                      style: const TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
+                  ],
                 ],
               ),
             ),
 
             const SizedBox(height: 30),
 
-            // Aquí van los botones principales. 
-            // Usamos el naranja para el botón de acción principal para que llame la atención.
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 25),
               child: Column(
@@ -66,15 +98,12 @@ class ProfilePage extends StatelessWidget {
                     icon: const Icon(Icons.edit, color: Colors.white),
                     label: const Text("Editar Información", style: TextStyle(color: Colors.white)),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: unimetOrange, 
+                      backgroundColor: unimetOrange,
                       minimumSize: const Size(double.infinity, 50),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
-                  
                   const SizedBox(height: 15),
-
-                  // Este botón es secundario, por eso solo tiene el borde azul.
                   OutlinedButton.icon(
                     onPressed: () {
                       // TODO: Navegar a la lista de libros del usuario
