@@ -12,25 +12,32 @@ class RegisterPage extends StatefulWidget {
 }
 
 class _RegisterPageState extends State<RegisterPage> {
-  final TextEditingController _emailDocente=TextEditingController();
-  final TextEditingController _passDocente=TextEditingController();
+  final TextEditingController _emailDocente = TextEditingController();
+  final TextEditingController _passDocente = TextEditingController();
 
-  final TextEditingController _emailEstudiante=TextEditingController();
-  final TextEditingController _passEstudiante=TextEditingController();
+  final TextEditingController _emailEstudiante = TextEditingController();
+  final TextEditingController _passEstudiante = TextEditingController();
 
   static const Color unimetBlue = Color(0xFF1B3A57);
   static const Color unimetOrange = Color(0xFFF28B31);
 
-  void _validarYPasarAlPago(TextEditingController eCont,TextEditingController pCont,String rol) {
-    final String emailVal=eCont.text.trim();
-    final String passwordVal=pCont.text.trim();
+  void _validarYPasarAlPago(
+    TextEditingController eCont,
+    TextEditingController pCont,
+    String rol,
+  ) {
+    final String emailVal = eCont.text.trim();
+    final String passwordVal = pCont.text.trim();
 
-    final vm=context.read<RegisterViewModel>();
-    final ok=vm.validarFormulario(email: emailVal,password: passwordVal);
+    final vm = context.read<RegisterViewModel>();
+    final ok = vm.validarFormulario(email: emailVal, password: passwordVal);
 
-    if(!ok){
+    if (!ok) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(vm.errorMessage ?? "❌ Error"), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text(vm.errorMessage ?? "❌ Error"),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
@@ -45,7 +52,7 @@ class _RegisterPageState extends State<RegisterPage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => PaymentPage(
+        builder: (_) => PaymentPage(
           email: emailVal,
           password: passwordVal,
           rol: rol,
@@ -71,6 +78,11 @@ class _RegisterPageState extends State<RegisterPage> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
+        leading: IconButton(
+          tooltip: 'Volver',
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       body: SingleChildScrollView(
         child: Padding(
@@ -87,28 +99,54 @@ class _RegisterPageState extends State<RegisterPage> {
                 ),
               ),
               const SizedBox(height: 40),
-
-              // ✅ Responsive: si es ancho -> Row, si es angosto -> Column
               LayoutBuilder(
-                builder: (context,constraints) {
+                builder: (context, constraints) {
                   final bool isWide = constraints.maxWidth >= 900;
 
-                  if(isWide){
+                  if (isWide) {
                     return Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildRoleCard("Docente", Icons.person_outline, _emailDocente, _passDocente),
+                        Expanded(
+                          child: _buildRoleCard(
+                            "Docente",
+                            Icons.person_outline,
+                            _emailDocente,
+                            _passDocente,
+                            "ejemplo@unimet.edu.ve",
+                          ),
+                        ),
                         const SizedBox(width: 20),
-                        _buildRoleCard("Estudiante", Icons.school_outlined, _emailEstudiante, _passEstudiante),
+                        Expanded(
+                          child: _buildRoleCard(
+                            "Estudiante",
+                            Icons.school_outlined,
+                            _emailEstudiante,
+                            _passEstudiante,
+                            "ejemplo@correo.unimet.edu.ve",
+                          ),
+                        ),
                       ],
                     );
                   }
 
                   return Column(
                     children: [
-                      _buildRoleCard("Docente", Icons.person_outline, _emailDocente, _passDocente),
+                      _buildRoleCard(
+                        "Docente",
+                        Icons.person_outline,
+                        _emailDocente,
+                        _passDocente,
+                        "ejemplo@unimet.edu.ve",
+                      ),
                       const SizedBox(height: 20),
-                      _buildRoleCard("Estudiante", Icons.school_outlined, _emailEstudiante, _passEstudiante),
+                      _buildRoleCard(
+                        "Estudiante",
+                        Icons.school_outlined,
+                        _emailEstudiante,
+                        _passEstudiante,
+                        "ejemplo@correo.unimet.edu.ve",
+                      ),
                     ],
                   );
                 },
@@ -120,7 +158,13 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  Widget _buildRoleCard(String title,IconData icon,TextEditingController eCont,TextEditingController pCont) {
+  Widget _buildRoleCard(
+    String title,
+    IconData icon,
+    TextEditingController eCont,
+    TextEditingController pCont,
+    String hintCorreo,
+  ) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -144,8 +188,8 @@ class _RegisterPageState extends State<RegisterPage> {
           TextField(
             controller: eCont,
             keyboardType: TextInputType.emailAddress,
-            decoration: const InputDecoration(
-              hintText: "ejemplo@unimet.edu.ve",
+            decoration: InputDecoration(
+              hintText: hintCorreo,
               labelText: "Correo Institucional",
             ),
           ),
@@ -160,7 +204,7 @@ class _RegisterPageState extends State<RegisterPage> {
           ),
           const SizedBox(height: 25),
           ElevatedButton(
-            onPressed: () => _validarYPasarAlPago(eCont,pCont,title),
+            onPressed: () => _validarYPasarAlPago(eCont, pCont, title),
             style: ElevatedButton.styleFrom(
               backgroundColor: unimetOrange,
               minimumSize: const Size(double.infinity, 45),

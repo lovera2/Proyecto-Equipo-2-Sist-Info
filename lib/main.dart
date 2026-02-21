@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'firebase_options.dart';
 import 'views/start_page.dart';
@@ -59,6 +60,19 @@ class BookLoopApp extends StatelessWidget {
       child: MaterialApp(
         title: 'BookLoop Unimet',
         debugShowCheckedModeBanner: false,
+
+        // Localización en español, para funciones propias de Flutter
+        locale: const Locale('es'),
+        supportedLocales: const [
+          Locale('es'),
+          Locale('en'),
+        ],
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+
         theme: ThemeData(
           primarySwatch: Colors.orange,
           useMaterial3: true,

@@ -26,7 +26,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _handleLogin() async {
-    final email=_emailController.text.trim();
+    final email=_emailController.text.trim().toLowerCase();
     final password=_passwordController.text.trim();
 
     if(email.isEmpty || password.isEmpty){
@@ -48,13 +48,21 @@ class _LoginPageState extends State<LoginPage> {
           backgroundColor: unimetBlue,
         ),
       );
-      Navigator.pop(context); // vuelve a StartPage
+      Navigator.pop(context);
     }else{
       final msg=authVM.errorMessage ?? "❌ No se pudo iniciar sesión.";
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(msg), backgroundColor: Colors.red),
       );
     }
+  }
+
+  Widget _backButton({required Color color}) {
+    return IconButton(
+      tooltip: 'Volver',
+      icon: Icon(Icons.arrow_back, color: color),
+      onPressed: () => Navigator.pop(context),
+    );
   }
 
   @override
@@ -68,12 +76,21 @@ class _LoginPageState extends State<LoginPage> {
 
           final Widget leftPane=Container(
             color: unimetBlue,
-            child: const Center(
-              child: Text(
-                "¡Bienvenido\nde nuevo!",
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white, fontSize: 40, fontWeight: FontWeight.bold),
-              ),
+            child: Stack(
+              children: [
+                Positioned(
+                  top: 12,
+                  left: 12,
+                  child: _backButton(color: Colors.white),
+                ),
+                const Center(
+                  child: Text(
+                    "¡Bienvenido\nde nuevo!",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white, fontSize: 40, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
             ),
           );
 
@@ -93,6 +110,7 @@ class _LoginPageState extends State<LoginPage> {
 
                 TextField(
                   controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
                   decoration: InputDecoration(
                     hintText: "Usuario / e-mail",
                     filled: true,
@@ -162,6 +180,13 @@ class _LoginPageState extends State<LoginPage> {
           return SingleChildScrollView(
             child: Column(
               children: [
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 12, left: 12),
+                    child: _backButton(color: unimetBlue),
+                  ),
+                ),
                 SizedBox(
                   height: 260,
                   child: leftPane,
