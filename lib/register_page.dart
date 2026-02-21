@@ -8,36 +8,28 @@ class RegisterPage extends StatefulWidget { // Cambiado a StatefulWidget
 }
 
 class _RegisterPageState extends State<RegisterPage> {
-  // 1. Controladores para capturar la info
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
+  // Controladores independientes para evitar que se copie en ambos campos los datos
+  final TextEditingController _emailDocente = TextEditingController();
+  final TextEditingController _passDocente = TextEditingController();
   
+  final TextEditingController _emailEstudiante = TextEditingController();
+  final TextEditingController _passEstudiante = TextEditingController();
+
   static const Color unimetBlue = Color(0xFF1B3A57);
   static const Color unimetOrange = Color(0xFFF28B31);
 
-  // 2. Lógica de validación (Requerimiento RF-01)
-  void _intentarRegistro() {
-    String email = _emailController.text.trim();
-    String password = _passwordController.text.trim();
-
-    if (email.isEmpty || password.isEmpty) {
-      _mostrarAlerta("Por favor, llena todos los campos.");
-      return;
-    }
-
+  void _intentarRegistro(TextEditingController eCont, TextEditingController pCont) {
+    String email = eCont.text.trim();
     if (email.endsWith('@unimet.edu.ve') || email.endsWith('@correo.unimet.edu.ve')) {
-      // En esta seccion voy a conectar luego la parte de firebase
-      _mostrarAlerta("¡Cuenta creada con éxito para $email! (Próximo paso: Pago)");
-      
-      // Simulación de navegación a la página de pago (sera una especie de muestra de como luce la pagina de pago)
-      print("Navegando a Paywall..."); 
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("¡Correo válido! Redirigiendo al pago..."))
+      );
+      // Aqui voy a disenar el campo para la pantalla de campo tentativa (no funcional, por ahora)
     } else {
-      _mostrarAlerta("Error: Solo se permiten correos institucionales (@unimet.edu.ve)");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Error: Usa tu correo @unimet.edu.ve"))
+      );
     }
-  }
-
-  void _mostrarAlerta(String mensaje) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(mensaje)));
   }
 
   @override
@@ -56,9 +48,9 @@ class _RegisterPageState extends State<RegisterPage> {
               const SizedBox(height: 40),
               Row(
                 children: [
-                  _buildRoleCard("Docente", Icons.person_outline),
+                  _buildRoleCard("Docente", Icons.person_outline, _emailDocente, _passDocente),
                   const SizedBox(width: 20),
-                  _buildRoleCard("Estudiante", Icons.school_outlined),
+                  _buildRoleCard("Estudiante", Icons.school_outlined, _emailEstudiante, _passEstudiante),
                 ],
               ),
             ],
@@ -68,7 +60,7 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  Widget _buildRoleCard(String title, IconData icon) {
+  Widget _buildRoleCard(String title, IconData icon, TextEditingController eCont, TextEditingController pCont) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(20),
@@ -79,19 +71,11 @@ class _RegisterPageState extends State<RegisterPage> {
             const SizedBox(height: 10),
             Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: unimetBlue)),
             const SizedBox(height: 20),
-            // ASIGNAMOS EL CONTROLLER AQUÍ
-            TextField(
-              controller: _emailController, 
-              decoration: const InputDecoration(hintText: "E-mail")
-            ),
-            TextField(
-              controller: _passwordController, 
-              obscureText: true, 
-              decoration: const InputDecoration(hintText: "Contraseña")
-            ),
+            TextField(controller: eCont, decoration: const InputDecoration(hintText: "E-mail")),
+            TextField(controller: pCont, obscureText: true, decoration: const InputDecoration(hintText: "Contraseña")),
             const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: _intentarRegistro, // LLAMAMOS A LA FUNCIÓN DE VALIDACIÓN
+              onPressed: () => _intentarRegistro(eCont, pCont),
               style: ElevatedButton.styleFrom(backgroundColor: unimetOrange),
               child: const Text("Crear cuenta", style: TextStyle(color: Colors.white, fontSize: 12)),
             ),
