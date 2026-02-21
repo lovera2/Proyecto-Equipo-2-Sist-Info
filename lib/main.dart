@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart'; // Importación necesaria
 import 'firebase_options.dart'; // El archivo generado con flutterfire
-import 'home_page.dart';
+import 'start_page.dart';
 
 void main() async { // Se coloco 'async' para que pueda esperar por Firebase
   // Esta funcion se asegura que Flutter esté listo antes de conectar a Firebase

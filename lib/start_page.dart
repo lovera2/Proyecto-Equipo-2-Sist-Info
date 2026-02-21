@@ -218,7 +218,7 @@ class _LeftHero extends StatelessWidget {
   }
 }
 
-//Esta clase fue creada con ayuda de Gemini AI, funciona para mantener los textos alineados a la izquierda, a excepción del título. 
+//Esta clase fue creada con ayuda de Gemini, funciona para mantener los textos alineados a la izquierda, a excepción del título. 
 
 class _BenefitItem extends StatelessWidget {
   final IconData icon;
@@ -231,7 +231,7 @@ class _BenefitItem extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, color: const Color.fromARGB(255, 255, 255, 255), size: 28),
+        Icon(icon, color: const Color(0xFFF28B31), size: 28),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
