@@ -1,8 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart'; // Importación necesaria
+import 'firebase_options.dart'; // El archivo generado con flutterfire
 import 'home_page.dart';
 
-void main() {
-  // Va a mostrar error en pantalla, si lo hay.
+void main() async { // Se coloco 'async' para que pueda esperar por Firebase
+  // Esta funcion se asegura que Flutter esté listo antes de conectar a Firebase
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Esto usa las credenciales del archivo que creamos
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  // Manejo de errores
   ErrorWidget.builder = (FlutterErrorDetails details) {
     return Material(
       color: Colors.red,
@@ -21,6 +31,7 @@ void main() {
   FlutterError.onError = (FlutterErrorDetails details) {
     FlutterError.presentError(details);
   };
+  // ------------------------------------------------
 
   runApp(const BookLoopApp());
 }
@@ -33,6 +44,10 @@ class BookLoopApp extends StatelessWidget {
     return MaterialApp(
       title: 'BookLoop Unimet',
       debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        primarySwatch: Colors.orange, 
+        useMaterial3: true,
+      ),
       home: const HomePage(),
     );
   }
