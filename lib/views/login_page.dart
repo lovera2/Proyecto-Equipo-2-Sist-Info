@@ -41,34 +41,33 @@ class _LoginPageState extends State<LoginPage> {
 
     if (!mounted) return;
 
-    if (!ok) {
+    if (ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("🚀 ¡Bienvenido a BookLoop!"),
+          backgroundColor: unimetBlue,
+        ),
+      );
+
+      if (email.startsWith('admin')) {
+        Navigator.pushReplacementNamed(context, '/home_admin');
+      } else {
+        Navigator.pushReplacementNamed(context, '/home_page');
+      }
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(authVM.errorMessage ?? "Error al iniciar sesión"),
           backgroundColor: Colors.red,
         ),
       );
-      return;
-    }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("🚀 ¡Bienvenido a BookLoop!"),
-        backgroundColor: unimetOrange,
-      ),
-    );
-
-    if (email.startsWith('admin')) {
-      Navigator.pushReplacementNamed(context, '/home_admin');
-    } else {
-      Navigator.pushReplacementNamed(context, '/home_page');
     }
   }
 
   Widget _backButton({required Color color}) {
     return IconButton(
-      tooltip: 'Volver',
-      icon: Icon(Icons.arrow_back_ios_new_rounded, color: color),
+      icon: const Icon(Icons.arrow_back_ios_new_rounded),
+      color: color,
       onPressed: () => Navigator.pop(context),
     );
   }
@@ -76,248 +75,79 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     final authVM = context.watch<AuthViewModel>();
-    final bool isWide = MediaQuery.of(context).size.width >= 900;
+    final isWide = MediaQuery.of(context).size.width > 600;
 
-    final Widget leftPane = Container(
+    final leftPane = Container(
       color: unimetBlue,
-      child: Stack(
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.menu_book_rounded, size: 80, color: Colors.white),
+            const SizedBox(height: 20),
+            const Text(
+              "BookLoop",
+              style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white),
+            ),
+            Text("UNIMET", style: TextStyle(fontSize: 18, color: Colors.white.withOpacity(0.8))),
+          ],
+        ),
+      ),
+    );
+
+    final rightPane = Padding(
+      padding: const EdgeInsets.all(32.0),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Positioned(
-            top: 10,
-            left: 10,
-            child: _backButton(color: Colors.white),
+          const Text("Iniciar Sesión", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: unimetBlue)),
+          const SizedBox(height: 30),
+          TextField(
+            controller: _emailController,
+            decoration: const InputDecoration(labelText: "Correo UNIMET", prefixIcon: Icon(Icons.email_outlined)),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 56),
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text(
-                    "¡Bienvenido\nde nuevo!",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 48,
-                      fontWeight: FontWeight.w900,
-                      height: 1.05,
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  Text(
-                    "Acceso exclusivo para la comunidad UNIMET.\nInicia sesión y sigue tu intercambio académico.",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.85),
-                      fontSize: 16,
-                      height: 1.5,
-                    ),
-                  ),
-                  const SizedBox(height: 26),
-                  const _BenefitRow(
-                    icon: Icons.verified_user_outlined,
-                    text: "Perfiles verificados (correo institucional).",
-                  ),
-                  const SizedBox(height: 10),
-                  const _BenefitRow(
-                    icon: Icons.swap_horiz_rounded,
-                    text: "Intercambio y trazabilidad del material.",
-                  ),
-                  const SizedBox(height: 10),
-                  const _BenefitRow(
-                    icon: Icons.volunteer_activism_outlined,
-                    text: "Apoya la reutilización y el acceso equitativo.",
-                  ),
-                ],
-              ),
+          const SizedBox(height: 20),
+          TextField(
+            controller: _passwordController,
+            obscureText: true,
+            decoration: const InputDecoration(labelText: "Contraseña", prefixIcon: Icon(Icons.lock_outline)),
+          ),
+          const SizedBox(height: 30),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton(
+              onPressed: authVM.isLoading ? null : _handleLogin,
+              style: ElevatedButton.styleFrom(backgroundColor: unimetOrange, foregroundColor: Colors.white),
+              child: authVM.isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text("ENTRAR"),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Center(
+            child: TextButton(
+              onPressed: () {
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const RegisterPage()));
+              },
+              child: const Text("Crear una cuenta", style: TextStyle(color: unimetBlue, fontWeight: FontWeight.bold)),
             ),
           ),
         ],
       ),
     );
 
-    final Widget rightPane = Container(
-      color: Colors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 28),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 520),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Image.asset(
-                'assets/images/bookloop_logo.png',
-                height: 160,
-                errorBuilder: (context, error, stackTrace) =>
-                    const Icon(Icons.menu_book, size: 90, color: unimetBlue),
-              ),
-              const SizedBox(height: 18),
-              const Text(
-                "Inicio de sesión",
-                style: TextStyle(
-                  fontSize: 28,
-                  color: unimetOrange,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 26),
-
-              const Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  "Correo UNIMET",
-                  style: TextStyle(
-                    color: unimetBlue,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: InputDecoration(
-                  hintText: "usuario@correo.unimet.edu.ve",
-                  prefixIcon: const Icon(Icons.email_outlined),
-                  filled: true,
-                  fillColor: unimetBlue.withOpacity(0.06),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              const Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  "Contraseña",
-                  style: TextStyle(
-                    color: unimetBlue,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _passwordController,
-                obscureText: true,
-                decoration: InputDecoration(
-                  hintText: "••••••••",
-                  prefixIcon: const Icon(Icons.lock_outline),
-                  filled: true,
-                  fillColor: unimetBlue.withOpacity(0.06),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 22),
-
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: authVM.isLoading ? null : _handleLogin,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: unimetOrange,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: authVM.isLoading
-                      ? const SizedBox(
-                          height: 22,
-                          width: 22,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Text("ENTRAR", style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
-              ),
-
-              const SizedBox(height: 18),
-              const Divider(height: 24),
-
-              TextButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const RegisterPage()),
-                  );
-                },
-                child: const Text(
-                  "Crear una cuenta",
-                  style: TextStyle(color: unimetBlue, fontWeight: FontWeight.bold),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-
-    if (isWide) {
-      return Scaffold(
-        body: Row(
-          children: [
-            Expanded(child: leftPane),
-            Expanded(child: rightPane),
-          ],
-        ),
-      );
-    }
-
     return Scaffold(
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Padding(
-                padding: const EdgeInsets.only(top: 12, left: 12),
-                child: _backButton(color: unimetBlue),
-              ),
-            ),
-            SizedBox(height: 260, child: leftPane),
-            rightPane,
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _BenefitRow extends StatelessWidget {
-  final IconData icon;
-  final String text;
-
-  const _BenefitRow({required this.icon, required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(icon, color: Colors.white.withOpacity(0.9), size: 22),
-        const SizedBox(width: 10),
-        Flexible(
-          child: Text(
-            text,
-            textAlign: TextAlign.left,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.85),
-              fontSize: 14,
-              height: 1.3,
+      body: isWide 
+        ? Row(children: [Expanded(child: leftPane), Expanded(child: rightPane)])
+        : SingleChildScrollView(
+            child: Column(
+              children: [
+                Align(alignment: Alignment.centerLeft, child: Padding(padding: const EdgeInsets.all(12), child: _backButton(color: unimetBlue))),
+                SizedBox(height: 250, child: leftPane),
+                rightPane,
+              ],
             ),
           ),
-        ),
-      ],
     );
   }
 }
