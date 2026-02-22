@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import 'login_page.dart';
 import 'register_page.dart';
+import 'home_page.dart';
 
 class StartPage extends StatelessWidget {
   const StartPage({super.key});
@@ -377,9 +378,29 @@ class _RightCard extends StatelessWidget {
               child: const Text('Crear cuenta', style: TextStyle(color: Color(0xFF1B3A57), fontWeight: FontWeight.bold)),
             ),
           ] else
-            const Text(
-              "🚀 Listo para explorar libros",
-              style: TextStyle(color: Color(0xFF1B3A57), fontWeight: FontWeight.bold),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFF28B31),
+                foregroundColor: Colors.white,
+                minimumSize: const Size(double.infinity, 50),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                elevation: 2,
+              ),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const HomePage()),
+                );
+              },
+              child: const Text(
+                "🚀Listo para explorar libros",
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           const SizedBox(height: 20),
           const Divider(),

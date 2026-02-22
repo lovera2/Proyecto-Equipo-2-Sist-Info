@@ -15,6 +15,7 @@ import 'viewmodels/auth_viewmodel.dart';
 import 'viewmodels/payment_viewmodel.dart';
 import 'viewmodels/register_viewmodel.dart';
 import 'viewmodels/profile_viewmodel.dart';
+import 'viewmodels/home_viewmodel.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -55,6 +56,9 @@ class BookLoopApp extends StatelessWidget {
             context.read<AuthService>(),
             context.read<UserService>(),
           ),
+        ),
+        ChangeNotifierProvider<HomeViewModel>(
+          create: (context) => HomeViewModel(context.read<AuthService>()),
         ),
       ],
       child: MaterialApp(
