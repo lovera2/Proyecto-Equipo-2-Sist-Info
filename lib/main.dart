@@ -4,7 +4,14 @@ import 'package:provider/provider.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'firebase_options.dart';
+
+// Views
 import 'views/start_page.dart';
+import 'views/login_page.dart';
+import 'views/home_page.dart';
+import 'views/home(admin)_page.dart';
+import 'views/profile_page.dart';
+import 'views/edit_profile_page.dart';
 
 // Services
 import 'services/auth_service.dart';
@@ -15,6 +22,10 @@ import 'viewmodels/auth_viewmodel.dart';
 import 'viewmodels/payment_viewmodel.dart';
 import 'viewmodels/register_viewmodel.dart';
 import 'viewmodels/profile_viewmodel.dart';
+<<<<<<< Updated upstream
+=======
+import 'viewmodels/home_viewmodel.dart';
+>>>>>>> Stashed changes
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -33,11 +44,9 @@ class BookLoopApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        // Services
         Provider<AuthService>(create: (_) => AuthService()),
         Provider<UserService>(create: (_) => UserService()),
 
-        // ViewModels
         ChangeNotifierProvider<AuthViewModel>(
           create: (context) => AuthViewModel(context.read<AuthService>()),
         ),
@@ -61,7 +70,6 @@ class BookLoopApp extends StatelessWidget {
         title: 'BookLoop Unimet',
         debugShowCheckedModeBanner: false,
 
-        // Localización en español, para funciones propias de Flutter
         locale: const Locale('es'),
         supportedLocales: const [
           Locale('es'),
@@ -77,7 +85,20 @@ class BookLoopApp extends StatelessWidget {
           primarySwatch: Colors.orange,
           useMaterial3: true,
         ),
+<<<<<<< Updated upstream
         home: const StartPage(),
+=======
+
+        initialRoute: '/',
+        routes: {
+          '/': (context) => const StartPage(),
+          '/login': (context) => const LoginPage(),
+          '/home_page': (context) => const HomePage(),
+          '/home_admin': (context) => const HomeAdminPage(),
+          '/profile': (context) => const ProfilePage(),
+          '/edit_profile': (context) => const EditProfilePage(),
+        },
+>>>>>>> Stashed changes
       ),
     );
   }

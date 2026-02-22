@@ -26,19 +26,17 @@ class _PaymentPageState extends State<PaymentPage> {
   String? selectedAmount;
 
   Future<void> _processPaymentAndRegister() async {
-    if(selectedAmount==null){
+    if (selectedAmount == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Por favor, selecciona un monto para continuar.")),
       );
       return;
     }
 
-    final vm=context.read<PaymentViewModel>();
+    final vm = context.read<PaymentViewModel>();
 
-    // Protección anti doble-click mientras está cargando
-    if(vm.isLoading) return;
+    if (vm.isLoading) return;
 
-    // Loading igual que antes
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -47,21 +45,21 @@ class _PaymentPageState extends State<PaymentPage> {
       ),
     );
 
-    final ok=await vm.registrarConMembresia(
+    final ok = await vm.registrarConMembresia(
       email: widget.email,
       password: widget.password,
       rol: widget.rol,
       montoDonado: selectedAmount!,
     );
 
-    if(!mounted) return;
+    if (!mounted) return;
 
-    Navigator.pop(context); //quita loading
+    Navigator.pop(context);
 
-    if(ok){
+    if (ok) {
       _showSuccessDialog();
-    }else{
-      final msg=vm.errorMessage ?? "❌ Error de conexión";
+    } else {
+      final msg = vm.errorMessage ?? "❌ Error de conexión";
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(msg), backgroundColor: Colors.red),
       );
@@ -72,7 +70,7 @@ class _PaymentPageState extends State<PaymentPage> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Icon(Icons.check_circle, color: Colors.green, size: 60),
         content: Text(
@@ -83,11 +81,14 @@ class _PaymentPageState extends State<PaymentPage> {
           Center(
             child: TextButton(
               onPressed: () {
-                Navigator.pop(context);
-                Navigator.of(context).popUntil((route) => route.isFirst);
+                Navigator.pop(dialogContext); // cerrar el dialog
+                Navigator.of(context).pushNamedAndRemoveUntil(
+                  '/edit_profile',
+                  (route) => false,
+                );
               },
               child: const Text(
-                "Empezar a usar BookLoop",
+                "Completar mi perfil",
                 style: TextStyle(fontWeight: FontWeight.bold, color: unimetOrange),
               ),
             ),
@@ -132,15 +133,14 @@ class _PaymentPageState extends State<PaymentPage> {
                   style: TextStyle(color: Colors.black54, height: 1.4),
                 ),
                 const SizedBox(height: 30),
-
                 Wrap(
                   spacing: 15,
                   runSpacing: 15,
                   alignment: WrapAlignment.center,
-                  children: ["\$0,99", "\$1,99", "\$4,99", "\$9,99", "\$15,99", "\$19,99"].map((amount){
-                    final bool isSelected=selectedAmount==amount;
+                  children: ["\$0,99", "\$1,99", "\$4,99", "\$9,99", "\$15,99", "\$19,99"].map((amount) {
+                    final bool isSelected = selectedAmount == amount;
                     return GestureDetector(
-                      onTap: ()=>setState(()=>selectedAmount=amount),
+                      onTap: () => setState(() => selectedAmount = amount),
                       child: Container(
                         width: 100,
                         padding: const EdgeInsets.symmetric(vertical: 15),
@@ -158,9 +158,7 @@ class _PaymentPageState extends State<PaymentPage> {
                     );
                   }).toList(),
                 ),
-
                 const SizedBox(height: 40),
-
                 ElevatedButton(
                   onPressed: _processPaymentAndRegister,
                   style: ElevatedButton.styleFrom(
@@ -173,7 +171,6 @@ class _PaymentPageState extends State<PaymentPage> {
                     style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ),
-
                 const SizedBox(height: 25),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
