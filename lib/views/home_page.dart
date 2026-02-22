@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../viewmodels/home_viewmodel.dart';
 import '../viewmodels/auth_viewmodel.dart';
+import 'profile_page.dart'; // ✅ NUEVO
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -14,7 +15,6 @@ class _HomePageState extends State<HomePage> {
   static const Color unimetBlue = Color(0xFF1B3A57);
   static const Color unimetOrange = Color(0xFFF28B31);
 
-
   Future<void> _handleLogout(BuildContext context) async {
     await context.read<AuthViewModel>().logout();
 
@@ -26,7 +26,7 @@ class _HomePageState extends State<HomePage> {
         backgroundColor: unimetBlue,
       ),
     );
-    
+
     Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
   }
 
@@ -73,14 +73,12 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
           ),
-          
           const _BackgroundBlobs(),
-
           SafeArea(
             child: Column(
               children: [
                 _buildHeader(context),
-                
+
                 // Se creó la "search bar" para optimizar el diseño, no es funcional
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
@@ -97,9 +95,11 @@ class _HomePageState extends State<HomePage> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.library_books_outlined, 
-                             size: 80, 
-                             color: Colors.white.withOpacity(0.2)),
+                        Icon(
+                          Icons.library_books_outlined,
+                          size: 80,
+                          color: Colors.white.withOpacity(0.2),
+                        ),
                         const SizedBox(height: 10),
                         const Text(
                           "Explora el catálogo pronto...",
@@ -119,8 +119,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-
-Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       child: Row(
@@ -133,9 +132,9 @@ Widget _buildHeader(BuildContext context) {
               const Text(
                 "BookLoop",
                 style: TextStyle(
-                  color: Colors.white, 
-                  fontSize: 22, 
-                  fontWeight: FontWeight.bold
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             ],
@@ -146,10 +145,18 @@ Widget _buildHeader(BuildContext context) {
                 icon: const Icon(Icons.notifications_none_outlined, color: Colors.white, size: 28),
                 onPressed: () {},
               ),
+
+              // ✅ CAMBIO: ahora abre ProfilePage
               IconButton(
                 icon: const Icon(Icons.person_outline, color: Colors.white, size: 28),
-                onPressed: () {},
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ProfilePage()),
+                  );
+                },
               ),
+
               PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert, color: Colors.white, size: 28),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
@@ -216,13 +223,17 @@ class _Footer extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
       child: Row(
         children: [
-          const Text('© BookLoop • UNIMET', 
-            style: TextStyle(color: Colors.white60, fontSize: 12)),
+          const Text(
+            '© BookLoop • UNIMET',
+            style: TextStyle(color: Colors.white60, fontSize: 12),
+          ),
           const Spacer(),
           TextButton(
             onPressed: onTerms,
-            child: const Text('Términos y condiciones', 
-              style: TextStyle(color: Colors.white70, fontSize: 12)),
+            child: const Text(
+              'Términos y condiciones',
+              style: TextStyle(color: Colors.white70, fontSize: 12),
+            ),
           ),
         ],
       ),

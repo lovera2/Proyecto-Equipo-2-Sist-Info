@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../viewmodels/home_viewmodel.dart';
 import '../viewmodels/auth_viewmodel.dart';
+import 'profile_page.dart'; // ✅ NUEVO
 
 class HomeAdminPage extends StatefulWidget {
   const HomeAdminPage({super.key});
@@ -17,7 +18,7 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
   Future<void> _handleLogout(BuildContext context) async {
     await context.read<AuthViewModel>().logout();
     if (!context.mounted) return;
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text("👋 Sesión cerrada. ¡Vuelve pronto!"),
@@ -66,18 +67,17 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [unimetOrange, Color(0xFFD67628)], 
+                colors: [unimetBlue, Color(0xFF2C5E8C)],
               ),
             ),
           ),
-          
           const _BackgroundBlobs(),
-
           SafeArea(
             child: Column(
               children: [
                 _buildHeader(context),
-                
+
+                // Search bar visual (no funcional)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                   child: Column(
@@ -93,17 +93,15 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.admin_panel_settings_outlined, 
-                             size: 80, 
-                             color: Colors.white.withOpacity(0.3)),
+                        Icon(
+                          Icons.admin_panel_settings_outlined,
+                          size: 80,
+                          color: Colors.white.withOpacity(0.2),
+                        ),
                         const SizedBox(height: 10),
                         const Text(
-                          "Panel de Administración",
-                          style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
-                        ),
-                        const Text(
-                          "Monitoreo de actividad y recursos",
-                          style: TextStyle(color: Colors.white70, fontSize: 14),
+                          "Panel de administrador (en construcción)...",
+                          style: TextStyle(color: Colors.white70, fontSize: 16),
                         ),
                       ],
                     ),
@@ -130,11 +128,11 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
               const Icon(Icons.menu_book, color: Colors.white, size: 30),
               const SizedBox(width: 12),
               const Text(
-                "BookLoop ADMIN",
+                "BookLoop • Admin",
                 style: TextStyle(
-                  color: Colors.white, 
-                  fontSize: 22, 
-                  fontWeight: FontWeight.bold
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             ],
@@ -142,23 +140,38 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
           Row(
             children: [
               PopupMenuButton<String>(
-                icon: const Icon(Icons.settings_suggest, color: Colors.white, size: 28),
-                tooltip: "Funciones Admin",
+                icon: const Icon(Icons.settings, color: Colors.white, size: 28),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                 onSelected: (value) {
-                  // Aquí ponemos lo que hacen los botones
+                  // Opciones admin (placeholder)
+                  if (value == 'filters') {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text("⚙️ Gestión de filtros (pendiente)"),
+                        backgroundColor: unimetOrange,
+                      ),
+                    );
+                  }
                 },
-                itemBuilder: (context) => [
-                  _buildAdminMenuItem(Icons.dashboard, "Dashboard"),
-                  _buildAdminMenuItem(Icons.people, "Gestión de Perfiles"),
-                  _buildAdminMenuItem(Icons.auto_stories, "Gestión de Material"),
-                  _buildAdminMenuItem(Icons.filter_list, "Gestión de Filtros"),
+                itemBuilder: (context) => const [
+                  PopupMenuItem(
+                    value: 'filters',
+                    child: Text("Gestión de Filtros"),
+                  ),
                 ],
               ),
+
+              // ✅ CAMBIO: ahora abre ProfilePage
               IconButton(
                 icon: const Icon(Icons.person_outline, color: Colors.white, size: 28),
-                onPressed: () {},
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ProfilePage()),
+                  );
+                },
               ),
+
               PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert, color: Colors.white, size: 28),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
@@ -167,8 +180,8 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
                     _handleLogout(context);
                   }
                 },
-                itemBuilder: (context) => [
-                  const PopupMenuItem(
+                itemBuilder: (context) => const [
+                  PopupMenuItem(
                     value: 'logout',
                     child: Row(
                       children: [
@@ -182,19 +195,6 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
               ),
             ],
           ),
-        ],
-      ),
-    );
-  }
-
-  PopupMenuItem<String> _buildAdminMenuItem(IconData icon, String text) {
-    return PopupMenuItem(
-      value: text.toLowerCase(),
-      child: Row(
-        children: [
-          Icon(icon, color: unimetBlue, size: 20),
-          const SizedBox(width: 12),
-          Text(text),
         ],
       ),
     );
@@ -228,8 +228,6 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
   }
 }
 
-// --- AGREGA ESTO AL FINAL DEL ARCHIVO home(admin)_page.dart ---
-
 class _Footer extends StatelessWidget {
   final VoidCallback onTerms;
   const _Footer({required this.onTerms});
@@ -241,15 +239,15 @@ class _Footer extends StatelessWidget {
       child: Row(
         children: [
           const Text(
-            '© BookLoop • UNIMET', 
-            style: TextStyle(color: Colors.white60, fontSize: 12)
+            '© BookLoop • UNIMET',
+            style: TextStyle(color: Colors.white60, fontSize: 12),
           ),
           const Spacer(),
           TextButton(
             onPressed: onTerms,
             child: const Text(
-              'Términos y condiciones', 
-              style: TextStyle(color: Colors.white70, fontSize: 12)
+              'Términos y condiciones',
+              style: TextStyle(color: Colors.white70, fontSize: 12),
             ),
           ),
         ],
@@ -273,12 +271,10 @@ class _BackgroundBlobs extends StatelessWidget {
 class _BlobPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    // Usamos blanco con muy baja opacidad para el efecto de fondo
-    final paint = Paint()..color = Colors.white.withOpacity(0.05);
-    
-    canvas.drawCircle(Offset(size.width * 0.2, size.height * 0.1), 100, paint);
-    canvas.drawCircle(Offset(size.width * 0.8, size.height * 0.5), 150, paint);
-    canvas.drawCircle(Offset(size.width * 0.3, size.height * 0.9), 120, paint);
+    final p1 = Paint()..color = Colors.white.withOpacity(0.05);
+    canvas.drawCircle(Offset(size.width * 0.1, size.height * 0.2), 100, p1);
+    canvas.drawCircle(Offset(size.width * 0.9, size.height * 0.5), 150, p1);
+    canvas.drawCircle(Offset(size.width * 0.4, size.height * 0.8), 120, p1);
   }
 
   @override
