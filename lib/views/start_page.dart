@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import 'login_page.dart';
 import 'register_page.dart';
+import 'home_page.dart';
 
 class StartPage extends StatelessWidget {
   const StartPage({super.key});
@@ -461,15 +462,11 @@ class _RightCard extends StatelessWidget {
                 side: const BorderSide(color: StartPage.unimetBlue),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              child: const Text('Crear cuenta',
-                  style: TextStyle(color: StartPage.unimetBlue, fontWeight: FontWeight.bold)),
+              child: const Text(
+                'Crear cuenta',
+                style: TextStyle(color: StartPage.unimetBlue, fontWeight: FontWeight.bold),
+              ),
             ),
-<<<<<<< Updated upstream
-          ] else
-            const Text(
-              "🚀 Listo para explorar libros",
-              style: TextStyle(color: Color(0xFF1B3A57), fontWeight: FontWeight.bold),
-=======
           ] else ...[
             ElevatedButton(
               onPressed: onGoHome,
@@ -478,8 +475,10 @@ class _RightCard extends StatelessWidget {
                 minimumSize: const Size(double.infinity, 50),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              child: const Text("🚀 Listo para explorar", style: TextStyle(color: Colors.white, fontSize: 16)),
->>>>>>> Stashed changes
+              child: const Text(
+                "🚀 Listo para explorar",
+                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+              ),
             ),
           ],
           const SizedBox(height: 20),

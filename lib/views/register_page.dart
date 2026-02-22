@@ -21,13 +21,35 @@ class _RegisterPageState extends State<RegisterPage> {
   static const Color unimetBlue = Color(0xFF1B3A57);
   static const Color unimetOrange = Color(0xFFF28B31);
 
+  bool _emailValidoPorRol(String email, String rol) {
+    final e = email.trim().toLowerCase();
+    final r = rol.trim().toLowerCase();
+
+    if (r == "docente") {
+      return e.endsWith("@unimet.edu.ve");
+    }
+    // estudiante
+    return e.endsWith("@correo.unimet.edu.ve");
+  }
+
   void _validarYPasarAlPago(
     TextEditingController eCont,
     TextEditingController pCont,
     String rol,
   ) {
-    final String emailVal = eCont.text.trim();
+    final String emailVal = eCont.text.trim().toLowerCase();
     final String passwordVal = pCont.text.trim();
+
+    if (!_emailValidoPorRol(emailVal, rol)) {
+      final msg = rol.toLowerCase() == "docente"
+          ? "Docentes: usa solo la dirección '@unimet.edu.ve'"
+          : "Estudiantes: usa solo la dirección '@correo.unimet.edu.ve'";
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("❌ $msg"), backgroundColor: Colors.red),
+      );
+      return;
+    }
 
     final vm = context.read<RegisterViewModel>();
     final ok = vm.validarFormulario(email: emailVal, password: passwordVal);

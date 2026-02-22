@@ -22,10 +22,7 @@ import 'viewmodels/auth_viewmodel.dart';
 import 'viewmodels/payment_viewmodel.dart';
 import 'viewmodels/register_viewmodel.dart';
 import 'viewmodels/profile_viewmodel.dart';
-<<<<<<< Updated upstream
-=======
 import 'viewmodels/home_viewmodel.dart';
->>>>>>> Stashed changes
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -44,9 +41,11 @@ class BookLoopApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        // Services
         Provider<AuthService>(create: (_) => AuthService()),
         Provider<UserService>(create: (_) => UserService()),
 
+        // ViewModels
         ChangeNotifierProvider<AuthViewModel>(
           create: (context) => AuthViewModel(context.read<AuthService>()),
         ),
@@ -65,11 +64,15 @@ class BookLoopApp extends StatelessWidget {
             context.read<UserService>(),
           ),
         ),
+        ChangeNotifierProvider<HomeViewModel>(
+          create: (context) => HomeViewModel(context.read<AuthService>()),
+        ),
       ],
       child: MaterialApp(
         title: 'BookLoop Unimet',
         debugShowCheckedModeBanner: false,
 
+        // Localización
         locale: const Locale('es'),
         supportedLocales: const [
           Locale('es'),
@@ -85,9 +88,6 @@ class BookLoopApp extends StatelessWidget {
           primarySwatch: Colors.orange,
           useMaterial3: true,
         ),
-<<<<<<< Updated upstream
-        home: const StartPage(),
-=======
 
         initialRoute: '/',
         routes: {
@@ -98,7 +98,6 @@ class BookLoopApp extends StatelessWidget {
           '/profile': (context) => const ProfilePage(),
           '/edit_profile': (context) => const EditProfilePage(),
         },
->>>>>>> Stashed changes
       ),
     );
   }

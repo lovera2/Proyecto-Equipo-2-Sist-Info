@@ -73,8 +73,6 @@ class _ProfilePageState extends State<ProfilePage> {
                   onEdit: () => _openEdit(context),
                   onHome: () => _goHome(context),
                   onProfile: () {
-                    // ya se está en perfil; si quieres refrescar:
-                    context.read<ProfileViewModel>().cargarPerfil();
                   },
                   onNotifications: () {
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -344,7 +342,7 @@ class _TopProfileRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tipo = ((vm.email ?? '').toLowerCase().startsWith('admin')) ? "Administrador" : "Estudiante";
+    final tipo = vm.rolMostrado;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,

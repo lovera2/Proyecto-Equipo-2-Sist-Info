@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../viewmodels/home_viewmodel.dart';
 import '../viewmodels/auth_viewmodel.dart';
-import 'profile_page.dart';
 
 class HomeAdminPage extends StatefulWidget {
   const HomeAdminPage({super.key});
