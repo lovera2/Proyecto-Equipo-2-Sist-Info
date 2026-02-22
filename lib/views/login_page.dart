@@ -15,8 +15,8 @@ class _LoginPageState extends State<LoginPage> {
   static const Color unimetBlue = Color(0xFF1B3A57);
   static const Color unimetOrange = Color(0xFFF28B31);
 
-  final TextEditingController _emailController=TextEditingController();
-  final TextEditingController _passwordController=TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
 
   @override
   void dispose() {
@@ -26,177 +26,128 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _handleLogin() async {
-    final email=_emailController.text.trim().toLowerCase();
-    final password=_passwordController.text.trim();
+    final email = _emailController.text.trim().toLowerCase();
+    final password = _passwordController.text.trim();
 
-    if(email.isEmpty || password.isEmpty){
+    if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Por favor, completa correo y contraseña.")),
       );
       return;
     }
 
-    final authVM=context.read<AuthViewModel>();
-    final ok=await authVM.login(email,password);
+    final authVM = context.read<AuthViewModel>();
+    final ok = await authVM.login(email, password);
 
-    if(!mounted) return;
+    if (!mounted) return;
 
-    if(ok){
+    if (ok) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("✅ Sesión iniciada correctamente."),
+          content: Text("🚀 ¡Bienvenido a BookLoop!"),
           backgroundColor: unimetBlue,
         ),
       );
-      Navigator.pop(context);
-    }else{
-      final msg=authVM.errorMessage ?? "❌ No se pudo iniciar sesión.";
+
+      if (email.startsWith('admin')) {
+        Navigator.pushReplacementNamed(context, '/home_admin');
+      } else {
+        Navigator.pushReplacementNamed(context, '/home_page');
+      }
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(msg), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text(authVM.errorMessage ?? "Error al iniciar sesión"),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
 
   Widget _backButton({required Color color}) {
     return IconButton(
-      tooltip: 'Volver',
-      icon: Icon(Icons.arrow_back, color: color),
+      icon: const Icon(Icons.arrow_back_ios_new_rounded),
+      color: color,
       onPressed: () => Navigator.pop(context),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final authVM=context.watch<AuthViewModel>();
+    final authVM = context.watch<AuthViewModel>();
+    final isWide = MediaQuery.of(context).size.width > 600;
+
+    final leftPane = Container(
+      color: unimetBlue,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.menu_book_rounded, size: 80, color: Colors.white),
+            const SizedBox(height: 20),
+            const Text(
+              "BookLoop",
+              style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white),
+            ),
+            Text("UNIMET", style: TextStyle(fontSize: 18, color: Colors.white.withOpacity(0.8))),
+          ],
+        ),
+      ),
+    );
+
+    final rightPane = Padding(
+      padding: const EdgeInsets.all(32.0),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text("Iniciar Sesión", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: unimetBlue)),
+          const SizedBox(height: 30),
+          TextField(
+            controller: _emailController,
+            decoration: const InputDecoration(labelText: "Correo UNIMET", prefixIcon: Icon(Icons.email_outlined)),
+          ),
+          const SizedBox(height: 20),
+          TextField(
+            controller: _passwordController,
+            obscureText: true,
+            decoration: const InputDecoration(labelText: "Contraseña", prefixIcon: Icon(Icons.lock_outline)),
+          ),
+          const SizedBox(height: 30),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton(
+              onPressed: authVM.isLoading ? null : _handleLogin,
+              style: ElevatedButton.styleFrom(backgroundColor: unimetOrange, foregroundColor: Colors.white),
+              child: authVM.isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text("ENTRAR"),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Center(
+            child: TextButton(
+              onPressed: () {
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const RegisterPage()));
+              },
+              child: const Text("Crear una cuenta", style: TextStyle(color: unimetBlue, fontWeight: FontWeight.bold)),
+            ),
+          ),
+        ],
+      ),
+    );
 
     return Scaffold(
-      body: LayoutBuilder(
-        builder: (context,constraints){
-          final bool isWide=constraints.maxWidth >= 900;
-
-          final Widget leftPane=Container(
-            color: unimetBlue,
-            child: Stack(
-              children: [
-                Positioned(
-                  top: 12,
-                  left: 12,
-                  child: _backButton(color: Colors.white),
-                ),
-                const Center(
-                  child: Text(
-                    "¡Bienvenido\nde nuevo!",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white, fontSize: 40, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ],
-            ),
-          );
-
-          final Widget rightPane=Container(
-            padding: const EdgeInsets.all(50),
-            color: Colors.white,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Image.asset('assets/images/bookloop_logo.png', height: 190),
-                const SizedBox(height: 20),
-                const Text(
-                  "Inicio de sesión",
-                  style: TextStyle(fontSize: 28, color: unimetOrange, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 30),
-
-                TextField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: InputDecoration(
-                    hintText: "Usuario / e-mail",
-                    filled: true,
-                    fillColor: unimetBlue.withOpacity(0.1),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-                  ),
-                ),
-                const SizedBox(height: 15),
-
-                TextField(
-                  controller: _passwordController,
-                  obscureText: true,
-                  decoration: InputDecoration(
-                    hintText: "Contraseña",
-                    filled: true,
-                    fillColor: unimetBlue.withOpacity(0.1),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-                  ),
-                ),
-                const SizedBox(height: 30),
-
-                ElevatedButton(
-                  onPressed: authVM.isLoading ? null : _handleLogin,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: unimetOrange,
-                    minimumSize: const Size(double.infinity, 50),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                  child: authVM.isLoading
-                      ? const SizedBox(
-                          height: 22,
-                          width: 22,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Text("Iniciar sesión", style: TextStyle(color: Colors.white)),
-                ),
-
-                const SizedBox(height: 20),
-                const Divider(color: Colors.grey),
-                const SizedBox(height: 10),
-
-                TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const RegisterPage()),
-                    );
-                  },
-                  child: const Text(
-                    "Crear una cuenta",
-                    style: TextStyle(color: unimetBlue, fontWeight: FontWeight.bold, fontSize: 16),
-                  ),
-                ),
-              ],
-            ),
-          );
-
-          if(isWide){
-            return Row(
-              children: [
-                Expanded(flex: 1, child: leftPane),
-                Expanded(flex: 1, child: rightPane),
-              ],
-            );
-          }
-
-          return SingleChildScrollView(
+      body: isWide 
+        ? Row(children: [Expanded(child: leftPane), Expanded(child: rightPane)])
+        : SingleChildScrollView(
             child: Column(
               children: [
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 12, left: 12),
-                    child: _backButton(color: unimetBlue),
-                  ),
-                ),
-                SizedBox(
-                  height: 260,
-                  child: leftPane,
-                ),
+                Align(alignment: Alignment.centerLeft, child: Padding(padding: const EdgeInsets.all(12), child: _backButton(color: unimetBlue))),
+                SizedBox(height: 250, child: leftPane),
                 rightPane,
               ],
             ),
-          );
-        },
-      ),
+          ),
     );
   }
 }

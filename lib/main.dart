@@ -16,6 +16,9 @@ import 'viewmodels/payment_viewmodel.dart';
 import 'viewmodels/register_viewmodel.dart';
 import 'viewmodels/profile_viewmodel.dart';
 import 'viewmodels/home_viewmodel.dart';
+import 'views/home(admin)_page.dart';
+import 'views/home_page.dart';
+import 'views/login_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -81,8 +84,15 @@ class BookLoopApp extends StatelessWidget {
           primarySwatch: Colors.orange,
           useMaterial3: true,
         ),
-        home: const StartPage(),
-      ),
-    );
+        
+        initialRoute: '/',
+        routes: {
+          '/': (context) => const StartPage(),
+          '/login': (context) => const LoginPage(),
+          '/home_page': (context) => const HomePage(),      // Usuario normal
+          '/home_admin': (context) => const HomeAdminPage(), // <--- USA EL NUEVO NOMBRE AQUÍ
+        },
+      ), // Cierre de MaterialApp
+    ); // Cierre de MultiProvider
   }
 }
