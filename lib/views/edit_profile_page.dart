@@ -46,7 +46,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
   Future<void> _initFromVm() async {
     final vm = context.read<ProfileViewModel>();
 
-    // fuerza recarga (ya limpia los datos viejos en cargarPerfil)
+    //Limpieza de UI antes de pedir datos
+    setState(() => _initialized = false);
+    _nombreCtrl.text = '';
+    _apellidoCtrl.text = '';
+    _cedulaCtrl.text = '';
+    _carreraCtrl.text = '';
+    _emoji = "🙂";
+
+    //Obtención de datos
     await vm.cargarPerfil();
     if (!mounted) return;
 
@@ -140,9 +148,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
     Navigator.of(context).pushNamedAndRemoveUntil('/profile', (route) => false);
   }
 
+  void _cancelar() {
+    Navigator.of(context).pushNamedAndRemoveUntil('/profile', (r) => false);
+  }
+
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<ProfileViewModel>();
+    final usuario = vm.username;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -150,13 +163,62 @@ class _EditProfilePageState extends State<EditProfilePage> {
         title: const Text('Editar Perfil - BookLoop', style: TextStyle(color: Colors.white)),
         backgroundColor: unimetBlue,
         elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+        leading: IconButton(
+          tooltip: 'Volver',
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: _cancelar,
+        ),
       ),
-      body: !_initialized || vm.isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
+      body: Stack(
+        children: [
+          const _EditProfileBackground(),
+          if (!_initialized || vm.isLoading)
+            const Center(child: CircularProgressIndicator())
+          else
+            SingleChildScrollView(
               padding: const EdgeInsets.all(18),
               child: Column(
                 children: [
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isWide = constraints.maxWidth >= 900;
+
+                      final info1 = _InfoBanner(
+                        icon: Icons.assignment_turned_in_outlined,
+                        title: "Completa tus datos personales",
+                        message:
+                            "Por favor llena tu nombre, apellido, cédula y carrera. Esto ayuda a que los préstamos y reservas se vean más claros para otros unimetanos.",
+                      );
+
+                      final info2 = _InfoBanner(
+                        icon: Icons.alternate_email,
+                        title: "Tu usuario de BookLoop viene de tu correo",
+                        message:
+                            "Tu usuario se genera automáticamente con lo que va antes del @ en tu email (ej: $usuario). Por seguridad y consistencia, ese usuario no se puede cambiar.",
+                      );
+
+                      if (isWide) {
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(child: info1),
+                            const SizedBox(width: 12),
+                            Expanded(child: info2),
+                          ],
+                        );
+                      }
+
+                      return Column(
+                        children: [
+                          info1,
+                          const SizedBox(height: 12),
+                          info2,
+                        ],
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 14),
                   Card(
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                     child: Padding(
@@ -276,7 +338,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     children: [
                       Expanded(
                         child: OutlinedButton(
-                          onPressed: vm.isSaving ? null : () => Navigator.pop(context),
+                          onPressed: vm.isSaving ? null : _cancelar,
                           style: OutlinedButton.styleFrom(
                             side: const BorderSide(color: unimetBlue),
                             minimumSize: const Size(double.infinity, 48),
@@ -308,6 +370,128 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 ],
               ),
             ),
+        ],
+      ),
     );
   }
+}
+
+class _InfoBanner extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String message;
+
+  const _InfoBanner({
+    required this.icon,
+    required this.title,
+    required this.message,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const Color tint = Color(0x101B3A57);
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: tint,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0x1A1B3A57)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0x1A1B3A57)),
+            ),
+            child: Icon(icon, color: const Color(0xFF1B3A57)),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF1B3A57),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  message,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    height: 1.35,
+                    color: Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
+class _EditProfileBackground extends StatelessWidget {
+  const _EditProfileBackground();
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: Stack(
+        children: [
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFF7F9FD),
+                  Color(0xFFF1F5FC),
+                  Color(0xFFFFFFFF),
+                ],
+              ),
+            ),
+          ),
+          CustomPaint(
+            painter: _SoftPatternPainter(),
+            child: const SizedBox.expand(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SoftPatternPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final dotPaint = Paint()..color = const Color(0x1A1B3A57);
+    final blobPaint = Paint()..color = const Color(0x0D1B3A57);
+
+    canvas.drawCircle(Offset(size.width * 0.15, size.height * 0.18), 140, blobPaint);
+    canvas.drawCircle(Offset(size.width * 0.88, size.height * 0.30), 170, blobPaint);
+    canvas.drawCircle(Offset(size.width * 0.35, size.height * 0.82), 160, blobPaint);
+
+    const step = 90.0;
+    for (double y = 20; y < size.height; y += step) {
+      for (double x = 20; x < size.width; x += step) {
+        canvas.drawCircle(Offset(x, y), 1.3, dotPaint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

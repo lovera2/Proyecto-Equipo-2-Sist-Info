@@ -54,7 +54,7 @@ class _LoginPageState extends State<LoginPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text("🚀 ¡Bienvenido a BookLoop!"),
-        backgroundColor: unimetBlue,
+        backgroundColor: unimetOrange,
       ),
     );
 

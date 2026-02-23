@@ -10,7 +10,7 @@ class UserService {
   CollectionReference<Map<String,dynamic>> get _usersRef =>
       _db.collection(coleccionUsuarios);
 
-  // Crea/Sobrescribe el perfil completo
+  //Crea/Sobrescribe el perfil completo
   Future<void> createUserProfile({
     required String uid,
     required Map<String,dynamic> data,
@@ -18,14 +18,14 @@ class UserService {
     await _usersRef.doc(uid).set(data);
   }
 
-  // Obtiene el perfil. Bull si no existe
+  //Obtiene el perfil. Bull si no existe
   Future<Map<String,dynamic>?> getUserProfile(String uid) async {
     final snap=await _usersRef.doc(uid).get();
     if(!snap.exists) return null;
     return snap.data();
   }
 
-  // Actualización de campos
+  //Actualización de campos
   Future<void> updateUserProfile({
     required String uid,
     required Map<String,dynamic> data,
@@ -33,7 +33,7 @@ class UserService {
     await _usersRef.doc(uid).set(data,SetOptions(merge:true));
   }
 
-  // Upsert explícito
+  //Upsert explícito
   Future<void> upsertUserProfile({
     required String uid,
     required Map<String,dynamic> data,
@@ -41,7 +41,7 @@ class UserService {
     await _usersRef.doc(uid).set(data,SetOptions(merge:true));
   }
 
-  // Elimina campos específicos
+  //Eliminación de campos específicos 
   Future<void> deleteUserFields({
     required String uid,
     required List<String> fields,

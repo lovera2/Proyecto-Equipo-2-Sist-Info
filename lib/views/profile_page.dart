@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../viewmodels/profile_viewmodel.dart';
+import '../viewmodels/auth_viewmodel.dart';
 import 'edit_profile_page.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -10,7 +11,6 @@ class ProfilePage extends StatefulWidget {
   @override
   State<ProfilePage> createState() => _ProfilePageState();
 }
-
 class _ProfilePageState extends State<ProfilePage> {
   static const Color unimetBlue = Color(0xFF1B3A57);
 
@@ -47,6 +47,20 @@ class _ProfilePageState extends State<ProfilePage> {
     Navigator.of(context).pushNamedAndRemoveUntil(route, (r) => false);
   }
 
+  Future<void> _handleLogout(BuildContext context) async {
+    await context.read<AuthViewModel>().logout();
+    if (!context.mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("👋 Sesión cerrada. ¡Vuelve pronto!"),
+        backgroundColor: unimetBlue,
+      ),
+    );
+
+    Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+  }
+
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<ProfileViewModel>();
@@ -69,7 +83,7 @@ class _ProfilePageState extends State<ProfilePage> {
             child: Column(
               children: [
                 _ProfileHeader(
-                  onBack: () => Navigator.maybePop(context),
+                  onBack: () => _goHome(context),
                   onEdit: () => _openEdit(context),
                   onHome: () => _goHome(context),
                   onProfile: () {
@@ -84,6 +98,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       const SnackBar(content: Text("🛠️ Publicar/Crear en desarrollo")),
                     );
                   },
+                  onLogout: () => _handleLogout(context),
                 ),
                 Expanded(
                   child: Align(
@@ -115,6 +130,7 @@ class _ProfileHeader extends StatelessWidget {
   final VoidCallback onProfile;
   final VoidCallback onNotifications;
   final VoidCallback onCreate;
+  final VoidCallback onLogout;
 
   static const Color unimetOrange = Color(0xFFF28B31);
 
@@ -125,6 +141,7 @@ class _ProfileHeader extends StatelessWidget {
     required this.onProfile,
     required this.onNotifications,
     required this.onCreate,
+    required this.onLogout,
   });
 
   @override
@@ -134,6 +151,7 @@ class _ProfileHeader extends StatelessWidget {
       child: Row(
         children: [
           IconButton(
+            tooltip: 'Volver',
             icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
             onPressed: onBack,
           ),
@@ -155,7 +173,7 @@ class _ProfileHeader extends StatelessWidget {
             child: IconButton(
               onPressed: onCreate,
               icon: const Icon(Icons.add, color: Colors.white),
-              tooltip: 'Crear / Publicar',
+              tooltip: 'Crear / Publicar material',
             ),
           ),
           const SizedBox(width: 10),
@@ -163,11 +181,6 @@ class _ProfileHeader extends StatelessWidget {
             icon: const Icon(Icons.home_outlined, color: Colors.white, size: 28),
             onPressed: onHome, //NO pop()
             tooltip: 'Inicio',
-          ),
-          IconButton(
-            icon: const Icon(Icons.person_outline, color: Colors.white, size: 28),
-            onPressed: onProfile,
-            tooltip: 'Perfil',
           ),
           IconButton(
             icon: const Icon(Icons.notifications_none_outlined, color: Colors.white, size: 28),
@@ -178,16 +191,16 @@ class _ProfileHeader extends StatelessWidget {
             icon: const Icon(Icons.more_vert, color: Colors.white, size: 28),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
             onSelected: (value) {
-              if (value == 'edit') onEdit();
+              if (value == 'logout') onLogout();
             },
             itemBuilder: (context) => const [
               PopupMenuItem(
-                value: 'edit',
+                value: 'logout',
                 child: Row(
                   children: [
-                    Icon(Icons.edit, color: Color(0xFF1B3A57)),
+                    Icon(Icons.logout, color: Color(0xFF1B3A57)),
                     SizedBox(width: 10),
-                    Text("Editar perfil"),
+                    Text("Cerrar sesión"),
                   ],
                 ),
               ),
@@ -336,13 +349,38 @@ class _TopProfileRow extends StatelessWidget {
   final ProfileViewModel vm;
   final VoidCallback onEdit;
 
-  static const Color unimetBlue = Color(0xFF1B3A57);
-
   const _TopProfileRow({required this.vm, required this.onEdit});
 
   @override
   Widget build(BuildContext context) {
-    final tipo = vm.rolMostrado;
+    final email = (vm.email ?? "").trim();
+    final emailLower = email.toLowerCase();
+
+    // Nombre para mostrar
+    final n = (vm.nombre ?? "").trim();
+    final a = (vm.apellido ?? "").trim();
+    String nombreMostrar;
+    if (n.isEmpty && a.isEmpty) {
+      nombreMostrar = "Nombre";
+    } else if (n.isEmpty) {
+      nombreMostrar = a;
+    } else if (a.isEmpty) {
+      nombreMostrar = n;
+    } else {
+      nombreMostrar = "$n $a";
+    }
+
+    // Rol para mostrar (derivado del correo)
+    String tipo;
+    if (emailLower.startsWith('admin')) {
+      tipo = "Administrador";
+    } else if (emailLower.endsWith('@unimet.edu.ve')) {
+      tipo = "Docente";
+    } else if (emailLower.endsWith('@correo.unimet.edu.ve')) {
+      tipo = "Estudiante";
+    } else {
+      tipo = "Usuario";
+    }
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -360,10 +398,29 @@ class _TopProfileRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(vm.username, style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w600)),
-              const SizedBox(height: 4),
               Text(
-                vm.email ?? "usuario.unimet@correo.unimet.edu.ve",
+                nombreMostrar,
+                style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1B3A57).withAlpha(15), // ~6%
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: const Color(0xFF1B3A57).withAlpha(31)), // ~12%
+                    ),
+                    child: Text(
+                      "Usuario: ${vm.username}",
+                      style: const TextStyle(fontSize: 12, color: Color(0xFF1B3A57), fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+              Text(
+                email.isEmpty ? "usuario@correo.unimet.edu.ve" : email,
                 style: const TextStyle(decoration: TextDecoration.underline, fontSize: 16),
               ),
               const SizedBox(height: 6),
@@ -521,7 +578,7 @@ class _BackgroundBlobs extends StatelessWidget {
 class _BlobPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final p1 = Paint()..color = Colors.white.withOpacity(0.05);
+    final p1 = Paint()..color = Colors.white.withAlpha(13); // ~5%
     canvas.drawCircle(Offset(size.width * 0.1, size.height * 0.2), 100, p1);
     canvas.drawCircle(Offset(size.width * 0.9, size.height * 0.5), 150, p1);
     canvas.drawCircle(Offset(size.width * 0.4, size.height * 0.8), 120, p1);

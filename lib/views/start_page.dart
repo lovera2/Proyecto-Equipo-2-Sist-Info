@@ -9,15 +9,18 @@ import 'home_page.dart';
 class StartPage extends StatelessWidget {
   const StartPage({super.key});
 
+  //Estilos base del desarrollo
   static const Color unimetBlue = Color(0xFF1B3A57);
   static const Color unimetOrange = Color(0xFFF28B31);
 
+  //Navegación 
   void _goLogin(BuildContext context) =>
       Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginPage()));
 
   void _goRegister(BuildContext context) =>
       Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterPage()));
 
+  //Acciones de sesión 
   Future<void> _handleLogout(BuildContext context) async {
     await context.read<AuthViewModel>().logout();
     if (!context.mounted) return;
@@ -25,56 +28,87 @@ class StartPage extends StatelessWidget {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text("👋 Sesión cerrada. ¡Vuelve pronto!"),
-        backgroundColor: unimetBlue,
+        backgroundColor: unimetOrange,
       ),
     );
 
-    // Vuelve a StartPage (raíz)
     Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
   }
 
+  //Diálogos informativos 
   void _showInfoDialog(BuildContext context, String titulo, String contenido) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        title: Text(
-          titulo,
-          style: const TextStyle(color: unimetBlue, fontWeight: FontWeight.bold),
-        ),
-        content: SizedBox(
-          width: 480,
-          child: Text(
-            contenido,
-            style: const TextStyle(fontSize: 15, height: 1.45),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text(
-              "Entendido",
-              style: TextStyle(color: unimetOrange, fontWeight: FontWeight.bold),
+      builder: (dialogContext) {
+        final maxH = MediaQuery.of(dialogContext).size.height * 0.75;
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          title: Text(
+            titulo,
+            style: const TextStyle(
+              color: StartPage.unimetBlue,
+              fontWeight: FontWeight.bold,
             ),
           ),
-        ],
-      ),
+          content: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: 520,
+              maxHeight: maxH,
+            ),
+            child: SingleChildScrollView(
+              child: Text(
+                contenido,
+                style: const TextStyle(fontSize: 15, height: 1.45),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text(
+                "Entendido",
+                style: TextStyle(
+                  color: StartPage.unimetOrange,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
   void _showTerms(BuildContext context) {
-    _showInfoDialog(
-      context,
-      'Términos y Condiciones',
-      '• Solo correos institucionales UNIMET.\n'
-      '• Conducta respetuosa en la plataforma.\n'
-      '• Cumplimiento de fechas de devolución.\n'
-      '• Protección de datos según lineamientos UNIMET.',
-    );
-  }
+  _showInfoDialog(
+    context,
+    'Términos y Condiciones',
+    'Al usar BookLoop aceptas lo siguiente:\n\n'
+    '1) Acceso y verificación\n'
+    '• Solo se permite el uso de correos institucionales UNIMET.\n'
+    '• La cuenta es personal e intransferible.\n\n'
+    '2) Uso responsable de la plataforma\n'
+    '• Mantén un trato respetuoso en chats y publicaciones.\n'
+    '• Está prohibido publicar contenido ofensivo, fraudulento o engañoso.\n'
+    '• BookLoop puede suspender cuentas ante evidencias de abuso.\n\n'
+    '3) Préstamos y devoluciones\n'
+    '• Al solicitar/aceptar un préstamo te comprometes a cumplir fecha, condiciones y lugar acordados.\n'
+    '• El usuario que recibe el material es responsable de cuidarlo y devolverlo en el estado acordado.\n'
+    '• En caso de pérdida o daño, ambas partes deben coordinar una solución (reposición o acuerdo).\n\n'
+    '4) Seguridad y reportes\n'
+    '• BookLoop puede limitar funciones (publicar/solicitar) si detecta patrones de incumplimiento.\n\n'
+    '5) Privacidad y datos\n'
+    '• Se almacenan datos mínimos para operar la plataforma (correo, datos personales y actividad de préstamos).\n'
+    '• No se publican datos sensibles; tú controlas qué muestras en tu perfil.\n\n'
+    '6) Alcance del servicio\n'
+    '• BookLoop es una herramienta de coordinación; no garantiza la disponibilidad de material.\n'
+    '• La UNIMET y el equipo de BookLoop no se responsabilizan por acuerdos fuera de la plataforma.\n',
+  );
+}
 
   @override
   Widget build(BuildContext context) {
+    //MVVM: la vista observa el estado del AuthViewModel
     final authVM = context.watch<AuthViewModel>();
     final isLoggedIn = authVM.isLoggedIn;
     final email = authVM.email ?? "";
@@ -83,7 +117,51 @@ class StartPage extends StatelessWidget {
       backgroundColor: unimetBlue,
       body: Stack(
         children: [
+          //Fondo: gradiente principal
+          Positioned.fill(
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  stops: [0.0, 0.45, 1.0],
+                  colors: [
+                    Color(0xFF081827),
+                    Color(0xFF14324A),
+                    Color(0xFF204F73),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          Positioned.fill(
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    center: Alignment.topRight,
+                    radius: 1.1,
+                    colors: [
+                      Color(0x332D5E8B), 
+                      Color(0x00000000),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          const Positioned.fill(
+            child: IgnorePointer(
+              child: CustomPaint(
+                painter: _DotPatternPainter(),
+              ),
+            ),
+          ),
+
           const Positioned.fill(child: _BackgroundBlobs()),
+
           SafeArea(
             child: LayoutBuilder(
               builder: (context, constraints) {
@@ -108,7 +186,6 @@ class StartPage extends StatelessWidget {
                               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
                               child: Column(
                                 children: [
-                                  // ===== HERO (izq + der) MISMO ALTO =====
                                   if (isWide)
                                     IntrinsicHeight(
                                       child: Row(
@@ -155,7 +232,7 @@ class StartPage extends StatelessWidget {
 
                                   const SizedBox(height: 26),
 
-                                  // ===== CÓMO FUNCIONA =====
+                                  // Sección: cómo funciona
                                   const _SectionTitle(
                                     title: "Así funciona BookLoop",
                                     subtitle: "Un flujo simple para que el intercambio no se pierda en chats.",
@@ -165,7 +242,7 @@ class StartPage extends StatelessWidget {
 
                                   const SizedBox(height: 26),
 
-                                  // ===== POR QUÉ NO EN GRUPOS =====
+                                  // Sección: por qué no usar grupos
                                   const _SectionTitle(
                                     title: "¿Por qué no seguir intercambiando por grupos?",
                                     subtitle: "Porque se pierde la información y nadie sabe qué sigue.",
@@ -175,7 +252,7 @@ class StartPage extends StatelessWidget {
 
                                   const SizedBox(height: 26),
 
-                                  // ===== DISEÑADO PARA UNIMET =====
+                                  // Sección: diseñado para UNIMET
                                   const _SectionTitle(
                                     title: "Diseñado para la UNIMET desde el día 1",
                                     subtitle: "Orden, claridad y acceso institucional.",
@@ -185,7 +262,6 @@ class StartPage extends StatelessWidget {
 
                                   const SizedBox(height: 26),
 
-                                  // ===== CTA FINAL =====
                                   _FinalCTA(
                                     onLogin: () => _goLogin(context),
                                     onRegister: () => _goRegister(context),
@@ -827,12 +903,66 @@ class _BackgroundBlobs extends StatelessWidget {
 class _BlobPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final p1 = Paint()..color = Colors.white.withOpacity(0.06);
-    canvas.drawCircle(Offset(size.width * 0.15, size.height * 0.30), 180, p1);
-    canvas.drawCircle(Offset(size.width * 0.85, size.height * 0.70), 220, p1);
-    canvas.drawCircle(Offset(size.width * 0.60, size.height * 0.15), 140, p1);
+    final paintWhiteSoft = Paint()
+      ..color = Colors.white.withOpacity(0.07)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 48);
+
+    final paintWhiteSofter = Paint()
+      ..color = Colors.white.withOpacity(0.045)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 60);
+
+    final paintOrangeSoft = Paint()
+      ..color = StartPage.unimetOrange.withOpacity(0.045)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 56);
+
+    final s = size.shortestSide;
+
+    canvas.drawCircle(Offset(size.width * 0.20, size.height * 0.20), s * 0.26, paintWhiteSoft);
+
+    canvas.drawCircle(Offset(size.width * 0.90, size.height * 0.42), s * 0.30, paintWhiteSofter);
+
+    canvas.drawCircle(Offset(size.width * 0.28, size.height * 0.86), s * 0.22, paintOrangeSoft);
+
+    canvas.drawCircle(Offset(size.width * 0.78, size.height * 0.88), s * 0.20, paintWhiteSoft);
   }
 
   @override
   bool shouldRepaint(CustomPainter oldDelegate) => false;
+}
+
+class _DotPatternPainter extends CustomPainter {
+  const _DotPatternPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final dotPaint = Paint()..color = Colors.white.withOpacity(0.035);
+
+    final stepX = (size.width / 26).clamp(18.0, 44.0);
+    final stepY = (size.height / 18).clamp(18.0, 52.0);
+
+    final r = (size.shortestSide / 520).clamp(1.2, 2.0);
+
+    double y = 0;
+    int row = 0;
+    while (y <= size.height) {
+      final xOffset = (row.isEven ? stepX * 0.15 : stepX * 0.55);
+      double x = xOffset;
+      while (x <= size.width) {
+        // Fade hacia el centro para no competir con el contenido
+        final dx = (x - size.width * 0.55).abs() / (size.width * 0.55);
+        final dy = (y - size.height * 0.35).abs() / (size.height * 0.55);
+        final fade = (1.0 - (dx * 0.55 + dy * 0.45)).clamp(0.15, 1.0);
+
+        dotPaint.color = Colors.white.withOpacity(0.028 * fade);
+        canvas.drawCircle(Offset(x, y), r, dotPaint);
+
+        x += stepX;
+      }
+      y += stepY;
+      row++;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

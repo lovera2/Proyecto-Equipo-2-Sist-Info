@@ -12,6 +12,7 @@ class RegisterPage extends StatefulWidget {
 }
 
 class _RegisterPageState extends State<RegisterPage> {
+  // Controllers: capturan input del usuario
   final TextEditingController _emailDocente = TextEditingController();
   final TextEditingController _passDocente = TextEditingController();
 
@@ -21,6 +22,7 @@ class _RegisterPageState extends State<RegisterPage> {
   static const Color unimetBlue = Color(0xFF1B3A57);
   static const Color unimetOrange = Color(0xFFF28B31);
 
+  // Validación local. Ideal: mover a RegisterViewModel si se quiere 100% MVVM.
   bool _emailValidoPorRol(String email, String rol) {
     final e = email.trim().toLowerCase();
     final r = rol.trim().toLowerCase();
@@ -32,6 +34,8 @@ class _RegisterPageState extends State<RegisterPage> {
     return e.endsWith("@correo.unimet.edu.ve");
   }
 
+  // Acción de UI: valida y navega hacia PaymentPage
+  // MVVM: usa RegisterViewModel para validación general del formulario
   void _validarYPasarAlPago(
     TextEditingController eCont,
     TextEditingController pCont,
@@ -51,6 +55,7 @@ class _RegisterPageState extends State<RegisterPage> {
       return;
     }
 
+    // ViewModel: reglas generales (password, formato, etc.)
     final vm = context.read<RegisterViewModel>();
     final ok = vm.validarFormulario(email: emailVal, password: passwordVal);
 
@@ -71,6 +76,7 @@ class _RegisterPageState extends State<RegisterPage> {
       ),
     );
 
+    // Navegación (View): pasa datos a la siguiente pantalla
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -94,6 +100,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
   @override
   Widget build(BuildContext context) {
+    // View: composición de widgets y layout responsive
     return Scaffold(
       backgroundColor: unimetBlue,
       appBar: AppBar(
@@ -180,6 +187,7 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
+  // UI helper (View): tarjeta reutilizable por rol
   Widget _buildRoleCard(
     String title,
     IconData icon,

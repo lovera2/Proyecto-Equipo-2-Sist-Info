@@ -21,8 +21,11 @@ class _HomePageState extends State<HomePage> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text("👋 Sesión cerrada. ¡Vuelve pronto!"),
-        backgroundColor: unimetBlue,
+        backgroundColor: unimetOrange,
+        content: Text(
+          "👋 Sesión cerrada. ¡Vuelve pronto!",
+          style: TextStyle(color: Colors.white),
+        ),
       ),
     );
 
@@ -32,23 +35,47 @@ class _HomePageState extends State<HomePage> {
   void _showTermsDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
+      builder: (BuildContext dialogContext) {
+        final h = MediaQuery.of(dialogContext).size.height;
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: const Text(
             "Términos y Condiciones",
             style: TextStyle(color: unimetBlue, fontWeight: FontWeight.bold),
           ),
-          content: const SingleChildScrollView(
-            child: Text(
-              "Al usar BookLoop UNIMET, aceptas el intercambio responsable de material académico...",
-              style: TextStyle(fontSize: 14),
+          content: SizedBox(
+            width: 520,
+            height: h * 0.62,
+            child: const SingleChildScrollView(
+              child: Text(
+                "Al usar BookLoop aceptas lo siguiente:\n\n"
+                "1) Acceso y verificación\n"
+                "• Solo se permite el uso de correos institucionales UNIMET (docente y estudiante).\n"
+                "• La cuenta es personal e intransferible.\n\n"
+                "2) Uso responsable\n"
+                "• Mantén un trato respetuoso en publicaciones y mensajes.\n"
+                "• Está prohibido publicar contenido ofensivo, engañoso o spam.\n"
+                "• BookLoop puede limitar o suspender cuentas ante evidencias de abuso.\n\n"
+                "3) Préstamos y devoluciones\n"
+                "• Al solicitar/aceptar un préstamo te comprometes a cumplir fecha, condiciones y lugar acordados.\n"
+                "• Quien recibe el material es responsable de cuidarlo y devolverlo en el estado acordado.\n"
+                "• En caso de pérdida o daño, las partes deben coordinar una solución (reposición o acuerdo).\n\n"
+                "4) Seguridad y reportes\n"
+                '• BookLoop puede limitar funciones (publicar/solicitar) si detecta patrones de incumplimiento.\n\n'
+                "5) Privacidad y datos\n"
+               '• Se almacenan datos mínimos para operar la plataforma (correo, datos personales y actividad de préstamos).\n'
+               '• No se publican datos sensibles; tú controlas qué muestras en tu perfil.\n\n'
+                '6) Alcance del servicio\n'
+                '• BookLoop es una herramienta de coordinación; no garantiza la disponibilidad de material.\n'
+                '• La UNIMET y el equipo de BookLoop no se responsabilizan por acuerdos fuera de la plataforma.\n',
+                style: TextStyle(fontSize: 14, height: 1.35),
+              ),
             ),
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Cerrar", style: TextStyle(color: unimetOrange)),
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text("Entendido", style: TextStyle(color: unimetOrange, fontWeight: FontWeight.bold)),
             ),
           ],
         );
@@ -58,6 +85,7 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    //Estado observable
     final homeVM = context.watch<HomeViewModel>();
 
     return Scaffold(
@@ -66,9 +94,14 @@ class _HomePageState extends State<HomePage> {
           Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [unimetBlue, Color(0xFF2C5E8C)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFF0F2A3F),
+                  unimetBlue,
+                  Color(0xFF2C5E8C),
+                ],
+                stops: [0.0, 0.55, 1.0],
               ),
             ),
           ),
@@ -136,19 +169,54 @@ class _HomePageState extends State<HomePage> {
           ),
           Row(
             children: [
+              Container(
+                decoration: BoxDecoration(
+                  color: unimetOrange,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: IconButton(
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        backgroundColor: unimetOrange,
+                        content: Text(
+                          "🛠️ Crear / Publicar en desarrollo. Próximamente…",
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.add, color: Colors.white),
+                  tooltip: 'Crear / Publicar material',
+                ),
+              ),
+              const SizedBox(width: 10),
               IconButton(
                 icon: const Icon(Icons.notifications_none_outlined, color: Colors.white, size: 28),
-                onPressed: () {},
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      backgroundColor: unimetOrange,
+                      content: Text(
+                        "🔔 Notificaciones en desarrollo. Próximamente…",
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  );
+                },
+                tooltip: 'Notificaciones',
               ),
               IconButton(
                 icon: const Icon(Icons.person_outline, color: Colors.white, size: 28),
                 onPressed: () {
                   Navigator.pushNamed(context, '/profile');    
                 },
+                tooltip: 'Perfil',
               ),
               PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert, color: Colors.white, size: 28),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                tooltip: 'Mostrar menú',
                 onSelected: (value) {
                   if (value == 'logout') {
                     _handleLogout(context);
@@ -188,6 +256,20 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
       child: TextField(
+        onSubmitted: (value) {
+          final q = value.trim();
+          if (q.isEmpty) return;
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              backgroundColor: unimetOrange,
+              content: Text(
+                "🔎 Búsqueda en desarrollo. El catálogo estará disponible pronto.",
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          );
+        },
         onChanged: (value) => vm.updateSearchQuery(value),
         style: const TextStyle(color: unimetBlue),
         decoration: const InputDecoration(
@@ -245,10 +327,23 @@ class _BackgroundBlobs extends StatelessWidget {
 class _BlobPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final p1 = Paint()..color = Colors.white.withOpacity(0.05);
-    canvas.drawCircle(Offset(size.width * 0.1, size.height * 0.2), 100, p1);
-    canvas.drawCircle(Offset(size.width * 0.9, size.height * 0.5), 150, p1);
-    canvas.drawCircle(Offset(size.width * 0.4, size.height * 0.8), 120, p1);
+    final p1 = Paint()..color = Colors.white.withOpacity(0.06);
+
+    canvas.drawCircle(Offset(size.width * 0.15, size.height * 0.30), 180, p1);
+    canvas.drawCircle(Offset(size.width * 0.85, size.height * 0.70), 220, p1);
+    canvas.drawCircle(Offset(size.width * 0.60, size.height * 0.15), 140, p1);
+
+    final p2 = Paint()..color = Colors.white.withOpacity(0.035);
+    const dots = [
+      Offset(0.22, 0.18), Offset(0.28, 0.26), Offset(0.33, 0.14),
+      Offset(0.48, 0.22), Offset(0.55, 0.32), Offset(0.62, 0.26),
+      Offset(0.74, 0.18), Offset(0.80, 0.30), Offset(0.18, 0.62),
+      Offset(0.30, 0.70), Offset(0.44, 0.78), Offset(0.58, 0.72),
+      Offset(0.72, 0.80), Offset(0.84, 0.62),
+    ];
+    for (final d in dots) {
+      canvas.drawCircle(Offset(size.width * d.dx, size.height * d.dy), 2.2, p2);
+    }
   }
 
   @override

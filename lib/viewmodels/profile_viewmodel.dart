@@ -3,13 +3,17 @@ import '../services/auth_service.dart';
 import '../services/user_service.dart';
 
 class ProfileViewModel extends ChangeNotifier {
+  //Acceso Firebase
   final AuthService _authService;
   final UserService _userService;
 
   ProfileViewModel(this._authService, this._userService);
 
+  //Estado observable
   bool isLoading = false;
   bool isSaving = false;
+
+  //Datos del perfil
   String? errorMessage;
   String? nombre;
   String? apellido;
@@ -32,6 +36,7 @@ class ProfileViewModel extends ChangeNotifier {
     return r;
   }
 
+  //Limpieza de estado para evitar datos viejos
   void _clearAll() {
     nombre = null;
     apellido = null;
@@ -41,7 +46,8 @@ class ProfileViewModel extends ChangeNotifier {
     rol = null;
     avatarEmoji = null;
   }
-
+  
+  //Carga de perfil
   Future<void> cargarPerfil() async {
     isLoading = true;
     errorMessage = null;
@@ -57,7 +63,6 @@ class ProfileViewModel extends ChangeNotifier {
         return;
       }
 
-      // mínimo desde Auth
       email = user.email;
 
       final data = await _userService.getUserProfile(user.uid);
@@ -68,6 +73,7 @@ class ProfileViewModel extends ChangeNotifier {
         return;
       }
 
+      //Map de Firestore
       final n = data['nombre'];
       if (n is String && n.trim().isNotEmpty) nombre = n.trim();
 
@@ -99,6 +105,7 @@ class ProfileViewModel extends ChangeNotifier {
     }
   }
 
+  //Reglas de validacion para guardado de perfil
   String? validarPerfil({
     required String nombre,
     required String apellido,
@@ -121,6 +128,7 @@ class ProfileViewModel extends ChangeNotifier {
     return null;
   }
 
+  //Guardado de perfil
   Future<bool> actualizarPerfil({
     required String nombre,
     required String apellido,

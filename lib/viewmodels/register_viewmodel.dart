@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 class RegisterViewModel extends ChangeNotifier {
+  //Validaciones de registro
   String? errorMessage;
 
   bool validarCorreoUnimet(String email) {
