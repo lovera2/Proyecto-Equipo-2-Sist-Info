@@ -176,15 +176,7 @@ class _HomePageState extends State<HomePage> {
                 ),
                 child: IconButton(
                   onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        backgroundColor: unimetOrange,
-                        content: Text(
-                          "🛠️ Crear / Publicar en desarrollo. Próximamente…",
-                          style: TextStyle(color: Colors.white),
-                        ),
-                      ),
-                    );
+                    Navigator.pushNamed(context, '/publish');
                   },
                   icon: const Icon(Icons.add, color: Colors.white),
                   tooltip: 'Crear / Publicar material',

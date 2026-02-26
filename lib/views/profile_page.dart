@@ -171,9 +171,10 @@ class _ProfileHeader extends StatelessWidget {
               borderRadius: BorderRadius.circular(14),
             ),
             child: IconButton(
-              onPressed: onCreate,
               icon: const Icon(Icons.add, color: Colors.white),
-              tooltip: 'Crear / Publicar material',
+              onPressed: () {
+                Navigator.pushNamed(context, '/publish');
+              },
             ),
           ),
           const SizedBox(width: 10),

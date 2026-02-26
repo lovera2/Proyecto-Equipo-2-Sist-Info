@@ -5,6 +5,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'firebase_options.dart';
 
+
 // Views
 import 'views/start_page.dart';
 import 'views/login_page.dart';
@@ -12,10 +13,12 @@ import 'views/home_page.dart';
 import 'views/home(admin)_page.dart';
 import 'views/profile_page.dart';
 import 'views/edit_profile_page.dart';
+import 'views/publish_page.dart';
 
 // Services
 import 'services/auth_service.dart';
 import 'services/user_service.dart';
+import 'services/material_service.dart';
 
 // ViewModels
 import 'viewmodels/auth_viewmodel.dart';
@@ -23,6 +26,7 @@ import 'viewmodels/payment_viewmodel.dart';
 import 'viewmodels/register_viewmodel.dart';
 import 'viewmodels/profile_viewmodel.dart';
 import 'viewmodels/home_viewmodel.dart';
+import 'viewmodels/publish_viewmodel.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -67,6 +71,10 @@ class BookLoopApp extends StatelessWidget {
         ChangeNotifierProvider<HomeViewModel>(
           create: (context) => HomeViewModel(context.read<AuthService>()),
         ),
+        Provider<MaterialService>(create: (_) => MaterialService()), // 1. Registramos el servicio
+        ChangeNotifierProvider<PublishViewModel>(
+          create: (context) => PublishViewModel(context.read<MaterialService>()), // 2. Registramos el cerebro
+        ),
       ],
       child: MaterialApp(
         title: 'BookLoop Unimet',
@@ -97,6 +105,7 @@ class BookLoopApp extends StatelessWidget {
           '/home_admin': (context) => const HomeAdminPage(),
           '/profile': (context) => const ProfilePage(),
           '/edit_profile': (context) => const EditProfilePage(),
+          '/publish': (context) => PublishPage(),
         },
       ),
     );
