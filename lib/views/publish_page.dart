@@ -3,8 +3,11 @@ import 'package:provider/provider.dart';
 import '../viewmodels/publish_viewmodel.dart';
 import '../viewmodels/auth_viewmodel.dart';
 
+
 class PublishPage extends StatefulWidget {
-  const PublishPage({super.key});
+  final bool isUserAdmin;
+
+  const PublishPage({super.key, this.isUserAdmin = false});
 
   @override
   State<PublishPage> createState() => _PublishPageState();
@@ -12,16 +15,20 @@ class PublishPage extends StatefulWidget {
 
 class _PublishPageState extends State<PublishPage> {
   // definimos controladores para capturar el texto de cada campo
-  // esto nos permite obtener lo que el usuario escribe para mandarlo a Firebase.
+  // esto nos permite obtener lo que el usuario escribe para mandarlo a Firebase
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _authorController = TextEditingController();
   final TextEditingController _categoryController = TextEditingController();
   final TextEditingController _subjectController = TextEditingController();
   final TextEditingController _descController = TextEditingController();
+  
   final ScrollController _myScrollController = ScrollController();
 
   static const Color unimetBlue = Color(0xFF1B3A57);
   static const Color unimetOrange = Color(0xFFF28B31);
+
+  // Se decide el color dependiendo de si es admin o no
+  late final Color themeColor = widget.isUserAdmin ? unimetBlue : unimetOrange;
 
   @override
   void dispose() {
@@ -170,7 +177,7 @@ class _PublishPageState extends State<PublishPage> {
                                     child: ElevatedButton(
                                       onPressed: viewModel.isLoading ? null : _handlePublish,
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: unimetOrange,
+                                        backgroundColor: themeColor,
                                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                       ),
                                       child: viewModel.isLoading
