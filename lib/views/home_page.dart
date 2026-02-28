@@ -327,7 +327,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildCategoryFilter(HomeViewModel vm) {
-    final categories = ["TODO", "FACES", "INGENIERÍA", "HUMANIDADES", "DERECHO"];
+    final categories = ["TODO", "Faces", "Ingeniería", "Humanidades", "Derecho"];
     return Center(
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
