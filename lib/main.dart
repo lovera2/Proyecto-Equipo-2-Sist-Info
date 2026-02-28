@@ -48,6 +48,7 @@ class BookLoopApp extends StatelessWidget {
         // Services
         Provider<AuthService>(create: (_) => AuthService()),
         Provider<UserService>(create: (_) => UserService()),
+        Provider<MaterialService>(create: (_) => MaterialService()),
 
         // ViewModels
         ChangeNotifierProvider<AuthViewModel>(
@@ -69,9 +70,10 @@ class BookLoopApp extends StatelessWidget {
           ),
         ),
         ChangeNotifierProvider<HomeViewModel>(
-          create: (context) => HomeViewModel(context.read<AuthService>()),
+          create: (context) => HomeViewModel(
+            context.read<MaterialService>(), 
+          ),
         ),
-        Provider<MaterialService>(create: (_) => MaterialService()), // 1. Registramos el servicio
         ChangeNotifierProvider<PublishViewModel>(
           create: (context) => PublishViewModel(context.read<MaterialService>()), // 2. Registramos el cerebro
         ),

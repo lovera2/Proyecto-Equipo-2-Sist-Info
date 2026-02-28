@@ -2,35 +2,43 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/material_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:convert'; // Para Base64
+import 'dart:typed_data'; // Para Uint8List
 
 class PublishViewModel extends ChangeNotifier {
   final MaterialService _materialService;
   
-  // El constructor recibe el servicio de materiales que definimos en el main.
   PublishViewModel(this._materialService);
 
   XFile? _selectedImage;
-  XFile? get selectedImage => _selectedImage;
-
+  Uint8List? _imageBytes; // Aquí guardamos la foto en memoria (Web y Móvil compatible)
+  
   bool _isLoading = false;
   bool get isLoading => _isLoading;
+  XFile? get selectedImage => _selectedImage;
 
-  // usamos image_picker para la foto.
-  // IMPORTANTE: En Web, el .path de la imagen es un "blob URL" temporal.
+  // Función para seleccionar y comprimir la imagen
   Future<void> pickImage() async {
     final ImagePicker picker = ImagePicker();
+    
+    // CONFIGURACIÓN CLAVE PARA QUE FUNCIONE EN FIRESTORE
     final XFile? image = await picker.pickImage(
       source: ImageSource.gallery,
-      imageQuality: 70, // Le bajamos un poco la calidad para que no pese tanto en la bd.
+      maxWidth: 500,    // Reducimos el ancho a 500px (Suficiente para celular)
+      maxHeight: 500,   // Reducimos alto
+      imageQuality: 50, // Calidad media para ahorrar espacio
     );
     
     if (image != null) {
       _selectedImage = image;
-      notifyListeners(); // Avisamos a la vista que ya hay foto para que la muestre.
+      
+      // Leemos los bytes (Funciona en Web y Móvil)
+      _imageBytes = await image.readAsBytes();
+      
+      notifyListeners();
     }
   }
 
-  // Esta función empaqueta todo y lo manda al servicio.
   Future<bool> publish({
     required String title,
     required String author,
@@ -38,34 +46,36 @@ class PublishViewModel extends ChangeNotifier {
     required String subject,
     required String description,
   }) async {
-    if (_selectedImage == null) return false;
+    // Validamos que haya imagen cargada en memoria
+    if (_imageBytes == null) return false;
     
-    // Con esta línea le pedimos a Firebase el ID del usuario que está logueado
     final String? currentUserId = FirebaseAuth.instance.currentUser?.uid;
-
-    // Si por algún motivo no hay usuario, cancelamos la subida
     if (currentUserId == null) return false;
+
     _isLoading = true;
-    notifyListeners(); // Ponemos el botón en modo "cargando".
+    notifyListeners(); 
 
     try {
-      await _materialService.uploadMaterial({
+      // convierte la foto en un texto para guardarla en la BD
+      String base64Image = base64Encode(_imageBytes!);
+
+      await _materialService.addMaterial({
         'userId': currentUserId,
         'title': title,
         'author': author,
         'category': category,
         'subject': subject,
         'description': description,
-        'imageUrl': _selectedImage!.path, // esto es temporal, luego hay que subirlo a Storage.
+        'imageUrl': base64Image, // Guardamos la foto aquí
+        'isBase64': true,        // Marca para saber cómo leerla luego
         'status': 'disponible',
         'createdAt': DateTime.now(),
       });
       
-      _selectedImage = null; // Limpiamos para la próxima.
-      _isLoading = false;
-      notifyListeners();
+      clearData();
       return true;
     } catch (e) {
+      print("Error al publicar: $e");
       _isLoading = false;
       notifyListeners();
       return false;
@@ -73,9 +83,9 @@ class PublishViewModel extends ChangeNotifier {
   }
 
   void clearData() {
-    _selectedImage = null; // Borra la imagen de la memoria
-    _isLoading = false;    // Reinicia la carga
-    notifyListeners();     // Avisa a la pantalla que se actualice
+    _selectedImage = null;
+    _imageBytes = null;
+    _isLoading = false;
+    notifyListeners();
   }
-  
 }

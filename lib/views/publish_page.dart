@@ -76,7 +76,6 @@ class _PublishPageState extends State<PublishPage> {
     final size = MediaQuery.of(context).size;
 
     return Scaffold(
-      // Usamos un Stack para poner el fondo decorativo detrás del formulario
       body: Stack(
         children: [
           // Fondo con el degradado azul 
@@ -201,14 +200,14 @@ class _PublishPageState extends State<PublishPage> {
                                           margin: const EdgeInsets.only(bottom: 12),
                                           padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
                                           decoration: BoxDecoration(
-                                            color: const Color(0xFF8DA4B9).withOpacity(0.5), // Mismo color que tus inputs
+                                            color: const Color(0xFF8DA4B9).withOpacity(0.5), 
                                             borderRadius: BorderRadius.circular(10),
                                           ),
                                           child: DropdownButtonHideUnderline(
                                             child: DropdownButton<String>(
                                               value: _selectedCategory,
                                               hint: const Text("Selecciona una Categoría...", style: TextStyle(color: Colors.white70)),
-                                              dropdownColor: const Color(0xFF1B3A57), // Azul oscuro para el menú desplegado
+                                              dropdownColor: const Color(0xFF1B3A57), 
                                               icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
                                               isExpanded: true,
                                               style: const TextStyle(color: Colors.white, fontSize: 16),
@@ -302,7 +301,7 @@ class _PublishPageState extends State<PublishPage> {
             ],
           ),
           
-          // Botones Funcionales (Copiados del Home)
+          // Botones Funcionales 
           Row(
             children: [
               
@@ -333,7 +332,7 @@ class _PublishPageState extends State<PublishPage> {
                 },
               ),
               
-              // Menú de 3 puntos 
+              // Menú 
               PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert, color: Colors.white, size: 28),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
@@ -362,7 +361,7 @@ class _PublishPageState extends State<PublishPage> {
     );
   }
 
-  // Widget reutilizable para crear los campos de texto con el estilo de la Unimet.
+ 
   Widget _buildUnimetField(String hint, TextEditingController controller, {int maxLines = 1}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),

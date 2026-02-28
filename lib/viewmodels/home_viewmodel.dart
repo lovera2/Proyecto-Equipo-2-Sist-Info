@@ -1,26 +1,32 @@
 import 'package:flutter/material.dart';
-import '../services/auth_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/material_service.dart';
 
 class HomeViewModel extends ChangeNotifier {
-  //Estado de Home y reglas de UI
-  final AuthService _authService;
+  final MaterialService _materialService;
 
-  //Estado observable
+  // Estado: Categoría seleccionada (Por defecto "TODO")
+  String _selectedCategory = "TODO";
+  String get selectedCategory => _selectedCategory;
+
+  // Estado: Búsqueda 
   String _searchQuery = "";
 
-  HomeViewModel(this._authService);
+  HomeViewModel(this._materialService);
 
-  String get searchQuery => _searchQuery;
+  //Acción: Cambiar categoría (FACES, INGENIERÍA, etc.)
+  void setCategory(String category) {
+    _selectedCategory = category;
+    notifyListeners(); // Esto recarga la pantalla
+  }
 
-  //Acción: desarrollo/ejecución de cambios
+  //Acción: Actualizar texto de búsqueda
   void updateSearchQuery(String query) {
     _searchQuery = query;
     notifyListeners();
   }
 
-  //Acción: logout
-  Future<void> logout() async {
-    await _authService.logout();
-    notifyListeners();
-  }
+  //Conexión directa a la base de datos
+  Stream<QuerySnapshot> get materialsStream =>
+      _materialService.getMaterials(_selectedCategory);
 }
