@@ -23,8 +23,15 @@ class _PublishPageState extends State<PublishPage> {
   final TextEditingController _categoryController = TextEditingController();
   final TextEditingController _subjectController = TextEditingController();
   final TextEditingController _descController = TextEditingController();
-  
   final ScrollController _myScrollController = ScrollController();
+
+  String? _selectedCategory; // Aquí guardaremos la opción elegida
+  final List<String> _categories = [
+    'Fases',
+    'Ingeniería',
+    'Humanidades',
+    'Derecho',
+  ];
 
   static const Color unimetBlue = Color(0xFF1B3A57);
   static const Color unimetOrange = Color(0xFFF28B31);
@@ -37,10 +44,10 @@ class _PublishPageState extends State<PublishPage> {
     // Cerramos los controladores al salir de la pantalla para evitar fugas de memoria
     _titleController.dispose();
     _authorController.dispose();
-    _categoryController.dispose();
     _subjectController.dispose();
     _descController.dispose();
     _myScrollController.dispose();
+    
     
     super.dispose();
   }
@@ -190,7 +197,36 @@ class _PublishPageState extends State<PublishPage> {
                                         children: [
                                           _buildUnimetField("Título...", _titleController),
                                           _buildUnimetField("Autor...", _authorController),
-                                          _buildUnimetField("Categoría...", _categoryController),
+                                          Container(
+                                          margin: const EdgeInsets.only(bottom: 12),
+                                          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF8DA4B9).withOpacity(0.5), // Mismo color que tus inputs
+                                            borderRadius: BorderRadius.circular(10),
+                                          ),
+                                          child: DropdownButtonHideUnderline(
+                                            child: DropdownButton<String>(
+                                              value: _selectedCategory,
+                                              hint: const Text("Selecciona una Categoría...", style: TextStyle(color: Colors.white70)),
+                                              dropdownColor: const Color(0xFF1B3A57), // Azul oscuro para el menú desplegado
+                                              icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+                                              isExpanded: true,
+                                              style: const TextStyle(color: Colors.white, fontSize: 16),
+                                              borderRadius: BorderRadius.circular(15), 
+                                              items: _categories.map((String category) {
+                                                return DropdownMenuItem<String>(
+                                                  value: category,
+                                                  child: Text(category),
+                                                );
+                                              }).toList(),
+                                              onChanged: (String? newValue) {
+                                                setState(() {
+                                                  _selectedCategory = newValue;
+                                                });
+                                              },
+                                            ),
+                                          ),
+                                        ),
                                           _buildUnimetField("Asignatura...", _subjectController),
                                         ],
                                       ),
@@ -353,7 +389,7 @@ class _PublishPageState extends State<PublishPage> {
     //Aquí validamos que NADA esté vacío
   if (_titleController.text.trim().isEmpty || 
       _authorController.text.trim().isEmpty || 
-      _categoryController.text.trim().isEmpty || 
+      _selectedCategory == null || 
       _subjectController.text.trim().isEmpty || 
       vm.selectedImage == null) {
     
@@ -370,7 +406,7 @@ class _PublishPageState extends State<PublishPage> {
     final success = await vm.publish(
       title: _titleController.text,
       author: _authorController.text,
-      category: _categoryController.text,
+      category: _selectedCategory!,
       subject: _subjectController.text,
       description: _descController.text,
     );
