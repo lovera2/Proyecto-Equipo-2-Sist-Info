@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../viewmodels/publish_viewmodel.dart';
 import '../viewmodels/auth_viewmodel.dart';
+import 'dart:io'; 
+import 'package:flutter/foundation.dart'; 
 
 
 class PublishPage extends StatefulWidget {
@@ -39,15 +41,17 @@ class _PublishPageState extends State<PublishPage> {
     _subjectController.dispose();
     _descController.dispose();
     _myScrollController.dispose();
+    
     super.dispose();
   }
 
   // logica de cerras sesion 
   Future<void> _handleLogout(BuildContext context) async {
+    context.read<PublishViewModel>().clearData();
     await context.read<AuthViewModel>().logout();
 
     if (!context.mounted) return;
-
+    ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         backgroundColor: unimetOrange,
@@ -124,32 +128,61 @@ class _PublishPageState extends State<PublishPage> {
                                 Row(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Expanded(
-                                      flex: 1,
-                                      child: GestureDetector(
-                                        onTap: viewModel.pickImage,
-                                        child: Container(
-                                          height: 420,
-                                          decoration: BoxDecoration(
-                                            color: Colors.grey[200],
-                                            borderRadius: BorderRadius.circular(15),
-                                            border: Border.all(color: Colors.grey[300]!),
+                                  Expanded(
+                                    flex: 1,
+                                    child: Column(
+                                      children: [
+                                        GestureDetector(
+                                          onTap: viewModel.pickImage,
+                                          child: Container(
+                                            // Lógica de tamaño, grande en Web, Normal en Móvil
+                                            height: kIsWeb ? 500 : 280,
+                                            width: kIsWeb ? 350 : 190,
+                                            decoration: BoxDecoration(
+                                              color: Colors.grey[200],
+                                              borderRadius: BorderRadius.circular(15),
+                                              border: Border.all(color: Colors.grey[300]!),
+                                              boxShadow: const [
+                                                BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))
+                                              ],
+                                            ),
+                                            child: viewModel.selectedImage == null
+                                                ? Column(
+                                                    mainAxisAlignment: MainAxisAlignment.center,
+                                                    children: [
+                                                      Icon(Icons.add_photo_alternate_outlined, 
+                                                        size: kIsWeb ? 80 : 50, 
+                                                        color: Colors.grey[400]
+                                                      ),
+                                                      const SizedBox(height: 10),
+                                                      const Text("Subir Portada", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w500)),
+                                                    ],
+                                                  )
+                                                : ClipRRect(
+                                                    borderRadius: BorderRadius.circular(15),
+                                                    child: kIsWeb
+                                                        // CASO 1: WEB (Usa Image.network)
+                                                        ? Image.network(
+                                                            viewModel.selectedImage!.path,
+                                                            fit: BoxFit.cover,
+                                                            width: 350,
+                                                            height: 500,
+                                                          )
+                                                        // CASO 2: MÓVIL (Usa Image.file)
+                                                        : Image.file(
+                                                            File(viewModel.selectedImage!.path),
+                                                            fit: BoxFit.cover,
+                                                            width: 190,
+                                                            height: 280,
+                                                          ),
+                                                  ),
                                           ),
-                                          child: viewModel.selectedImage == null
-                                              ? Column(
-                                                  mainAxisAlignment: MainAxisAlignment.center,
-                                                  children: [
-                                                    Icon(Icons.add_photo_alternate_outlined, size: 60, color: Colors.grey[400]),
-                                                    const Text("Subir imagen", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w500)),
-                                                  ],
-                                                )
-                                              : ClipRRect(
-                                                  borderRadius: BorderRadius.circular(15),
-                                                  child: Image.network(viewModel.selectedImage!.path, fit: BoxFit.cover),
-                                                ),
                                         ),
-                                      ),
+                                        const SizedBox(height: 10),
+                                        const Text("Portada del Material", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                      ],
                                     ),
+                                  ),
                                     const SizedBox(width: 30),
                                     Expanded(
                                       flex: 1,
@@ -213,7 +246,11 @@ class _PublishPageState extends State<PublishPage> {
             children: [
               IconButton(
                 icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 24),
-                onPressed: () => Navigator.pop(context), 
+                onPressed: () {
+                  // Limpiamos datos antes de volver
+                  context.read<PublishViewModel>().clearData();
+                  Navigator.pop(context); 
+                }, 
               ),
               const SizedBox(width: 5),
               const Icon(Icons.menu_book, color: Colors.white, size: 30),

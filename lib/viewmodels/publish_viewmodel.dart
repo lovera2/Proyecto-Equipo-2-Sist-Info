@@ -71,4 +71,11 @@ class PublishViewModel extends ChangeNotifier {
       return false;
     }
   }
+
+  void clearData() {
+    _selectedImage = null; // Borra la imagen de la memoria
+    _isLoading = false;    // Reinicia la carga
+    notifyListeners();     // Avisa a la pantalla que se actualice
+  }
+  
 }
