@@ -17,7 +17,6 @@ class ChatListPage extends StatelessWidget {
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: StreamBuilder<QuerySnapshot>(
-        // Buscamos chats donde aparezca mi ID en la lista de participantes
         stream: FirebaseFirestore.instance
             .collection('chats')
             .where('participants', arrayContains: currentUserId)
@@ -45,9 +44,7 @@ class ChatListPage extends StatelessWidget {
               final chatDoc = chats[index];
               final chatData = chatDoc.data() as Map<String, dynamic>;
               
-              // Intentamos obtener el nombre guardado, si no, mostramos un genérico
               final String otherUserName = chatData['otherUserName'] ?? 'Chat de Material';
-              // Opcional: Si tienes el título del libro guardado en el chat
               final String bookTitle = chatData['bookTitle'] ?? 'Consultar detalles';
 
               return Card(
@@ -58,9 +55,9 @@ class ChatListPage extends StatelessWidget {
                 ),
                 child: ListTile(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  leading: CircleAvatar(
-                    backgroundColor: const Color(0xFFF28B31), // Naranja Unimet para contraste
-                    child: const Icon(Icons.person, color: Colors.white),
+                  leading: const CircleAvatar(
+                    backgroundColor: Color(0xFFF28B31), 
+                    child: Icon(Icons.person, color: Colors.white),
                   ),
                   title: Text(
                     otherUserName,
@@ -83,13 +80,20 @@ class ChatListPage extends StatelessWidget {
                     color: Color(0xFF1B3A57),
                   ),
                   onTap: () {
+                  
+                    // creamos una copia para no perder info por errores
+                    final Map<String, dynamic> materialInfo = Map.from(chatData);
+                    
+                    // inyectamos el ID necesario para que el ChatService sepa qué libro actualizar
+                    materialInfo['id'] = chatData['materialId'] ?? ''; 
+
                     Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (context) => IndividualChatPage(
                           chatId: chatDoc.id,
                           receiverName: otherUserName,
-                          materialData: chatData,
+                          materialData: materialInfo,
                         ),
                       ),
                     );

@@ -3,31 +3,31 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class ChatService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // 1. Iniciar o recuperar un chat existente
-  Future<String> getOrCreateChat(String currentUserId, String ownerId, String materialId) async {
+  // metodo para obtener o crear un chat
+  Future<String> getOrCreateChat(String uid1, String uid2, String materialId) async {
     final query = await _firestore
         .collection('chats')
-        .where('materialId', isEqualTo: materialId)
-        .where('participants', arrayContains: currentUserId)
+        .where('participants', arrayContains: uid1)
         .get();
 
-    if (query.docs.isNotEmpty) {
-      return query.docs.first.id;
+    for (var doc in query.docs) {
+      List participants = doc['participants'];
+      if (participants.contains(uid2) && doc['materialId'] == materialId) {
+        return doc.id;
+      }
     }
 
     DocumentReference docRef = await _firestore.collection('chats').add({
-      'participants': [currentUserId, ownerId],
+      'participants': [uid1, uid2],
       'materialId': materialId,
-      'status': 'solicitado', 
-      'lastMessage': 'Solicitud de préstamo enviada',
-      'lastMessageTime': FieldValue.serverTimestamp(),
-      'createdAt': FieldValue.serverTimestamp(),
+      'status': 'disponible',
+      'lastUpdate': FieldValue.serverTimestamp(),
     });
 
     return docRef.id;
   }
 
-  // 2. Enviar mensaje
+  // metodo para enviar mensajes
   Future<void> sendMessage(String chatId, String senderId, String text) async {
     await _firestore.collection('chats').doc(chatId).collection('messages').add({
       'senderId': senderId,
@@ -37,24 +37,31 @@ class ChatService {
 
     await _firestore.collection('chats').doc(chatId).update({
       'lastMessage': text,
-      'lastMessageTime': FieldValue.serverTimestamp(),
+      'lastUpdate': FieldValue.serverTimestamp(),
     });
   }
-
-  // 3. Cambiar estado del libro y del préstamo
   Future<void> updateLoanStatus(String chatId, String materialId, String newStatus) async {
-    await _firestore.collection('chats').doc(chatId).update({'status': newStatus});
-    
-    await _firestore.collection('materials').doc(materialId).update({
-      'status': newStatus == 'en_prestamo' ? 'no disponible' : 'disponible'
-    });
-  }
+    if (materialId.isEmpty) {
+      print("Error: El ID del material está vacío.");
+      return;
+    }
 
-  // 4. Establecer límite de días
-  Future<void> setLoanDuration(String chatId, int days) async {
-    await _firestore.collection('chats').doc(chatId).update({
-      'loanDurationDays': days,
-      'loanStartDate': FieldValue.serverTimestamp(),
-    });
+    try {
+      // se actualiza el libro en la colección materials
+      await _firestore.collection('materials').doc(materialId).update({
+        'status': newStatus,
+      });
+
+      // se actualiza el estado dentro del chat
+      await _firestore.collection('chats').doc(chatId).update({
+        'status': newStatus,
+        'lastUpdate': FieldValue.serverTimestamp(),
+      });
+
+      print("Firebase actualizado con éxito a: $newStatus");
+    } catch (e) {
+      print("Error en updateLoanStatus: $e");
+      rethrow;
+    }
   }
-} 
+}

@@ -24,9 +24,6 @@ class _IndividualChatPageState extends State<IndividualChatPage> {
   final ChatService _chatService = ChatService();
   final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
 
-  // LÓGICA DE ROLES: ¿Soy el dueño del libro?
-  bool get isOwner => widget.materialData['userId'] == currentUserId;
-
   void _sendTextMessage() {
     if (_messageController.text.trim().isNotEmpty) {
       _chatService.sendMessage(
@@ -42,7 +39,6 @@ class _IndividualChatPageState extends State<IndividualChatPage> {
   Widget build(BuildContext context) {
     const Color unimetBlue = Color(0xFF1B3A57);
     const Color unimetOrange = Color(0xFFF28B31);
-
     final String libroTitulo = widget.materialData['title'] ?? 'Consultando libro...';
     
     return Scaffold(
@@ -52,19 +48,14 @@ class _IndividualChatPageState extends State<IndividualChatPage> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(widget.receiverName, 
-                 style: const TextStyle(fontSize: 16, color: Colors.white)),
-            Text(libroTitulo, 
-                 style: const TextStyle(fontSize: 12, color: Colors.white70)),
+            Text(widget.receiverName, style: const TextStyle(fontSize: 16, color: Colors.white)),
+            Text(libroTitulo, style: const TextStyle(fontSize: 12, color: Colors.white70)),
           ],
         ),
       ),
       body: Column(
         children: [
-          // 1. Cinta de estado con lógica dinámica
           _buildLoanStatusBar(unimetOrange),
-
-          // 2. Área de mensajes
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
@@ -88,70 +79,118 @@ class _IndividualChatPageState extends State<IndividualChatPage> {
               },
             ),
           ),
-
-          // 3. Barra de entrada
           _buildInputArea(unimetOrange),
         ],
       ),
     );
   }
 
-  // WIDGET: Cinta de estado del préstamo (ACTUALIZADA)
   Widget _buildLoanStatusBar(Color accentColor) {
-    // Definimos variables dinámicas según el rol
-    final String buttonText = isOwner ? "Confirmar Entregado" : "Confirmar Recibido";
-    final IconData buttonIcon = isOwner ? Icons.local_shipping : Icons.handshake;
-    final Color buttonColor = isOwner ? Colors.green : accentColor;
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance.collection('chats').doc(widget.chatId).snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || !snapshot.data!.exists) return const SizedBox();
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4)],
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        final chatData = snapshot.data!.data() as Map<String, dynamic>;
+        final String currentStatus = chatData['status'] ?? 'disponible';
+        
+        
+        // buscama en materialData
+        final String idDesdeMaterial = widget.materialData['userId'] ?? '';
+        // busca en el documento del chat directamente
+        final String idDesdeChat = chatData['ownerId'] ?? ''; 
+        // Fallback: El segundo participante 
+        final List participants = chatData['participants'] ?? [];
+        final String idAlternativo = (participants.length > 1) ? participants[1] : '';
+
+        // Consolida quién es el dueño real
+        final String ownerIdFinal = idDesdeMaterial.isNotEmpty 
+            ? idDesdeMaterial 
+            : (idDesdeChat.isNotEmpty ? idDesdeChat : idAlternativo);
+        
+        final bool imTheOwner = (currentUserId == ownerIdFinal);
+
+        // DEBUG para verificar en consola (estaba dando muchos problemas pero ya se resolvio, se puede remover si ustedes no lo ven necesario pero dejenlo just in case)
+        print("DEBUG: Mi ID: $currentUserId | Dueño Detectado: $ownerIdFinal | ¿Soy dueño?: $imTheOwner");
+
+        String buttonText = "";
+        IconData buttonIcon = Icons.info_outline;
+        Color buttonColor = Colors.grey;
+        VoidCallback? action;
+
+        if (imTheOwner) {
+          if (currentStatus == 'disponible' || currentStatus == 'solicitado') {
+            buttonText = "Confirmar Entrega";
+            buttonIcon = Icons.local_shipping;
+            buttonColor = Colors.green;
+            action = () => _chatService.updateLoanStatus(widget.chatId, widget.materialData['id'] ?? '', 'esperando_confirmacion');
+          } else {
+            buttonText = "Esperando confirmación...";
+            buttonIcon = Icons.hourglass_bottom;
+            buttonColor = Colors.grey;
+            action = null;
+          }
+        } else {
+          if (currentStatus == 'esperando_confirmacion') {
+            buttonText = "Confirmar Recibido";
+            buttonIcon = Icons.handshake;
+            buttonColor = accentColor;
+            action = () => _chatService.updateLoanStatus(widget.chatId, widget.materialData['id'] ?? '', 'rentado');
+          } else if (currentStatus == 'rentado') {
+            buttonText = "Libro Recibido";
+            buttonIcon = Icons.check_circle;
+            buttonColor = Colors.blue;
+            action = null;
+          } else {
+            buttonText = "Esperando entrega...";
+            buttonIcon = Icons.schedule;
+            buttonColor = Colors.grey;
+            action = null;
+          }
+        }
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4)],
+          ),
+          child: Column(
             children: [
-              const Text("Estado:", style: TextStyle(fontWeight: FontWeight.bold)),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: accentColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  widget.materialData['status']?.toUpperCase() ?? 'SOLICITADO',
-                  style: TextStyle(color: accentColor, fontWeight: FontWeight.bold, fontSize: 11),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text("Estado:", style: TextStyle(fontWeight: FontWeight.bold)),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: accentColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8)
+                    ),
+                    child: Text(currentStatus.toUpperCase(), 
+                      style: TextStyle(color: accentColor, fontWeight: FontWeight.bold, fontSize: 12)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: buttonColor, 
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))
+                  ),
+                  onPressed: action,
+                  icon: Icon(buttonIcon, size: 18),
+                  label: Text(buttonText),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          
-          // BOTÓN DINÁMICO
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: buttonColor,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-              onPressed: () {
-                // Mañana implementaremos la lógica de Firebase aquí
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text("Acción: $buttonText (Próximamente)")),
-                );
-              },
-              icon: Icon(buttonIcon, size: 18),
-              label: Text(buttonText),
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 

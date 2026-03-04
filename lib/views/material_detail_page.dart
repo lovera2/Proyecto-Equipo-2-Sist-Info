@@ -1,8 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
-// Cambiamos a la ruta completa del proyecto para que no haya pérdida
 import '../services/chat_service.dart';
 import 'individual_chat_page.dart';
 
@@ -16,14 +14,12 @@ class MaterialDetailPage extends StatelessWidget {
     required this.materialData,
   });
 
-  // Aqui se coloca una logica hibrida, de esta manera da igual como se coloque la imagen
-  //siempre habra una via de escape para que pueda ser annadida
+  // Lógica híbrida para imágenes
   Widget _buildImage(String? imagePath) {
     if (imagePath == null || imagePath.isEmpty) {
       return _buildPlaceholder();
     }
 
-    // Caso 1: Es Base64 (Empieza con 'data:image' o es una cadena larga sin http)
     if (imagePath.startsWith('data:image') || !imagePath.startsWith('http')) {
       try {
         final String cleanBase64 = imagePath.contains(',') 
@@ -42,7 +38,6 @@ class MaterialDetailPage extends StatelessWidget {
       }
     }
 
-    // Caso 2: Es una URL de internet normal
     return Image.network(
       imagePath,
       width: 140,
@@ -52,7 +47,6 @@ class MaterialDetailPage extends StatelessWidget {
     );
   }
 
-  // Cuadro gris de respaldo
   Widget _buildPlaceholder() {
     return Container(
       width: 140,
@@ -102,7 +96,7 @@ class MaterialDetailPage extends StatelessWidget {
                   children: [
                     ClipRRect(
                       borderRadius: BorderRadius.circular(15),
-                      child: _buildImage(materialData['imageUrl']), // Llamada a la lógica híbrida
+                      child: _buildImage(materialData['imageUrl']),
                     ),
                     const SizedBox(width: 20),
                     Expanded(
@@ -150,34 +144,38 @@ class MaterialDetailPage extends StatelessWidget {
                       ),
                       onPressed: () async {
                         final chatService = ChatService();
-                        
-                        // OBTENER EL USUARIO REAL DE FIREBASE
                         final User? user = FirebaseAuth.instance.currentUser;
 
                         if (user == null) {
-                          // Si por alguna razón no hay sesión, avisamos al usuario
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text("Debes iniciar sesión para solicitar un libro")),
                           );
                           return;
                         }
-                        String currentUserId = user.uid; // Este es el ID único y real del usuario
                         
+                        String currentUserId = user.uid; 
+                        
+                        // se obtiene el ID del chat
                         String chatId = await chatService.getOrCreateChat(
                           currentUserId,
-                          materialData['userId'] ?? '', // ID del dueño
+                          materialData['userId'] ?? '', 
                           materialId,
                         );
+                        // en esta zona se hace una "injeccion" de los ids
+                        // creamos una copia y aseguramos que lleve el ID del material Y el userId del dueño
+                        Map<String, dynamic> dataConId = Map.from(materialData);
+                        dataConId['id'] = materialId; 
+                        // inyectamos explícitamente el userId para que el Chat identifique al dueño
+                        dataConId['userId'] = materialData['userId'] ?? '';
 
-                        // Navegar a la pantalla de chat (la crearemos en el siguiente paso)
+                        // navegamos al chat
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            // ... dentro del Navigator.push ...
                             builder: (context) => IndividualChatPage(
                               chatId: chatId,
-                              materialData: materialData, // Corregido
-                              receiverName: materialData['ownerName'] ?? 'Propietario', // Corregido
+                              materialData: dataConId, 
+                              receiverName: materialData['ownerName'] ?? 'Propietario',
                             ),
                           ),
                         );
