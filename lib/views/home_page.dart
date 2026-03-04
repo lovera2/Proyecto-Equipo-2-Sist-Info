@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:convert'; // Importante para las imágenes Base64
+import 'material_detail_page.dart'; 
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -197,9 +198,29 @@ class _HomePageState extends State<HomePage> {
                               ),
                               itemCount: docs.length,
                               itemBuilder: (context, index) {
-                                final data = docs[index].data() as Map<String, dynamic>;
-                                return _buildBookCard(data);
-                              },
+  final doc = docs[index];
+  final data = doc.data() as Map<String, dynamic>;
+
+  // Usamos InkWell dentro de un Material para mejor respuesta visual
+  return Material(
+    color: Colors.transparent, // Mantenemos el fondo invisible
+    child: InkWell(
+      onTap: () {
+        print("¡Clic detectado en el libro: ${data['title']}!"); // Esto saldrá en tu consola de VS Code
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => MaterialDetailPage(
+              materialId: doc.id,
+              materialData: data,
+            ),
+          ),
+        );
+      },
+      child: _buildBookCard(data), // Tu diseño original
+    ),
+  );
+},
                             );
                           },
                         ),
