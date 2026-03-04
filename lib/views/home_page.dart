@@ -6,7 +6,8 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:convert'; // Importante para las imágenes Base64
-import 'material_detail_page.dart'; 
+import 'material_detail_page.dart';
+import 'package:bookloop_unimet/views/chat_list_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -280,18 +281,16 @@ class _HomePageState extends State<HomePage> {
               
               // Botón Notificaciones 
               IconButton(
-                icon: const Icon(Icons.notifications_none_outlined, color: Colors.white, size: 28),
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      backgroundColor: unimetOrange,
-                      content: Text("🔔 Sin notificaciones nuevas", style: TextStyle(color: Colors.white)),
-                      duration: Duration(seconds: 1),
-                    ),
-                  );
-                },
-                tooltip: 'Notificaciones',
-              ),
+  icon: const Icon(Icons.notifications_none_outlined, color: Colors.white, size: 28),
+  onPressed: () {
+    // Importa 'chat_list_page.dart' al inicio de tu archivo si no lo has hecho
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => ChatListPage()),
+    );
+  },
+  tooltip: 'Mis chats y notificaciones',
+),
               
               const SizedBox(width: 5),
 
@@ -399,68 +398,77 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildBookCard(Map<String, dynamic> data) {
-    return Container(
-      decoration: BoxDecoration(
-        color: cardBrown,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.15), 
-            blurRadius: 4, 
-            offset: const Offset(0, 3)
-          )
-        ],
-      ),
-      child: Column(
-        children: [
-          // IMAGEN (Flex 7 = Más espacio vertical)
-          Expanded(
-            flex: 7,
-            child: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: _buildImage(data['imageUrl']),
-              ),
+Widget _buildBookCard(Map<String, dynamic> data) {
+  // 1. Extraemos el estado actual (si no existe, por defecto es 'disponible')
+  final String status = data['status'] ?? 'disponible';
+  final bool isAvailable = status == 'disponible';
+
+  return Container(
+    decoration: BoxDecoration(
+      color: cardBrown,
+      borderRadius: BorderRadius.circular(12),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.15), 
+          blurRadius: 4, 
+          offset: const Offset(0, 3)
+        )
+      ],
+    ),
+    child: Column(
+      children: [
+        // IMAGEN
+        Expanded(
+          flex: 7,
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: _buildImage(data['imageUrl']),
             ),
           ),
-          // TEXTO (Flex 2 = Espacio justo)
-          Expanded(
-            flex: 2,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    data['title'] ?? '', 
-                    maxLines: 2, 
-                    textAlign: TextAlign.center,
-                    overflow: TextOverflow.ellipsis, 
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold, 
-                      fontSize: 11,
-                      color: Colors.black87
-                    )
-                  ),
-                  const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                    decoration: BoxDecoration(
-                      color: Colors.green,
-                      borderRadius: BorderRadius.circular(4)
-                    ),
-                    child: const Text("Disponible", style: TextStyle(color: Colors.white, fontSize: 9)),
+        ),
+        // TEXTO Y ESTADO
+        Expanded(
+          flex: 2,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  data['title'] ?? '', 
+                  maxLines: 2, 
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis, 
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold, 
+                    fontSize: 11,
+                    color: Colors.black87
                   )
-                ],
-              ),
+                ),
+                const SizedBox(height: 4),
+                // --- ETIQUETA DINÁMICA ---
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                  decoration: BoxDecoration(
+                    // Cambia a rojo si NO está disponible
+                    color: isAvailable ? Colors.green : Colors.red,
+                    borderRadius: BorderRadius.circular(4)
+                  ),
+                  child: Text(
+                    isAvailable ? "Disponible" : "No disponible", 
+                    style: const TextStyle(color: Colors.white, fontSize: 9),
+                  ),
+                )
+              ],
             ),
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
 
   Widget _buildImage(String? url) {
     const String defaultCover = 'https://img.freepik.com/vector-gratis/cubierta-libro-azul-vector-top-view_1017-31355.jpg';

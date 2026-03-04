@@ -1,5 +1,10 @@
-import 'dart:convert'; // Importante para el Base64
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
+// Cambiamos a la ruta completa del proyecto para que no haya pérdida
+import '../services/chat_service.dart';
+import 'individual_chat_page.dart';
 
 class MaterialDetailPage extends StatelessWidget {
   final String materialId;
@@ -11,7 +16,8 @@ class MaterialDetailPage extends StatelessWidget {
     required this.materialData,
   });
 
-  // --- LÓGICA HÍBRIDA DE IMAGEN ---
+  // Aqui se coloca una logica hibrida, de esta manera da igual como se coloque la imagen
+  //siempre habra una via de escape para que pueda ser annadida
   Widget _buildImage(String? imagePath) {
     if (imagePath == null || imagePath.isEmpty) {
       return _buildPlaceholder();
@@ -20,7 +26,6 @@ class MaterialDetailPage extends StatelessWidget {
     // Caso 1: Es Base64 (Empieza con 'data:image' o es una cadena larga sin http)
     if (imagePath.startsWith('data:image') || !imagePath.startsWith('http')) {
       try {
-        // Limpiamos la cabecera si la tiene (ej: "data:image/png;base64,")
         final String cleanBase64 = imagePath.contains(',') 
             ? imagePath.split(',')[1] 
             : imagePath;
@@ -143,8 +148,39 @@ class MaterialDetailPage extends StatelessWidget {
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                       ),
-                      onPressed: () {
-                        // Aquí empezará la magia del chat
+                      onPressed: () async {
+                        final chatService = ChatService();
+                        
+                        // OBTENER EL USUARIO REAL DE FIREBASE
+                        final User? user = FirebaseAuth.instance.currentUser;
+
+                        if (user == null) {
+                          // Si por alguna razón no hay sesión, avisamos al usuario
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("Debes iniciar sesión para solicitar un libro")),
+                          );
+                          return;
+                        }
+                        String currentUserId = user.uid; // Este es el ID único y real del usuario
+                        
+                        String chatId = await chatService.getOrCreateChat(
+                          currentUserId,
+                          materialData['userId'] ?? '', // ID del dueño
+                          materialId,
+                        );
+
+                        // Navegar a la pantalla de chat (la crearemos en el siguiente paso)
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            // ... dentro del Navigator.push ...
+                            builder: (context) => IndividualChatPage(
+                              chatId: chatId,
+                              materialData: materialData, // Corregido
+                              receiverName: materialData['ownerName'] ?? 'Propietario', // Corregido
+                            ),
+                          ),
+                        );
                       },
                       icon: const Icon(Icons.chat_bubble_outline),
                       label: const Text("Solicitar préstamo"),
