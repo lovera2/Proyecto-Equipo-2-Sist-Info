@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../viewmodels/home_viewmodel.dart';
 import '../viewmodels/auth_viewmodel.dart';
-import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
 import 'dart:convert'; // Importante para las imágenes Base64
 import 'material_detail_page.dart';
 import 'package:bookloop_unimet/views/chat_list_page.dart';
@@ -189,39 +187,38 @@ class _HomePageState extends State<HomePage> {
 
                             return GridView.builder(
                               shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(), 
+                              physics: const NeverScrollableScrollPhysics(),
                               padding: const EdgeInsets.only(left: 40, right: 40, bottom: 40),
                               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 4, 
-                                childAspectRatio: 0.50, // Formato vertical (Libro alto)
+                                crossAxisCount: 4,
+                                childAspectRatio: 0.60, // Formato vertical (Libro alto) - actualizado
                                 crossAxisSpacing: 40,
                                 mainAxisSpacing: 40,
                               ),
                               itemCount: docs.length,
                               itemBuilder: (context, index) {
-  final doc = docs[index];
-  final data = doc.data() as Map<String, dynamic>;
-
-  // Usamos InkWell dentro de un Material para mejor respuesta visual
-  return Material(
-    color: Colors.transparent, // Mantenemos el fondo invisible
-    child: InkWell(
-      onTap: () {
-        print("¡Clic detectado en el libro: ${data['title']}!"); // Esto saldrá en tu consola de VS Code
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => MaterialDetailPage(
-              materialId: doc.id,
-              materialData: data,
-            ),
-          ),
-        );
-      },
-      child: _buildBookCard(data), // Tu diseño original
-    ),
-  );
-},
+                                final doc = docs[index];
+                                final data = doc.data() as Map<String, dynamic>;
+                                // Usamos InkWell dentro de un Material para mejor respuesta visual
+                                return Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    onTap: () {
+                                      print("¡Clic detectado en el libro: ${data['title']}!");
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => MaterialDetailPage(
+                                            materialId: doc.id,
+                                            materialData: data,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    child: _buildBookCard(data),
+                                  ),
+                                );
+                              },
                             );
                           },
                         ),
@@ -347,36 +344,88 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildCategoryFilter(HomeViewModel vm) {
-    final categories = ["TODO", "Faces", "Ingeniería", "Humanidades", "Derecho"];
+    final categories = ["TODO", "FACES", "Ingeniería", "Humanidades", "Derecho"];
+
+    const Color brownBtn = cardBrown;
+
     return Center(
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: categories.map((cat) {
-            final isSelected = vm.selectedCategory == cat;
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 5.0),
-              child: GestureDetector(
-                onTap: () => vm.setCategory(cat),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: isSelected ? unimetOrange : Colors.grey[200],
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    cat,
-                    style: TextStyle(
-                      color: isSelected ? Colors.white : Colors.grey[600],
-                      fontWeight: FontWeight.bold,
-                      fontSize: 11,
+          children: [
+            ...categories.asMap().entries.map((entry) {
+              final i = entry.key;
+              final cat = entry.value;
+              final isSelected = vm.selectedCategory == cat;
+
+              final bool isTodo = cat == "TODO";
+              final String label = isTodo ? "Todo" : cat;
+
+              final chip = Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 7),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(28),
+                  onTap: () => vm.setCategory(cat),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 160),
+                    curve: Curves.easeOut,
+                    constraints: const BoxConstraints(minHeight: 52),
+                    padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: isSelected ? unimetOrange : brownBtn,
+                      borderRadius: BorderRadius.circular(28),
+                      border: Border.all(
+                        color: isSelected
+                            ? Colors.transparent
+                            : Colors.black.withOpacity(0.08),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(isSelected ? 0.18 : 0.12),
+                          blurRadius: isSelected ? 10 : 8,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (isTodo) ...[
+                          const Icon(Icons.apps_rounded, size: 18, color: Colors.white),
+                          const SizedBox(width: 8),
+                        ],
+                        Text(
+                          label,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 15,
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-              ),
-            );
-          }).toList(),
+              );
+
+              final bool addSeparator = i == 0;
+
+              return Row(
+                children: [
+                  chip,
+                  if (addSeparator)
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 6),
+                      height: 30,
+                      width: 1.2,
+                      color: Colors.white.withOpacity(0.35),
+                    ),
+                ],
+              );
+            }),
+          ],
         ),
       ),
     );
@@ -398,77 +447,137 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-Widget _buildBookCard(Map<String, dynamic> data) {
-  // 1. Extraemos el estado actual (si no existe, por defecto es 'disponible')
-  final String status = data['status'] ?? 'disponible';
-  final bool isAvailable = status == 'disponible';
+  Widget _buildBookCard(Map<String, dynamic> data) {
+    final String status = (data['status'] ?? 'disponible').toString().toLowerCase();
+    final bool isAvailable = status == 'disponible';
 
-  return Container(
-    decoration: BoxDecoration(
-      color: cardBrown,
-      borderRadius: BorderRadius.circular(12),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withOpacity(0.15), 
-          blurRadius: 4, 
-          offset: const Offset(0, 3)
-        )
-      ],
-    ),
-    child: Column(
-      children: [
-        // IMAGEN
-        Expanded(
-          flex: 7,
-          child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: _buildImage(data['imageUrl']),
-            ),
+    final String titulo = (data['title'] ?? '').toString();
+    final String autor = (data['author'] ?? '').toString();
+    final String materia = (data['subject'] ?? '').toString();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: cardBrown,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.14),
+            blurRadius: 8,
+            offset: const Offset(0, 6),
           ),
-        ),
-        // TEXTO Y ESTADO
-        Expanded(
-          flex: 2,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  data['title'] ?? '', 
-                  maxLines: 2, 
-                  textAlign: TextAlign.center,
-                  overflow: TextOverflow.ellipsis, 
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold, 
-                    fontSize: 11,
-                    color: Colors.black87
-                  )
+        ],
+      ),
+      child: Column(
+        children: [
+          // Portada + badge estado
+          Expanded(
+            flex: 9,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(10, 10, 10, 6),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    _buildImage(data['imageUrl']),
+                    Positioned(
+                      right: 10,
+                      bottom: 10,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isAvailable ? Colors.green : Colors.red,
+                          borderRadius: BorderRadius.circular(999),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.18),
+                              blurRadius: 6,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          isAvailable ? "Disponible" : "No disponible",
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 4),
-                // --- ETIQUETA DINÁMICA ---
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                  decoration: BoxDecoration(
-                    // Cambia a rojo si NO está disponible
-                    color: isAvailable ? Colors.green : Colors.red,
-                    borderRadius: BorderRadius.circular(4)
-                  ),
-                  child: Text(
-                    isAvailable ? "Disponible" : "No disponible", 
-                    style: const TextStyle(color: Colors.white, fontSize: 9),
-                  ),
-                )
-              ],
+              ),
             ),
           ),
-        ),
-      ],
-    ),
-  );
-}
+
+          // Texto
+          Expanded(
+            flex: 4,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    titulo,
+                    maxLines: 2,
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 18,
+                      color: Colors.black87,
+                      height: 1.15,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    autor.isEmpty ? "—" : autor,
+                    maxLines: 1,
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontStyle: FontStyle.italic,
+                      color: Colors.black87,
+                      height: 1.1,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.65),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(color: Colors.black.withOpacity(0.08)),
+                        ),
+                        child: Text(
+                          materia.isEmpty ? "—" : materia,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black87,
+                            height: 1.0,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildImage(String? url) {
     const String defaultCover = 'https://img.freepik.com/vector-gratis/cubierta-libro-azul-vector-top-view_1017-31355.jpg';
@@ -477,8 +586,7 @@ Widget _buildBookCard(Map<String, dynamic> data) {
       return Image.network(defaultCover, fit: BoxFit.cover);
     }
 
-    // Lógica para detectar si es Base64 (Plan B)
-    bool isBase64 = !url.startsWith('http') && !url.startsWith('blob');
+    final bool isBase64 = !url.startsWith('http') && !url.startsWith('blob') && !url.startsWith('data:image');
 
     if (isBase64) {
       try {
@@ -487,22 +595,34 @@ Widget _buildBookCard(Map<String, dynamic> data) {
           fit: BoxFit.cover,
           width: double.infinity,
           height: double.infinity,
-          errorBuilder: (_,__,___) => Image.network(defaultCover, fit: BoxFit.cover),
+          errorBuilder: (_, __, ___) => Image.network(defaultCover, fit: BoxFit.cover),
         );
-      } catch (e) {
+      } catch (_) {
         return Image.network(defaultCover, fit: BoxFit.cover);
       }
     }
 
-    // Si es URL normal
+    if (url.startsWith('data:image')) {
+      try {
+        final clean = url.contains(',') ? url.split(',')[1] : url;
+        return Image.memory(
+          base64Decode(clean),
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+          errorBuilder: (_, __, ___) => Image.network(defaultCover, fit: BoxFit.cover),
+        );
+      } catch (_) {
+        return Image.network(defaultCover, fit: BoxFit.cover);
+      }
+    }
+
     return Image.network(
       url,
       fit: BoxFit.cover,
       width: double.infinity,
       height: double.infinity,
-      errorBuilder: (context, error, stackTrace) {
-        return Image.network(defaultCover, fit: BoxFit.cover);
-      },
+      errorBuilder: (_, __, ___) => Image.network(defaultCover, fit: BoxFit.cover),
     );
   }
 } 
