@@ -3,6 +3,9 @@ import 'package:provider/provider.dart';
 import '../viewmodels/home_viewmodel.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import 'publish_page.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:convert';
+import 'material_detail_page.dart';
 
 class HomeAdminPage extends StatefulWidget {
   const HomeAdminPage({super.key});
@@ -14,6 +17,7 @@ class HomeAdminPage extends StatefulWidget {
 class _HomeAdminPageState extends State<HomeAdminPage> {
   static const Color unimetBlue = Color(0xFF1B3A57);
   static const Color unimetOrange = Color(0xFFF28B31);
+  static const Color cardBrown = Color(0xFFD2A679);
 
   Future<void> _handleLogout(BuildContext context) async {
     await context.read<AuthViewModel>().logout();
@@ -108,6 +112,7 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
   @override
   Widget build(BuildContext context) {
     final homeVM = context.watch<HomeViewModel>();
+    final screenHeight = MediaQuery.of(context).size.height;
 
     return Scaffold(
       body: Stack(
@@ -139,7 +144,7 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.black.withValues(alpha: 0.10),
+                    Colors.black.withOpacity(0.10),
                     Colors.transparent,
                   ],
                 ),
@@ -147,47 +152,121 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
             ),
           ),
           SafeArea(
-            child: Column(
-              children: [
-                _buildHeader(context),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  child: Column(
-                    children: [
-                      _buildSearchBar(context, homeVM),
-                      const SizedBox(height: 10),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: Center(
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  _buildHeader(context),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                     child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
-                          Icons.admin_panel_settings_outlined,
-                          size: 80,
-                          color: Colors.white.withValues(alpha: 0.30),
-                        ),
-                        const SizedBox(height: 10),
-                        const Text(
-                          "Panel de Administración",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
+                        _buildSearchBar(context, homeVM),
+                        const SizedBox(height: 18),
+                      ],
+                    ),
+                  ),
+
+                  _buildCategoryFilter(homeVM),
+                  const SizedBox(height: 14),
+
+                  // SECCIÓN BLANCA (CATÁLOGO)
+                  Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.symmetric(horizontal: 200),
+                    constraints: BoxConstraints(
+                      // Mantiene el panel blanco “completo” aunque no haya libros
+                      minHeight: screenHeight * 0.62,
+                    ),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(30),
+                        topRight: Radius.circular(30),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 26),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 40, bottom: 18),
+                          child: Text(
+                            "Material Reciente",
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: unimetBlue,
+                            ),
                           ),
                         ),
-                        const Text(
-                          "Monitoreo de actividad y recursos",
-                          style: TextStyle(color: Colors.white70, fontSize: 14),
+
+                        StreamBuilder<QuerySnapshot>(
+                          stream: homeVM.materialsStream,
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState == ConnectionState.waiting) {
+                              return const Padding(
+                                padding: EdgeInsets.all(50.0),
+                                child: Center(
+                                  child: CircularProgressIndicator(color: unimetBlue),
+                                ),
+                              );
+                            }
+
+                            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                              return SizedBox(
+                                height: screenHeight * 0.42,
+                                child: Padding(
+                                  padding: const EdgeInsets.all(50.0),
+                                  child: _buildEmptyState(),
+                                ),
+                              );
+                            }
+
+                            final docs = snapshot.data!.docs;
+
+                            return GridView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              padding: const EdgeInsets.only(left: 40, right: 40, bottom: 40),
+                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 4,
+                                childAspectRatio: 0.60,
+                                crossAxisSpacing: 40,
+                                mainAxisSpacing: 40,
+                              ),
+                              itemCount: docs.length,
+                              itemBuilder: (context, index) {
+                                final doc = docs[index];
+                                final data = doc.data() as Map<String, dynamic>;
+
+                                return Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => MaterialDetailPage(
+                                            materialId: doc.id,
+                                            materialData: data,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    child: _buildBookCard(data),
+                                  ),
+                                );
+                              },
+                            );
+                          },
                         ),
                       ],
                     ),
                   ),
-                ),
-                _Footer(onTerms: () => _showTermsDialog(context)),
-              ],
+
+                  _Footer(onTerms: () => _showTermsDialog(context)),
+                ],
+              ),
             ),
           ),
         ],
@@ -329,6 +408,288 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
       ),
     );
   }
+
+  Widget _buildCategoryFilter(HomeViewModel vm) {
+    // UI label vs valor real (para que el filtro coincida con lo guardado en Firestore)
+    // En PublishPage se guarda la categoría como: Faces, Ingeniería, Humanidades, Derecho.
+    final items = <Map<String, String>>[
+      {'label': 'Todo', 'value': 'TODO'},
+      {'label': 'FACES', 'value': 'Fases'},
+      {'label': 'Ingeniería', 'value': 'Ingeniería'},
+      {'label': 'Humanidades', 'value': 'Humanidades'},
+      {'label': 'Derecho', 'value': 'Derecho'},
+    ];
+
+    const Color brownBtn = Color(0xFFD2A679);
+
+    return Center(
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: items.map((item) {
+            final label = item['label']!;
+            final value = item['value']!;
+
+            final isSelected = vm.selectedCategory == value;
+            final isTodo = value == 'TODO';
+
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 7),
+              child: Row(
+                children: [
+                  InkWell(
+                    borderRadius: BorderRadius.circular(28),
+                    onTap: () => vm.setCategory(value),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 160),
+                      curve: Curves.easeOut,
+                      constraints: const BoxConstraints(minHeight: 52),
+                      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                      decoration: BoxDecoration(
+                        // ✅ Admin: seleccionado AZUL, no naranja
+                        color: isSelected ? unimetBlue : brownBtn,
+                        borderRadius: BorderRadius.circular(28),
+                        border: Border.all(
+                          color: isSelected
+                              ? Colors.transparent
+                              : Colors.black.withOpacity(0.08),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(isSelected ? 0.18 : 0.12),
+                            blurRadius: isSelected ? 10 : 8,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
+                      ),
+                      child: isTodo
+                          ? const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.apps_rounded, color: Colors.white, size: 18),
+                                SizedBox(width: 10),
+                                Text(
+                                  'Todo',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 15,
+                                    letterSpacing: 0.2,
+                                  ),
+                                ),
+                              ],
+                            )
+                          : Text(
+                              label,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 15,
+                                letterSpacing: 0.2,
+                              ),
+                            ),
+                    ),
+                  ),
+                  // separador visual después de "Todo" para dejar claro que no es una facultad
+                  if (isTodo)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 14),
+                      child: Container(
+                        width: 2,
+                        height: 30,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.75),
+                          borderRadius: BorderRadius.circular(99),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.library_books_outlined, size: 64, color: Colors.grey[400]),
+          const SizedBox(height: 10),
+          Text(
+            "No hay libros en esta categoría",
+            style: TextStyle(color: Colors.grey[500], fontSize: 16),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBookCard(Map<String, dynamic> data) {
+    final String status = (data['status'] ?? 'disponible').toString().toLowerCase();
+    final bool isAvailable = status == 'disponible';
+
+    final String titulo = (data['title'] ?? '').toString();
+    final String autor = (data['author'] ?? '').toString();
+    final String materia = (data['subject'] ?? '').toString();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: cardBrown,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.14),
+            blurRadius: 8,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Expanded(
+            flex: 9,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(10, 10, 10, 6),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    _buildImage(data['imageUrl']),
+                    Positioned(
+                      right: 10,
+                      bottom: 10,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isAvailable ? Colors.green : Colors.red,
+                          borderRadius: BorderRadius.circular(999),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.18),
+                              blurRadius: 6,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          isAvailable ? "Disponible" : "No disponible",
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 4,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    titulo,
+                    maxLines: 2,
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 18,
+                      color: Colors.black87,
+                      height: 1.15,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    autor.isEmpty ? "—" : autor,
+                    maxLines: 1,
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontStyle: FontStyle.italic,
+                      color: Colors.black87,
+                      height: 1.1,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.65),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(color: Colors.black.withOpacity(0.08)),
+                        ),
+                        child: Text(
+                          materia.isEmpty ? "—" : materia,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black87,
+                            height: 1.0,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildImage(String? url) {
+    const String defaultCover =
+        'https://img.freepik.com/vector-gratis/cubierta-libro-azul-vector-top-view_1017-31355.jpg';
+
+    if (url == null || url.isEmpty) {
+      return Image.network(defaultCover, fit: BoxFit.cover);
+    }
+
+    final isBase64 = !url.startsWith('http') && !url.startsWith('blob');
+
+    if (isBase64) {
+      try {
+        return Image.memory(
+          base64Decode(url),
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+          errorBuilder: (_, __, ___) => Image.network(defaultCover, fit: BoxFit.cover),
+        );
+      } catch (_) {
+        return Image.network(defaultCover, fit: BoxFit.cover);
+      }
+    }
+
+    return Image.network(
+      url,
+      fit: BoxFit.cover,
+      width: double.infinity,
+      height: double.infinity,
+      errorBuilder: (_, __, ___) => Image.network(defaultCover, fit: BoxFit.cover),
+    );
+  }
 }
 
 class _Footer extends StatelessWidget {
@@ -375,13 +736,13 @@ class _BlobPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     // círculos grandes y suaves
-    final soft = Paint()..color = Colors.white.withValues(alpha: 0.035);
+    final soft = Paint()..color = Colors.white.withOpacity(0.035);
     canvas.drawCircle(Offset(size.width * 0.12, size.height * 0.22), 180, soft);
     canvas.drawCircle(Offset(size.width * 0.88, size.height * 0.58), 240, soft);
     canvas.drawCircle(Offset(size.width * 0.55, size.height * 0.12), 140, soft);
 
     // puntitos tipo “ruido” muy sutil
-    final dots = Paint()..color = Colors.white.withValues(alpha: 0.025);
+    final dots = Paint()..color = Colors.white.withOpacity(0.025);
     const step = 42.0;
     for (double y = 0; y < size.height; y += step) {
       for (double x = 0; x < size.width; x += step) {
