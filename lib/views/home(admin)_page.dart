@@ -174,7 +174,7 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
                     width: double.infinity,
                     margin: const EdgeInsets.symmetric(horizontal: 200),
                     constraints: BoxConstraints(
-                      // Mantiene el panel blanco “completo” aunque no haya libros
+                      // Mantiene el panel blanco completo aunque no haya libros
                       minHeight: screenHeight * 0.62,
                     ),
                     decoration: const BoxDecoration(
@@ -298,7 +298,7 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
             children: [
               Container(
                 decoration: BoxDecoration(
-                  color: unimetBlue, // ✅ azul para contrastar con el fondo naranja
+                  color: unimetBlue,
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: IconButton(
@@ -414,7 +414,7 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
     // En PublishPage se guarda la categoría como: Faces, Ingeniería, Humanidades, Derecho.
     final items = <Map<String, String>>[
       {'label': 'Todo', 'value': 'TODO'},
-      {'label': 'FACES', 'value': 'Fases'},
+      {'label': 'FACES', 'value': 'Faces'},
       {'label': 'Ingeniería', 'value': 'Ingeniería'},
       {'label': 'Humanidades', 'value': 'Humanidades'},
       {'label': 'Derecho', 'value': 'Derecho'},
@@ -447,7 +447,6 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
                       constraints: const BoxConstraints(minHeight: 52),
                       padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
                       decoration: BoxDecoration(
-                        // ✅ Admin: seleccionado AZUL, no naranja
                         color: isSelected ? unimetBlue : brownBtn,
                         borderRadius: BorderRadius.circular(28),
                         border: Border.all(
