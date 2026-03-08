@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../viewmodels/home_viewmodel.dart';
 import '../viewmodels/auth_viewmodel.dart';
 
+
 class HomeAdminPage extends StatefulWidget {
   const HomeAdminPage({super.key});
 
@@ -228,7 +229,7 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
   }
 }
 
-// --- AGREGA ESTO AL FINAL DEL ARCHIVO home(admin)_page.dart ---
+
 
 class _Footer extends StatelessWidget {
   final VoidCallback onTerms;

@@ -167,8 +167,8 @@ class _HomePageState extends State<HomePage> {
                           ),
                         ),
 
-                        StreamBuilder<QuerySnapshot>(
-                          stream: homeVM.materialsStream,
+                        StreamBuilder<List<QueryDocumentSnapshot>>(
+                          stream: homeVM.filteredMaterialsStream,
                           builder: (context, snapshot) {
                             if (snapshot.connectionState == ConnectionState.waiting) {
                               return const Padding(
@@ -176,14 +176,15 @@ class _HomePageState extends State<HomePage> {
                                 child: Center(child: CircularProgressIndicator(color: unimetOrange)),
                               );
                             }
-                            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                            
+                            if (!snapshot.hasData || snapshot.data!.isEmpty) {
                               return Padding(
                                 padding: const EdgeInsets.all(50.0),
                                 child: _buildEmptyState(),
                               );
                             }
 
-                            final docs = snapshot.data!.docs;
+                            final docs = snapshot.data!;
 
                             return GridView.builder(
                               shrinkWrap: true,

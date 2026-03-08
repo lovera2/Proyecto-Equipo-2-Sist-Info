@@ -27,6 +27,25 @@ class HomeViewModel extends ChangeNotifier {
   }
 
   //Conexión directa a la base de datos
-  Stream<QuerySnapshot> get materialsStream =>
-      _materialService.getMaterials(_selectedCategory);
+  String get searchQuery => _searchQuery;
+
+  Stream<List<QueryDocumentSnapshot>> get filteredMaterialsStream {
+    return _materialService.getMaterials(_selectedCategory).map((snapshot) {
+      final query = _searchQuery.toLowerCase().trim();
+
+      // Da la lista completa si no hay texto en la búsqueda
+      if (query.isEmpty) {
+        return snapshot.docs;
+      }
+      return snapshot.docs.where((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        final title = (data['title'] ?? '').toString().toLowerCase();
+        final author = (data['author'] ?? '').toString().toLowerCase();
+        final category = (data['category'] ?? '').toString().toLowerCase();
+        return title.contains(query) || 
+               author.contains(query) || 
+               category.contains(query);
+      }).toList();
+    });
+  }
 }
