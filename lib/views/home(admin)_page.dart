@@ -2,9 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../viewmodels/home_viewmodel.dart';
 import '../viewmodels/auth_viewmodel.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'dart:convert';
-import 'material_detail_page.dart';
 import 'package:bookloop_unimet/views/chat_list_page.dart';
 
 
@@ -18,6 +15,7 @@ class HomeAdminPage extends StatefulWidget {
 class _HomeAdminPageState extends State<HomeAdminPage> {
   static const Color unimetBlue = Color(0xFF1B3A57);
   static const Color unimetOrange = Color(0xFFF28B31);
+  bool _showDashboard = false;
 
   Future<void> _handleLogout(BuildContext context) async {
     await context.read<AuthViewModel>().logout();
@@ -94,25 +92,30 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
                 ),
 
                 Expanded(
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.admin_panel_settings_outlined, 
-                             size: 80, 
-                             color: Colors.white.withOpacity(0.3)),
-                        const SizedBox(height: 10),
-                        const Text(
-                          "Panel de Administración",
-                          style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                  child: _showDashboard 
+                    ? _buildDashboardView() // Función que crearemos abajo
+                    : Center( // Tu vista original
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.admin_panel_settings_outlined,
+                              size: 100,
+                              color: Colors.white.withOpacity(0.2),
+                            ),
+                            const SizedBox(height: 20),
+                            const Text(
+                              'Panel de Administración',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 24,
+                                fontWeight: FontWeight.w300,
+                                letterSpacing: 1.2,
+                              ),
+                            ),
+                          ],
                         ),
-                        const Text(
-                          "Monitoreo de actividad y recursos",
-                          style: TextStyle(color: Colors.white70, fontSize: 14),
-                        ),
-                      ],
-                    ),
-                  ),
+                      ),
                 ),
 
                 _Footer(onTerms: () => _showTermsDialog(context)),
@@ -147,17 +150,33 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
           Row(
             children: [
               PopupMenuButton<String>(
-                icon: const Icon(Icons.settings_suggest, color: Colors.white, size: 28),
-                tooltip: "Funciones Admin",
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                icon: const Icon(Icons.settings_suggest, color: Colors.white),
                 onSelected: (value) {
-                  // Aquí ponemos lo que hacen los botones
+                  if (value == 'dashboard') {
+                    setState(() => _showDashboard = true);
+                  }
                 },
                 itemBuilder: (context) => [
-                  _buildAdminMenuItem(Icons.dashboard, "Dashboard"),
-                  _buildAdminMenuItem(Icons.people, "Gestión de Perfiles"),
-                  _buildAdminMenuItem(Icons.auto_stories, "Gestión de Material"),
-                  _buildAdminMenuItem(Icons.filter_list, "Gestión de Filtros"),
+                  const PopupMenuItem(
+                    value: 'dashboard',
+                    child: Row(
+                      children: [
+                        Icon(Icons.dashboard, color: unimetBlue, size: 20),
+                        SizedBox(width: 12),
+                        Text('Dashboard'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'perfiles',
+                    child: Row(
+                      children: [
+                        Icon(Icons.people, color: unimetBlue, size: 20),
+                        SizedBox(width: 12),
+                        Text('Gestión de Perfiles'),
+                      ],
+                    ),
+                  ),
                 ],
               ),
               IconButton(
@@ -242,6 +261,76 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
       ),
     );
   }
+Widget _buildDashboardView() {
+  return Column(
+    children: [
+      // Botón para regresar
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Row(
+          children: [
+            TextButton.icon(
+              onPressed: () => setState(() => _showDashboard = false),
+              icon: const Icon(Icons.arrow_back, color: Colors.white),
+              label: const Text("Regresar", style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+      Expanded(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            children: [
+              _buildMetricCard("Usuarios Registrados", "150", Icons.people, Colors.blue),
+              const SizedBox(height: 15),
+              _buildMetricCard("Intercambios Totales", "45", Icons.swap_horiz, Colors.orange),
+              const SizedBox(height: 15),
+              _buildMetricCard("Libros Activos", "320", Icons.book, Colors.green),
+              const SizedBox(height: 20),
+              // Aquí podrías agregar tus gráficos
+              Container(
+                height: 150,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(15),
+                  border: Border.all(color: Colors.white24)
+                ),
+                child: const Center(
+                  child: Text("Gráfico de Categorías", style: TextStyle(color: Colors.white60)),
+                ),
+              )
+            ],
+          ),
+        ),
+      ),
+    ],
+  );
+}
+
+Widget _buildMetricCard(String title, String value, IconData icon, Color color) {
+  return Container(
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(15),
+    ),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Row(
+          children: [
+            Icon(icon, color: color, size: 30),
+            const SizedBox(width: 15),
+            Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: unimetBlue)),
+      ],
+    ),
+  );
+}
+
 }
 
 
