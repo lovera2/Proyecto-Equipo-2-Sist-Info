@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../viewmodels/home_viewmodel.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import 'package:bookloop_unimet/views/chat_list_page.dart';
+import 'admin_dashboard_page.dart';
 
 
 class HomeAdminPage extends StatefulWidget {
@@ -93,8 +94,8 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
 
                 Expanded(
                   child: _showDashboard 
-                    ? _buildDashboardView() // Función que crearemos abajo
-                    : Center( // Tu vista original
+                    ? AdminDashboardView(onBack: () => setState(() => _showDashboard = false))
+                    : Center( 
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -264,7 +265,6 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
 Widget _buildDashboardView() {
   return Column(
     children: [
-      // Botón para regresar
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20),
         child: Row(
@@ -288,7 +288,6 @@ Widget _buildDashboardView() {
               const SizedBox(height: 15),
               _buildMetricCard("Libros Activos", "320", Icons.book, Colors.green),
               const SizedBox(height: 20),
-              // Aquí podrías agregar tus gráficos
               Container(
                 height: 150,
                 decoration: BoxDecoration(
