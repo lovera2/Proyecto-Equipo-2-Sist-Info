@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../viewmodels/home_viewmodel.dart';
 import '../viewmodels/auth_viewmodel.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:convert';
+import 'material_detail_page.dart';
+import 'package:bookloop_unimet/views/chat_list_page.dart';
 
 
 class HomeAdminPage extends StatefulWidget {
@@ -156,6 +160,17 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
                   _buildAdminMenuItem(Icons.filter_list, "Gestión de Filtros"),
                 ],
               ),
+              IconButton(
+                icon: const Icon(Icons.notifications_none_outlined, color: Colors.white, size: 28),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => ChatListPage()),
+                  );
+                },
+                tooltip: 'Mis chats y notificaciones',
+              ),
+              const SizedBox(width: 5),
               IconButton(
                 icon: const Icon(Icons.person_outline, color: Colors.white, size: 28),
                 onPressed: () {},
