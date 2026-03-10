@@ -4,6 +4,8 @@ import '../viewmodels/home_viewmodel.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import 'package:bookloop_unimet/views/chat_list_page.dart';
 import 'admin_dashboard_page.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:convert'; 
 
 
 class HomeAdminPage extends StatefulWidget {
@@ -16,6 +18,7 @@ class HomeAdminPage extends StatefulWidget {
 class _HomeAdminPageState extends State<HomeAdminPage> {
   static const Color unimetBlue = Color(0xFF1B3A57);
   static const Color unimetOrange = Color(0xFFF28B31);
+  static const Color cardBrown = Color(0xFFD2A679);
   bool _showDashboard = false;
 
   Future<void> _handleLogout(BuildContext context) async {
@@ -95,28 +98,7 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
                 Expanded(
                   child: _showDashboard 
                     ? AdminDashboardView(onBack: () => setState(() => _showDashboard = false))
-                    : Center( 
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.admin_panel_settings_outlined,
-                              size: 100,
-                              color: Colors.white.withOpacity(0.2),
-                            ),
-                            const SizedBox(height: 20),
-                            const Text(
-                              'Panel de Administración',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 24,
-                                fontWeight: FontWeight.w300,
-                                letterSpacing: 1.2,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                    : _buildCatalogView(homeVM, MediaQuery.of(context).size.height), 
                 ),
 
                 _Footer(onTerms: () => _showTermsDialog(context)),
@@ -236,32 +218,7 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
     );
   }
 
-  Widget _buildSearchBar(HomeViewModel vm) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: TextField(
-        onChanged: (value) => vm.updateSearchQuery(value),
-        style: const TextStyle(color: unimetBlue),
-        decoration: const InputDecoration(
-          hintText: "Buscar por título, autor o carrera...",
-          hintStyle: TextStyle(color: Colors.grey),
-          prefixIcon: Icon(Icons.search, color: unimetOrange),
-          border: InputBorder.none,
-          contentPadding: EdgeInsets.symmetric(vertical: 15),
-        ),
-      ),
-    );
-  }
+
 Widget _buildDashboardView() {
   return Column(
     children: [
@@ -329,6 +286,345 @@ Widget _buildMetricCard(String title, String value, IconData icon, Color color) 
     ),
   );
 }
+
+  Widget _buildImage(String? base64String) {
+    if (base64String == null || base64String.isEmpty) {
+      return Container(
+        color: cardBrown,
+        child: const Center(
+          child: Icon(Icons.menu_book, color: Colors.white, size: 50),
+        ),
+      );
+    }
+    
+    try {
+      return Image.memory(
+        base64Decode(base64String),
+        fit: BoxFit.cover,
+        width: double.infinity,
+      );
+    } catch (e) {
+      debugPrint("Error decodificando imagen: $e");
+      return Container(
+        color: cardBrown,
+        child: const Center(
+          child: Icon(Icons.broken_image, color: Colors.white, size: 50),
+        ),
+      );
+    }
+  }
+
+  Widget _buildSearchBar(HomeViewModel homeVM) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 15),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8)],
+      ),
+      child: TextField(
+        onChanged: (value) => homeVM.updateSearchQuery(value),
+        decoration: const InputDecoration(
+          hintText: "Buscar libros, guías...",
+          border: InputBorder.none,
+          icon: Icon(Icons.search, color: unimetBlue),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCatalogView(HomeViewModel homeVM, double screenHeight) {
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          _buildCategoryFilter(homeVM),
+          const SizedBox(height: 15),
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.symmetric(horizontal: 200), 
+            constraints: BoxConstraints(minHeight: screenHeight * 0.7),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(30),
+                topRight: Radius.circular(30),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.only(left: 40, top: 30, bottom: 20),
+                  child: Text("Catálogo de Libros", 
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: unimetBlue)),
+                ),
+                _buildBooksGrid(homeVM),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+    Widget _buildCategoryFilter(HomeViewModel vm) {
+    final categories = ["TODO", "FACES", "Ingeniería", "Humanidades", "Derecho"];
+
+    const Color brownBtn = cardBrown;
+
+    return Center(
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            ...categories.asMap().entries.map((entry) {
+              final i = entry.key;
+              final cat = entry.value;
+              final isSelected = vm.selectedCategory == cat;
+
+              final bool isTodo = cat == "TODO";
+              final String label = isTodo ? "Todo" : cat;
+
+              final chip = Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 7),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(28),
+                  onTap: () => vm.setCategory(cat),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 160),
+                    curve: Curves.easeOut,
+                    constraints: const BoxConstraints(minHeight: 52),
+                    padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: isSelected ? unimetOrange : brownBtn,
+                      borderRadius: BorderRadius.circular(28),
+                      border: Border.all(
+                        color: isSelected
+                            ? Colors.transparent
+                            : Colors.black.withOpacity(0.08),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(isSelected ? 0.18 : 0.12),
+                          blurRadius: isSelected ? 10 : 8,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (isTodo) ...[
+                          const Icon(Icons.apps_rounded, size: 18, color: Colors.white),
+                          const SizedBox(width: 8),
+                        ],
+                        Text(
+                          label,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 15,
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+
+              final bool addSeparator = i == 0;
+
+              return Row(
+                children: [
+                  chip,
+                  if (addSeparator)
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 6),
+                      height: 30,
+                      width: 1.2,
+                      color: Colors.white.withOpacity(0.35),
+                    ),
+                ],
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBooksGrid(HomeViewModel homeVM) {
+    return StreamBuilder(
+      stream: homeVM.filteredMaterialsStream, 
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          debugPrint("Error en el Stream: ${snapshot.error}");
+          return const Center(child: Text("Ocurrió un error al cargar el catálogo."));
+        }
+
+        if (!snapshot.hasData || (snapshot.data as List).isEmpty) {
+          return const Center(child: Text("No hay libros disponibles."));
+        }
+
+        final docs = snapshot.data as List; 
+
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          padding: const EdgeInsets.only(left: 40, right: 40, bottom: 40),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 4,
+            childAspectRatio: 0.60,
+            crossAxisSpacing: 40,
+            mainAxisSpacing: 40,
+          ),
+          itemCount: docs.length,
+          itemBuilder: (context, index) {
+            final data = docs[index].data() as Map<String, dynamic>;
+            return _buildBookCard(data); 
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildBookCard(Map<String, dynamic> data) {
+    final String status = (data['status'] ?? 'disponible').toString().toLowerCase();
+    final bool isAvailable = status == 'disponible';
+
+    final String titulo = (data['title'] ?? '').toString();
+    final String autor = (data['author'] ?? '').toString();
+    final String materia = (data['subject'] ?? '').toString();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: cardBrown,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.14),
+            blurRadius: 8,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Portada + badge estado
+          Expanded(
+            flex: 9,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(10, 10, 10, 6),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    _buildImage(data['imageUrl']),
+                    Positioned(
+                      right: 10,
+                      bottom: 10,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isAvailable ? Colors.green : Colors.red,
+                          borderRadius: BorderRadius.circular(999),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.18),
+                              blurRadius: 6,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          isAvailable ? "Disponible" : "No disponible",
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // Texto
+          Expanded(
+            flex: 4,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    titulo,
+                    maxLines: 2,
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 18,
+                      color: Colors.black87,
+                      height: 1.15,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    autor.isEmpty ? "—" : autor,
+                    maxLines: 1,
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontStyle: FontStyle.italic,
+                      color: Colors.black87,
+                      height: 1.1,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.65),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(color: Colors.black.withOpacity(0.08)),
+                        ),
+                        child: Text(
+                          materia.isEmpty ? "—" : materia,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black87,
+                            height: 1.0,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
 }
 
