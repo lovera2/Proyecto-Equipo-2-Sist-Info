@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/chat_service.dart';
 import 'individual_chat_page.dart';
 
@@ -21,6 +22,30 @@ class MaterialDetailPage extends StatelessWidget {
   static const Color unimetBlue = Color(0xFF1B3A57);
   static const Color unimetOrange = Color(0xFFF28B31);
   static const Color cardBrown = Color(0xFFD2A679);
+
+  Future<Map<String, String>> _fetchOwnerProfile(String ownerUid) async {
+    if (ownerUid.trim().isEmpty) return {'fullName': '', 'username': ''};
+
+    try {
+      final snap = await FirebaseFirestore.instance.collection('usuarios').doc(ownerUid).get();
+      final data = snap.data();
+      if (data == null) return {'fullName': '', 'username': ''};
+
+      final nombre = (data['nombre'] ?? '').toString().trim();
+      final apellido = (data['apellido'] ?? '').toString().trim();
+      final email = (data['email'] ?? '').toString().trim();
+
+      final fullName = ("$nombre $apellido").trim();
+      final username = email.contains('@') ? email.split('@').first : '';
+
+      return {
+        'fullName': fullName,
+        'username': username,
+      };
+    } catch (_) {
+      return {'fullName': '', 'username': ''};
+    }
+  }
 
   Widget _buildImage(String? imagePath) {
     if (imagePath == null || imagePath.isEmpty) {
@@ -97,7 +122,39 @@ class MaterialDetailPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final String title = (materialData['title'] ?? 'Sin título').toString();
     final String category = (materialData['category'] ?? 'N/A').toString();
-    final String ownerName = (materialData['ownerName'] ?? 'No especificado').toString();
+    final User? user = FirebaseAuth.instance.currentUser;
+    final String currentUid = user?.uid ?? '';
+    final String ownerUid = (materialData['userId'] ?? '').toString();
+    final bool isOwner = currentUid.isNotEmpty && currentUid == ownerUid;
+
+    // Datos del dueño (intentamos mostrar: "Nombre Apellido (@usuario)")
+    final String ownerNameRaw = (materialData['ownerName'] ?? '').toString().trim();
+    final String ownerUsernameRaw = (materialData['ownerUsername'] ?? '').toString().trim();
+    final String ownerEmailRaw = (materialData['ownerEmail'] ?? '').toString().trim();
+
+    final String ownerUserFromOwnerEmail = ownerEmailRaw.contains('@')
+        ? ownerEmailRaw.split('@').first
+        : ownerEmailRaw;
+
+    final String emailRaw = (user?.email ?? '').toString().trim();
+    final String usernameFromEmail = emailRaw.contains('@') ? emailRaw.split('@').first : emailRaw;
+
+    final String displayNameFromAuth = (user?.displayName ?? '').toString().trim();
+
+    final String ownerUsernameFallback = ownerUsernameRaw.isNotEmpty
+        ? ownerUsernameRaw
+        : (ownerUserFromOwnerEmail.isNotEmpty
+            ? ownerUserFromOwnerEmail
+            : (isOwner && usernameFromEmail.isNotEmpty ? usernameFromEmail : ''));
+
+    final String ownerNameFallback = ownerNameRaw.isNotEmpty
+        ? ownerNameRaw
+        : (isOwner && displayNameFromAuth.isNotEmpty
+            ? displayNameFromAuth
+            : (isOwner && usernameFromEmail.isNotEmpty ? usernameFromEmail : ''));
+
+    // Si no viene nombre/username en el material, intentamos buscarlo en /usuarios/{uid}
+    final Future<Map<String, String>> ownerFuture = _fetchOwnerProfile(ownerUid);
     final String subject = (materialData['subject'] ?? 'N/A').toString();
     final String desc = (materialData['description'] ?? 'Sin descripción disponible.').toString();
     final String author = (materialData['author'] ?? 'N/A').toString();
@@ -183,21 +240,40 @@ class MaterialDetailPage extends StatelessWidget {
                               ],
                             );
 
-                            final details = _DetailsCard(
-                              title: title,
-                              category: category,
-                              ownerName: ownerName,
-                              subject: subject,
-                              author: author,
-                              description: desc,
-                              isAvailable: isAvailable,
-                              isAdmin: effectiveIsAdmin,
-                              onEdit: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: const Text('Editar material: pendiente de conectar.'),
-                                    backgroundColor: effectiveIsAdmin ? unimetBlue : unimetOrange,
-                                  ),
+                            final details = FutureBuilder<Map<String, String>>(
+                              future: ownerFuture,
+                              builder: (context, snap) {
+                                final fetchedFullName = (snap.data?['fullName'] ?? '').trim();
+                                final fetchedUsername = (snap.data?['username'] ?? '').trim();
+
+                                final String finalName = fetchedFullName.isNotEmpty ? fetchedFullName : ownerNameFallback;
+                                final String finalUsername = fetchedUsername.isNotEmpty ? fetchedUsername : ownerUsernameFallback;
+
+                                final String ownerDisplay = (finalName.isNotEmpty && finalUsername.isNotEmpty)
+                                    ? (finalName.toLowerCase() == finalUsername.toLowerCase()
+                                        ? '@$finalUsername'
+                                        : '$finalName (@$finalUsername)')
+                                    : (finalName.isNotEmpty
+                                        ? finalName
+                                        : (finalUsername.isNotEmpty ? '@$finalUsername' : 'No especificado'));
+
+                                return _DetailsCard(
+                                  title: title,
+                                  category: category,
+                                  ownerName: ownerDisplay,
+                                  subject: subject,
+                                  author: author,
+                                  description: desc,
+                                  isAvailable: isAvailable,
+                                  isAdmin: effectiveIsAdmin,
+                                  onEdit: () {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: const Text('Editar material: pendiente de conectar.'),
+                                        backgroundColor: effectiveIsAdmin ? unimetBlue : unimetOrange,
+                                      ),
+                                    );
+                                  },
                                 );
                               },
                             );
@@ -232,50 +308,69 @@ class MaterialDetailPage extends StatelessWidget {
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                                   children: [
-                                    ElevatedButton.icon(
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: effectiveIsAdmin ? unimetBlue : unimetOrange,
-                                        foregroundColor: Colors.white,
-                                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                                      ),
-                                      onPressed: () async {
-                                        final chatService = ChatService();
-                                        final User? user = FirebaseAuth.instance.currentUser;
+                                    if (!isOwner && !effectiveIsAdmin)
+                                      ElevatedButton.icon(
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: isAvailable
+                                              ? (effectiveIsAdmin ? unimetBlue : unimetOrange)
+                                              : Colors.grey.shade500,
+                                          foregroundColor: Colors.white,
+                                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                          elevation: 0,
+                                        ),
+                                        onPressed: () async {
+                                          if (!isAvailable) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(
+                                                content: Text('Este libro ahorita no está disponible para solicitar préstamo.'),
+                                                duration: Duration(seconds: 2),
+                                              ),
+                                            );
+                                            return;
+                                          }
 
-                                        if (user == null) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(content: Text('Debes iniciar sesión para solicitar un libro')),
+                                          final chatService = ChatService();
+                                          final User? user = FirebaseAuth.instance.currentUser;
+
+                                          if (user == null) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(content: Text('Debes iniciar sesión para solicitar un libro')),
+                                            );
+                                            return;
+                                          }
+
+                                          final String currentUserId = user.uid;
+
+                                          final String chatId = await chatService.getOrCreateChat(
+                                            currentUserId,
+                                            (materialData['userId'] ?? '').toString(),
+                                            materialId,
                                           );
-                                          return;
-                                        }
 
-                                        final String currentUserId = user.uid;
+                                          final Map<String, dynamic> dataConId = Map.from(materialData);
+                                          dataConId['id'] = materialId;
+                                          dataConId['userId'] = (materialData['userId'] ?? '').toString();
 
-                                        final String chatId = await chatService.getOrCreateChat(
-                                          currentUserId,
-                                          (materialData['userId'] ?? '').toString(),
-                                          materialId,
-                                        );
-
-                                        final Map<String, dynamic> dataConId = Map.from(materialData);
-                                        dataConId['id'] = materialId;
-                                        dataConId['userId'] = (materialData['userId'] ?? '').toString();
-
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) => IndividualChatPage(
-                                              chatId: chatId,
-                                              materialData: dataConId,
-                                              receiverName: ownerName,
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) => IndividualChatPage(
+                                                chatId: chatId,
+                                                materialData: dataConId,
+                                                receiverName: ownerNameFallback.isNotEmpty ? ownerNameFallback : 'Propietario',
+                                              ),
                                             ),
-                                          ),
-                                        );
-                                      },
-                                      icon: const Icon(Icons.chat_bubble_outline),
-                                      label: const Text('Solicitar préstamo'),
-                                    ),
+                                          );
+                                        },
+                                        icon: const Icon(Icons.chat_bubble_outline),
+                                        label: Text(
+                                          isAvailable ? 'Solicitar préstamo' : ' Préstamo no disponible',
+                                          style: const TextStyle(fontWeight: FontWeight.w700),
+                                        ),
+                                      )
+                                    else
+                                      const SizedBox(width: 1),
                                     TextButton.icon(
                                       onPressed: () {},
                                       icon: const Icon(Icons.favorite_border, color: Colors.grey),

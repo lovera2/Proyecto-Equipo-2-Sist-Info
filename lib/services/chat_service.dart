@@ -4,6 +4,40 @@ class ChatService {
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  //Crear o recuperar chat entre 2 usuarios para un material
+  Future<String> getOrCreateChat(
+    String userAId,
+    String userBId,
+    String materialId,
+  ) async {
+    final a = userAId.trim();
+    final b = userBId.trim();
+    final m = materialId.trim();
+
+    if (a.isEmpty || b.isEmpty || m.isEmpty) {
+      throw Exception('Ids inválidos para crear chat');
+    }
+
+    // key determinística: mismos usuarios + mismo material => mismo chat
+    final users = [a, b]..sort();
+    final chatId = '${users[0]}_${users[1]}_$m';
+
+    final ref = _firestore.collection('chats').doc(chatId);
+    final snap = await ref.get();
+
+    if (!snap.exists) {
+      await ref.set({
+        'participants': users,
+        'materialId': m,
+        'status': 'pendiente',
+        'createdAt': FieldValue.serverTimestamp(),
+        'lastUpdate': FieldValue.serverTimestamp(),
+      });
+    }
+
+    return chatId;
+  }
+
   //Enviar mensaje
   Future<void> sendMessage(String chatId, String senderId, String text) async {
 
