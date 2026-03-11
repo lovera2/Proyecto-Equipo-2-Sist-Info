@@ -4,6 +4,7 @@ import '../viewmodels/publish_viewmodel.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import 'dart:io'; 
 import 'package:flutter/foundation.dart'; 
+import 'package:bookloop_unimet/views/chat_list_page.dart';
 
 
 class PublishPage extends StatefulWidget {
@@ -27,7 +28,7 @@ class _PublishPageState extends State<PublishPage> {
 
   String? _selectedCategory; // Aquí guardaremos la opción elegida
   final List<String> _categories = [
-    'Faces',
+    'FACES',
     'Ingeniería',
     'Humanidades',
     'Derecho',
@@ -304,35 +305,53 @@ class _PublishPageState extends State<PublishPage> {
           // Botones Funcionales 
           Row(
             children: [
-              
+              // Botón Publicar (estás en esta página)
+              Container(
+                decoration: BoxDecoration(
+                  color: unimetOrange,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.add, color: Colors.white),
+                  tooltip: 'Ya estás aquí',
+                  onPressed: null, // deshabilitado porque ya estamos en Publish
+                ),
+              ),
+              const SizedBox(width: 10),
+
+              // Home
               IconButton(
                 icon: const Icon(Icons.home_outlined, color: Colors.white, size: 28),
-                tooltip: 'Ir al Inicio',
+                tooltip: 'Inicio',
                 onPressed: () {
+                  // Volvemos al Home como página principal
                   Navigator.pushNamedAndRemoveUntil(context, '/home_page', (route) => false);
                 },
               ),
               const SizedBox(width: 10),
 
-              // Notificaciones
+              // Notificaciones / Chats
               IconButton(
                 icon: const Icon(Icons.notifications_none_outlined, color: Colors.white, size: 28),
+                tooltip: 'Mis chats y notificaciones',
                 onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("🔔 Notificaciones en desarrollo...")),
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const ChatListPage()),
                   );
                 },
               ),
-              
+
               // Perfil
               IconButton(
                 icon: const Icon(Icons.person_outline, color: Colors.white, size: 28),
+                tooltip: 'Perfil',
                 onPressed: () {
-                  Navigator.pushNamed(context, '/profile');    
+                  Navigator.pushNamed(context, '/profile');
                 },
               ),
-              
-              // Menú 
+
+              // Menú
               PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert, color: Colors.white, size: 28),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
@@ -348,7 +367,7 @@ class _PublishPageState extends State<PublishPage> {
                       children: [
                         Icon(Icons.logout, color: unimetBlue),
                         SizedBox(width: 10),
-                        Text("Cerrar Sesión"),
+                        Text('Cerrar Sesión'),
                       ],
                     ),
                   ),

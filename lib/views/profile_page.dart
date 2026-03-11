@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:convert';
 
 import '../viewmodels/profile_viewmodel.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import 'edit_profile_page.dart';
+import 'package:bookloop_unimet/views/chat_list_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -13,6 +17,9 @@ class ProfilePage extends StatefulWidget {
 }
 class _ProfilePageState extends State<ProfilePage> {
   static const Color unimetBlue = Color(0xFF1B3A57);
+  static const Color unimetOrange = Color(0xFFF28B31);
+
+  bool _hasNewNotifications = true;
 
   @override
   void initState() {
@@ -35,7 +42,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text("✅ Perfil actualizado"),
+        content: Text("Perfil actualizado"),
         backgroundColor: unimetBlue,
       ),
     );
@@ -53,12 +60,63 @@ class _ProfilePageState extends State<ProfilePage> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text("👋 Sesión cerrada. ¡Vuelve pronto!"),
+        content: Text("Sesión cerrada"),
         backgroundColor: unimetBlue,
       ),
     );
 
     Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+  }
+
+  void _showTermsDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        final h = MediaQuery.of(dialogContext).size.height;
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text(
+            "Términos y Condiciones",
+            style: TextStyle(color: unimetBlue, fontWeight: FontWeight.bold),
+          ),
+          content: SizedBox(
+            width: 520,
+            height: h * 0.62,
+            child: const SingleChildScrollView(
+              child: Text(
+                "Al usar BookLoop aceptas lo siguiente:\n\n"
+                "1) Acceso y verificación\n"
+                "• Solo se permite el uso de correos institucionales UNIMET (docente y estudiante).\n"
+                "• La cuenta es personal e intransferible.\n\n"
+                "2) Uso responsable\n"
+                "• Mantén un trato respetuoso en publicaciones y mensajes.\n"
+                "• Está prohibido publicar contenido ofensivo, engañoso o spam.\n"
+                "• BookLoop puede limitar o suspender cuentas ante evidencias de abuso.\n\n"
+                "3) Préstamos y devoluciones\n"
+                "• Al solicitar/aceptar un préstamo te comprometes a cumplir fecha, condiciones y lugar acordados.\n"
+                "• Quien recibe el material es responsable de cuidarlo y devolverlo en el estado acordado.\n"
+                "• En caso de pérdida o daño, las partes deben coordinar una solución (reposición o acuerdo).\n\n"
+                "4) Seguridad y reportes\n"
+                "• BookLoop puede limitar funciones (publicar/solicitar) si detecta patrones de incumplimiento.\n\n"
+                "5) Privacidad y datos\n"
+                "• Se almacenan datos mínimos para operar la plataforma.\n"
+                "• No se publican datos sensibles.\n\n"
+                "6) Alcance del servicio\n"
+                "• BookLoop es una herramienta de coordinación; no garantiza la disponibilidad de material.\n"
+                "• La UNIMET y el equipo de BookLoop no se responsabilizan por acuerdos fuera de la plataforma.\n",
+                style: TextStyle(fontSize: 14, height: 1.35),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text("Entendido", style: TextStyle(color: unimetOrange)),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -83,22 +141,25 @@ class _ProfilePageState extends State<ProfilePage> {
             child: Column(
               children: [
                 _ProfileHeader(
-                  onBack: () => _goHome(context),
                   onEdit: () => _openEdit(context),
                   onHome: () => _goHome(context),
-                  onProfile: () {
-                  },
+                  onProfile: () => Navigator.pushNamed(context, '/profile'),
                   onNotifications: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("🔔 Notificaciones en desarrollo")),
+                    setState(() {
+                      _hasNewNotifications = false;
+                    });
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const ChatListPage()),
                     );
                   },
                   onCreate: () {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("🛠️ Publicar/Crear en desarrollo")),
+                      const SnackBar(content: Text("Publicar/Crear en desarrollo")),
                     );
                   },
                   onLogout: () => _handleLogout(context),
+                  hasNewNotifications: _hasNewNotifications,
                 ),
                 Expanded(
                   child: Align(
@@ -114,6 +175,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                   ),
                 ),
+                _Footer(onTerms: () => _showTermsDialog(context)),
               ],
             ),
           ),
@@ -124,86 +186,129 @@ class _ProfilePageState extends State<ProfilePage> {
 }
 
 class _ProfileHeader extends StatelessWidget {
-  final VoidCallback onBack;
   final VoidCallback onEdit;
   final VoidCallback onHome;
   final VoidCallback onProfile;
   final VoidCallback onNotifications;
   final VoidCallback onCreate;
   final VoidCallback onLogout;
+  final bool hasNewNotifications;
 
   static const Color unimetOrange = Color(0xFFF28B31);
 
   const _ProfileHeader({
-    required this.onBack,
     required this.onEdit,
     required this.onHome,
     required this.onProfile,
     required this.onNotifications,
     required this.onCreate,
     required this.onLogout,
+    required this.hasNewNotifications,
   });
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          IconButton(
-            tooltip: 'Volver',
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
-            onPressed: onBack,
-          ),
-          const SizedBox(width: 6),
-          const Text(
-            "BookLoop",
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const Spacer(),
-          Container(
-            decoration: BoxDecoration(
-              color: unimetOrange,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: IconButton(
-              icon: const Icon(Icons.add, color: Colors.white),
-              onPressed: () {
-                Navigator.pushNamed(context, '/publish');
-              },
-            ),
-          ),
-          const SizedBox(width: 10),
-          IconButton(
-            icon: const Icon(Icons.home_outlined, color: Colors.white, size: 28),
-            onPressed: onHome, //NO pop()
-            tooltip: 'Inicio',
-          ),
-          IconButton(
-            icon: const Icon(Icons.notifications_none_outlined, color: Colors.white, size: 28),
-            onPressed: onNotifications,
-            tooltip: 'Notificaciones',
-          ),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert, color: Colors.white, size: 28),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-            onSelected: (value) {
-              if (value == 'logout') onLogout();
-            },
-            itemBuilder: (context) => const [
-              PopupMenuItem(
-                value: 'logout',
-                child: Row(
-                  children: [
-                    Icon(Icons.logout, color: Color(0xFF1B3A57)),
-                    SizedBox(width: 10),
-                    Text("Cerrar sesión"),
-                  ],
+          // Logo y Título (igual que Home)
+          Row(
+            children: [
+              const Icon(Icons.menu_book, color: Colors.white, size: 30),
+              const SizedBox(width: 12),
+              const Text(
+                "BookLoop",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
                 ),
+              ),
+            ],
+          ),
+
+          // Botones de acción (igual que Home)
+          Row(
+            children: [
+              // Publicar
+              Container(
+                decoration: BoxDecoration(
+                  color: unimetOrange,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: IconButton(
+                  onPressed: () => Navigator.pushNamed(context, '/publish'),
+                  icon: const Icon(Icons.add, color: Colors.white),
+                  tooltip: 'Publicar material',
+                ),
+              ),
+              const SizedBox(width: 10),
+
+              // Inicio (volver al Home)
+              IconButton(
+                icon: const Icon(Icons.home_outlined, color: Colors.white, size: 28),
+                onPressed: onHome,
+                tooltip: 'Inicio',
+              ),
+              const SizedBox(width: 10),
+
+              // Notificaciones / Chats (con punto rojo)
+              Stack(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications_none_outlined, color: Colors.white, size: 28),
+                    onPressed: onNotifications,
+                    tooltip: 'Mis chats y notificaciones',
+                  ),
+                  if (hasNewNotifications)
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: const Color(0xFF1B3A57), width: 1.5),
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 12,
+                          minHeight: 12,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+
+              const SizedBox(width: 5),
+
+              // Perfil (ya estamos en Perfil)
+              IconButton(
+                icon: const Icon(Icons.person_outline, color: Colors.white, size: 28),
+                onPressed: () {},
+                tooltip: 'Ya estás en Perfil',
+              ),
+
+              // Menú (Cerrar sesión)
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert, color: Colors.white, size: 28),
+                onSelected: (value) {
+                  if (value == 'logout') onLogout();
+                },
+                itemBuilder: (context) => const [
+                  PopupMenuItem(
+                    value: 'logout',
+                    child: Row(
+                      children: [
+                        Icon(Icons.logout, color: Color(0xFF1B3A57)),
+                        SizedBox(width: 10),
+                        Text("Cerrar Sesión"),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -247,83 +352,12 @@ class _ProfileCard extends StatelessWidget {
               const SizedBox(height: 20),
               const _SectionTitle(title: "Mis Libros"),
               const SizedBox(height: 10),
-              const _CoversRow(),
-              const SizedBox(height: 22),
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final isTwoCols = constraints.maxWidth >= 760;
-                  if (!isTwoCols) {
-                    return const Column(
-                      children: [
-                        _LoanCard(
-                          title: "Bajo mi cuidado",
-                          subtitle: "Sin libros bajo tu cuidado",
-                          highlightColor: Color(0xFFB9D4F2),
-                        ),
-                        SizedBox(height: 14),
-                        _LoanCard(
-                          title: "Reservados",
-                          subtitle: "No has reservado ningún libro",
-                          highlightColor: Color(0xFFE0E0E0),
-                        ),
-                        SizedBox(height: 14),
-                        _LoanCard(
-                          title: "Mis préstamos",
-                          subtitle: "No tienes préstamos activos",
-                          highlightColor: Color(0xFFFFD3A8),
-                        ),
-                        SizedBox(height: 14),
-                        _LoanCard(
-                          title: "Historial de Préstamos",
-                          subtitle: "Aún no hay historial",
-                          highlightColor: Color(0xFFF7C07A),
-                        ),
-                      ],
-                    );
-                  }
-
-                  return const Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          children: [
-                            _LoanCard(
-                              title: "Bajo mi cuidado",
-                              subtitle: "Sin libros bajo tu cuidado",
-                              highlightColor: Color(0xFFB9D4F2),
-                            ),
-                            SizedBox(height: 14),
-                            _LoanCard(
-                              title: "Mis préstamos",
-                              subtitle: "No tienes préstamos activos",
-                              highlightColor: Color(0xFFFFD3A8),
-                            ),
-                          ],
-                        ),
-                      ),
-                      SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          children: [
-                            _LoanCard(
-                              title: "Reservados",
-                              subtitle: "No has reservado ningún libro",
-                              highlightColor: Color(0xFFE0E0E0),
-                            ),
-                            SizedBox(height: 14),
-                            _LoanCard(
-                              title: "Historial de Préstamos",
-                              subtitle: "Aún no hay historial",
-                              highlightColor: Color(0xFFF7C07A),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  );
-                },
+              _MyBooksRow(
+                uid: FirebaseAuth.instance.currentUser?.uid,
+                email: vm.email,
+                username: vm.username,
               ),
+              const SizedBox(height: 10),
               if (vm.isLoading) ...[
                 const SizedBox(height: 14),
                 const Center(
@@ -439,7 +473,7 @@ class _TopProfileRow extends StatelessWidget {
         TextButton.icon(
           onPressed: () {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("❤️ Favoritos en desarrollo")),
+              const SnackBar(content: Text("Favoritos en desarrollo")),
             );
           },
           icon: const Icon(Icons.favorite, color: Colors.black54),
@@ -510,6 +544,394 @@ class _CoversRow extends StatelessWidget {
   }
 }
 
+enum _LoanKind { bajoMiCuidado, reservados, misPrestamos }
+
+class _MyBooksRow extends StatelessWidget {
+  final String? uid;
+  final String? email;
+  final String? username;
+
+  const _MyBooksRow({
+    required this.uid,
+    required this.email,
+    required this.username,
+  });
+
+  bool _isMine(Map<String, dynamic> data) {
+    final u = (uid ?? '').trim();
+    if (u.isEmpty) return false;
+
+    final userId = (data['userId'] ?? '').toString().trim();
+    final ownerId = (data['ownerId'] ?? '').toString().trim();
+
+    final e = (email ?? '').trim().toLowerCase();
+    final ownerEmail = (data['ownerEmail'] ?? '').toString().trim().toLowerCase();
+    final emailField = (data['email'] ?? '').toString().trim().toLowerCase();
+
+    final un = (username ?? '').trim().toLowerCase();
+    final ownerUsername = (data['ownerUsername'] ?? '').toString().trim().toLowerCase();
+    final ownerUser = (data['ownerUser'] ?? '').toString().trim().toLowerCase();
+
+    if (userId.isNotEmpty && userId == u) return true;
+    if (ownerId.isNotEmpty && ownerId == u) return true;
+
+    if (e.isNotEmpty && (ownerEmail == e || emailField == e)) return true;
+
+    if (un.isNotEmpty && (ownerUsername == un || ownerUser == un)) return true;
+
+    return false;
+  }
+
+  Widget _coverImage(String raw) {
+    final url = raw.trim();
+    if (url.isEmpty) {
+      return const Icon(Icons.menu_book, color: Colors.grey);
+    }
+
+    final isBase64 = !url.startsWith('http') && !url.startsWith('https') && !url.startsWith('blob');
+
+    if (isBase64) {
+      try {
+        return Image.memory(
+          base64Decode(url),
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => const Icon(Icons.menu_book, color: Colors.grey),
+        );
+      } catch (_) {
+        return const Icon(Icons.menu_book, color: Colors.grey);
+      }
+    }
+
+    return Image.network(
+      url,
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => const Icon(Icons.menu_book, color: Colors.grey),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (uid == null || uid!.trim().isEmpty) {
+      return const _CoversRow();
+    }
+
+    final q = FirebaseFirestore.instance
+        .collection('materials')
+        .orderBy('createdAt', descending: true)
+        .limit(50);
+
+    return SizedBox(
+      height: 110,
+      child: StreamBuilder<QuerySnapshot>(
+        stream: q.snapshots(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const _CoversRow();
+          }
+
+          final all = snapshot.data!.docs
+              .map((d) => d.data() as Map<String, dynamic>)
+              .where(_isMine)
+              .toList();
+
+          if (all.isEmpty) {
+            return const _CoversRow();
+          }
+
+          final items = all.take(5).toList();
+
+          return ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: items.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (context, index) {
+              final data = items[index];
+              final imageUrl = (data['imageUrl'] ?? '').toString();
+
+              final title = (data['title'] ?? '').toString().trim();
+              final author = (data['author'] ?? '').toString().trim();
+
+              final tooltipText = [
+                if (title.isNotEmpty) 'Título: $title',
+                if (author.isNotEmpty) 'Autor: $author',
+              ].join('\n');
+
+              return Tooltip(
+                message: tooltipText.isEmpty ? 'Material' : tooltipText,
+                waitDuration: const Duration(milliseconds: 350),
+                showDuration: const Duration(seconds: 3),
+                preferBelow: false,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1B3A57).withOpacity(0.95),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                textStyle: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  height: 1.25,
+                ),
+                child: Container(
+                  width: 78,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey[300]!),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: _coverImage(imageUrl),
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _LoanCardStream extends StatelessWidget {
+  final _LoanKind kind;
+  final String title;
+  final String emptyText;
+  final Color highlightColor;
+
+  const _LoanCardStream({
+    required this.kind,
+    required this.title,
+    required this.emptyText,
+    required this.highlightColor,
+  });
+
+  // Helper: cover image widget for a given imageUrl (base64 or network)
+  Widget _coverImage(String raw) {
+    final url = raw.trim();
+    if (url.isEmpty) {
+      return const Icon(Icons.menu_book, color: Colors.grey);
+    }
+    final isBase64 = !url.startsWith('http') && !url.startsWith('https') && !url.startsWith('blob');
+    if (isBase64) {
+      try {
+        return Image.memory(
+          base64Decode(url),
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => const Icon(Icons.menu_book, color: Colors.grey),
+        );
+      } catch (_) {
+        return const Icon(Icons.menu_book, color: Colors.grey);
+      }
+    }
+    return Image.network(
+      url,
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => const Icon(Icons.menu_book, color: Colors.grey),
+    );
+  }
+
+  // Helper: fetch material docs for given materialIds, returns list of {materialId, imageUrl, title, author}
+  Future<List<Map<String, dynamic>>> _fetchMaterials(List<String> materialIds) async {
+    final firestore = FirebaseFirestore.instance;
+    final List<Map<String, dynamic>> results = [];
+    for (final id in materialIds) {
+      if (id.isEmpty) continue;
+      try {
+        final doc = await firestore.collection('materials').doc(id).get();
+        final data = doc.data() ?? {};
+        results.add({
+          'materialId': id,
+          'imageUrl': (data['imageUrl'] ?? '').toString(),
+          'title': (data['title'] ?? '').toString(),
+          'author': (data['author'] ?? '').toString(),
+        });
+      } catch (_) {
+        results.add({
+          'materialId': id,
+          'imageUrl': '',
+          'title': '',
+          'author': '',
+        });
+      }
+    }
+    return results;
+  }
+
+  // Helper: covers row for up to 5 materials, with tooltip
+  Widget _coversBody(List<Map<String, dynamic>> materials) {
+    return SizedBox(
+      height: 86,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: materials.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        itemBuilder: (context, index) {
+          final m = materials[index];
+          final imageUrl = (m['imageUrl'] ?? '').toString();
+          final title = (m['title'] ?? '').toString().trim();
+          final author = (m['author'] ?? '').toString().trim();
+          final tooltipText = [
+            if (title.isNotEmpty) 'Título: $title',
+            if (author.isNotEmpty) 'Autor: $author',
+          ].join('\n');
+          return Tooltip(
+            message: tooltipText.isEmpty ? 'Material' : tooltipText,
+            waitDuration: const Duration(milliseconds: 350),
+            showDuration: const Duration(seconds: 3),
+            preferBelow: false,
+            decoration: BoxDecoration(
+              color: const Color(0xFF1B3A57).withOpacity(0.95),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            textStyle: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              height: 1.25,
+            ),
+            child: Container(
+              width: 78,
+              decoration: BoxDecoration(
+                color: Colors.grey[200],
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey[300]!),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: _coverImage(imageUrl),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      return _LoanCard(title: title, subtitle: emptyText, highlightColor: highlightColor);
+    }
+
+    final vm = context.read<ProfileViewModel>();
+    // Nota: usamos una consulta amplia por "participants" y luego filtramos en cliente
+    // para no depender de estructura extra en Firestore.
+    // Traemos los chats donde participo. Evitamos `orderBy` para no depender de índices compuestos.
+    // Ordenamos en cliente por lastUpdate.
+    final chatsQ = FirebaseFirestore.instance
+        .collection('chats')
+        .where('participants', arrayContains: uid)
+        .limit(80);
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: chatsQ.snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return _LoanCard(
+            title: title,
+            subtitle: 'No se pudo cargar (revisa índices/permisos en Firestore)',
+            highlightColor: highlightColor,
+          );
+        }
+        if (!snapshot.hasData) {
+          return _LoanCard(title: title, subtitle: emptyText, highlightColor: highlightColor);
+        }
+
+        final docs = snapshot.data!.docs;
+        final ordered = [...docs];
+        ordered.sort((a, b) {
+          final ma = (a.data() as Map<String, dynamic>?) ?? {};
+          final mb = (b.data() as Map<String, dynamic>?) ?? {};
+          final ta = ma['lastUpdate'];
+          final tb = mb['lastUpdate'];
+          DateTime da = DateTime.fromMillisecondsSinceEpoch(0);
+          DateTime db = DateTime.fromMillisecondsSinceEpoch(0);
+          if (ta is Timestamp) da = ta.toDate();
+          if (tb is Timestamp) db = tb.toDate();
+          return db.compareTo(da);
+        });
+
+        // Ahora, en vez de contar, filtramos los chats que corresponden a este tipo de préstamo,
+        // y extraemos los materialIds para mostrar hasta 5 portadas (como "Mis Libros").
+        final matchedMaterialIds = <String>[];
+        for (final d in ordered) {
+          final data = d.data() as Map<String, dynamic>;
+          final participants = (data['participants'] as List?) ?? const [];
+          if (participants.isEmpty) continue;
+          final rawStatus = (data['status'] ?? '').toString();
+          final statusNorm = vm.normalizarStatus(rawStatus);
+          // IMPORTANTE (regla del proyecto):
+          // participants[0] = dueño (propietario)
+          // participants[1] = solicitante (quien pidió el libro)
+          final propietarioId = participants.first.toString().trim();
+          final solicitanteId = participants.length > 1 ? participants[1].toString().trim() : '';
+
+          final yoSoyPropietario = propietarioId == uid;
+          final yoSoySolicitante = solicitanteId.isNotEmpty && solicitanteId == uid;
+          final activo = (statusNorm == 'rentado' || statusNorm == 'devolucion_pendiente');
+          if (kind == _LoanKind.reservados) {
+            // Reservados = yo soy solicitante y el chat sigue en pendiente.
+            if (yoSoySolicitante && statusNorm == 'pendiente') {
+              final materialId = (data['materialId'] ?? '').toString().trim();
+              if (materialId.isNotEmpty && !matchedMaterialIds.contains(materialId)) {
+                matchedMaterialIds.add(materialId);
+              }
+            }
+          } else if (kind == _LoanKind.bajoMiCuidado) {
+            // Bajo mi cuidado = yo soy solicitante y el préstamo ya está activo.
+            if (yoSoySolicitante && activo) {
+              final materialId = (data['materialId'] ?? '').toString().trim();
+              if (materialId.isNotEmpty && !matchedMaterialIds.contains(materialId)) {
+                matchedMaterialIds.add(materialId);
+              }
+            }
+          } else if (kind == _LoanKind.misPrestamos) {
+            // Mis préstamos = yo soy propietario y el préstamo está activo.
+            if (yoSoyPropietario && activo) {
+              final materialId = (data['materialId'] ?? '').toString().trim();
+              if (materialId.isNotEmpty && !matchedMaterialIds.contains(materialId)) {
+                matchedMaterialIds.add(materialId);
+              }
+            }
+          }
+        }
+        final ids = matchedMaterialIds.take(5).toList();
+        if (ids.isEmpty) {
+          // Si no hay materiales, muestra el card vacío como antes.
+          return _LoanCard(title: title, subtitle: emptyText, highlightColor: highlightColor);
+        }
+        // Si hay materiales, muestra la fila de portadas (como "Mis Libros") en la tarjeta.
+        return FutureBuilder<List<Map<String, dynamic>>>(
+          future: _fetchMaterials(ids),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              // Mientras carga, muestra placeholder igual que antes (gris + "Cargando...")
+              return _LoanCard(
+                title: title,
+                subtitle: "Cargando...",
+                highlightColor: highlightColor,
+              );
+            }
+            if (snapshot.hasError) {
+              return _LoanCard(
+                title: title,
+                subtitle: 'No se pudo cargar',
+                highlightColor: highlightColor,
+              );
+            }
+            final materials = snapshot.data ?? [];
+            return _LoanCard(
+              title: title,
+              highlightColor: highlightColor,
+              body: _coversBody(materials),
+              subtitle: '', // not used if body is present
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
 class _CoverPlaceholder extends StatelessWidget {
   final IconData icon;
   const _CoverPlaceholder({required this.icon});
@@ -529,11 +951,13 @@ class _LoanCard extends StatelessWidget {
   final String title;
   final String subtitle;
   final Color highlightColor;
+  final Widget? body;
 
   const _LoanCard({
     required this.title,
     required this.subtitle,
     required this.highlightColor,
+    this.body,
   });
 
   @override
@@ -547,17 +971,19 @@ class _LoanCard extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(color: highlightColor, borderRadius: BorderRadius.circular(10)),
-          child: Row(
-            children: [
-              Container(
-                width: 55,
-                height: 72,
-                decoration: BoxDecoration(color: Colors.grey, borderRadius: BorderRadius.circular(8)),
-              ),
-              const SizedBox(width: 12),
-              Expanded(child: Text(subtitle, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500))),
-            ],
-          ),
+          child: body != null
+              ? body!
+              : Row(
+                  children: [
+                    Container(
+                      width: 55,
+                      height: 72,
+                      decoration: BoxDecoration(color: Colors.grey, borderRadius: BorderRadius.circular(8)),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(child: Text(subtitle, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500))),
+                  ],
+                ),
         ),
       ],
     );
@@ -588,3 +1014,33 @@ class _BlobPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
+
+
+class _Footer extends StatelessWidget {
+  final VoidCallback onTerms;
+  const _Footer({required this.onTerms});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      child: Row(
+        children: [
+          const Text(
+            '© BookLoop • UNIMET',
+            style: TextStyle(color: Colors.white60, fontSize: 12),
+          ),
+          const Spacer(),
+          TextButton(
+            onPressed: onTerms,
+            child: const Text(
+              'Términos y condiciones',
+              style: TextStyle(color: Colors.white70, fontSize: 12),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+

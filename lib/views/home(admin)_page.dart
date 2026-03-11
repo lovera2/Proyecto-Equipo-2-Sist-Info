@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../viewmodels/home_viewmodel.dart';
 import '../viewmodels/auth_viewmodel.dart';
-import 'package:bookloop_unimet/views/chat_list_page.dart';
 import 'admin_dashboard_page.dart';
 
 
@@ -114,6 +113,16 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
                                 letterSpacing: 1.2,
                               ),
                             ),
+                            const SizedBox(height: 8),
+                            Text(
+                              '(en desarrollo)',
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.75),
+                                fontSize: 16,
+                                fontWeight: FontWeight.w300,
+                                letterSpacing: 0.6,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -155,6 +164,20 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
                 onSelected: (value) {
                   if (value == 'dashboard') {
                     setState(() => _showDashboard = true);
+                    return;
+                  }
+
+                  if (value == 'perfiles') {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        backgroundColor: unimetOrange,
+                        content: Text(
+                          "🛠️ Gestión de Perfiles: en desarrollo",
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    );
+                    return;
                   }
                 },
                 itemBuilder: (context) => [
@@ -179,21 +202,6 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
                     ),
                   ),
                 ],
-              ),
-              IconButton(
-                icon: const Icon(Icons.notifications_none_outlined, color: Colors.white, size: 28),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => ChatListPage()),
-                  );
-                },
-                tooltip: 'Mis chats y notificaciones',
-              ),
-              const SizedBox(width: 5),
-              IconButton(
-                icon: const Icon(Icons.person_outline, color: Colors.white, size: 28),
-                onPressed: () {},
               ),
               PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert, color: Colors.white, size: 28),
@@ -253,7 +261,7 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
         onChanged: (value) => vm.updateSearchQuery(value),
         style: const TextStyle(color: unimetBlue),
         decoration: const InputDecoration(
-          hintText: "Buscar por título, autor o carrera...",
+          hintText: "Buscar por título, autor o facultad",
           hintStyle: TextStyle(color: Colors.grey),
           prefixIcon: Icon(Icons.search, color: unimetOrange),
           border: InputBorder.none,

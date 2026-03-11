@@ -354,7 +354,7 @@ class _HomePageState extends State<HomePage> {
         onChanged: (value) => vm.updateSearchQuery(value),
         style: const TextStyle(color: unimetBlue),
         decoration: const InputDecoration(
-          hintText: "Buscar por título, autor o carrera...",
+          hintText: "Buscar por título, autor o facultad",
           hintStyle: TextStyle(color: Colors.grey),
           prefixIcon: Icon(Icons.search, color: unimetOrange),
           border: InputBorder.none,

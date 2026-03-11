@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../viewmodels/profile_viewmodel.dart';
 
@@ -13,6 +17,9 @@ class EditProfilePage extends StatefulWidget {
 class _EditProfilePageState extends State<EditProfilePage> {
   static const Color unimetBlue = Color(0xFF1B3A57);
   static const Color unimetOrange = Color(0xFFF28B31);
+  static const int maxNombreLen = 20;
+  static const int maxCarreraLen = 45;
+  static const int maxApellidoLen = 20;
 
   final _formKey = GlobalKey<FormState>();
 
@@ -31,6 +38,27 @@ class _EditProfilePageState extends State<EditProfilePage> {
     "🦄","🐙","🐝","🦋","🌟","🔥","⚡","🍀","🎯","🏆"
   ];
 
+  DateTime? _lastSnackAt;
+
+  void _showInvalidCharSnack(String msg) {
+    final now = DateTime.now();
+    if (_lastSnackAt != null && now.difference(_lastSnackAt!).inMilliseconds < 900) return;
+    _lastSnackAt = now;
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(msg),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.red.shade700,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -39,6 +67,23 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _apellidoCtrl = TextEditingController(text: '');
     _cedulaCtrl = TextEditingController(text: '');
     _carreraCtrl = TextEditingController(text: '');
+
+    _nombreCtrl.addListener(() {
+      if (!mounted) return;
+      setState(() {});
+    });
+    _apellidoCtrl.addListener(() {
+      if (!mounted) return;
+      setState(() {});
+    });
+    _cedulaCtrl.addListener(() {
+      if (!mounted) return;
+      setState(() {});
+    });
+    _carreraCtrl.addListener(() {
+      if (!mounted) return;
+      setState(() {});
+    });
 
     Future.microtask(_initFromVm);
   }
@@ -124,6 +169,42 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
     final okForm = _formKey.currentState?.validate() ?? false;
     if (!okForm) return;
+
+    // Validación de unicidad de cédula (regla de negocio).
+    // Si otra cuenta ya tiene esta cédula, no permitimos guardar.
+    final cedula = _cedulaCtrl.text.trim();
+    final currentUid = FirebaseAuth.instance.currentUser?.uid;
+    try {
+      if (cedula.isNotEmpty) {
+        final q = await FirebaseFirestore.instance
+            .collection('usuarios')
+            .where('cedula', isEqualTo: cedula)
+            .limit(2)
+            .get();
+
+        final existeEnOtroUsuario = q.docs.any((d) => d.id != currentUid);
+        if (existeEnOtroUsuario) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Esa cédula ya está registrada en el sistema.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+      }
+    } catch (_) {
+      // Si Firestore falla, evitamos bloquear al usuario, pero avisamos.
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo validar la cédula en este momento. Intenta de nuevo.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
     final ok = await vm.actualizarPerfil(
       nombre: _nombreCtrl.text,
@@ -262,14 +343,38 @@ class _EditProfilePageState extends State<EditProfilePage> {
                             TextFormField(
                               controller: _nombreCtrl,
                               textInputAction: TextInputAction.next,
-                              decoration: const InputDecoration(
+                              inputFormatters: [
+                                _SnackRejectingFormatter(
+                                  allowPattern: RegExp(r"[A-Za-zÁÉÍÓÚáéíóúÑñÜü'\-\s]"),
+                                  onReject: () => _showInvalidCharSnack(
+                                    'Este campo no acepta números ni símbolos.',
+                                  ),
+                                ),
+                                _MaxLengthSnackFormatter(
+                                  maxLength: maxNombreLen,
+                                  onMaxReached: () => _showInvalidCharSnack(
+                                    'El nombre admite máximo ${maxNombreLen} caracteres.',
+                                  ),
+                                ),
+                              ],
+                              decoration: InputDecoration(
                                 labelText: "Nombre",
-                                prefixIcon: Icon(Icons.badge_outlined),
+                                prefixIcon: const Icon(Icons.badge_outlined),
+                                hintText: "Ej: Luis Mariano",
+                                counterText: '${_nombreCtrl.text.length}/${maxNombreLen}',
                               ),
                               validator: (v) {
                                 final value = (v ?? '').trim();
                                 if (value.isEmpty) return "Campo obligatorio";
                                 if (value.length < 2) return "Mínimo 2 caracteres";
+                                if (value.length > maxNombreLen) {
+                                  return 'Máximo ${maxNombreLen} caracteres';
+                                }
+                                // Solo letras (incluye acentos), espacios, apóstrofe y guion.
+                                if (!RegExp(r"^[A-Za-zÁÉÍÓÚáéíóúÑñÜü]+(?:[ '\-][A-Za-zÁÉÍÓÚáéíóúÑñÜü]+)*$")
+                                    .hasMatch(value)) {
+                                  return "Solo letras y espacios";
+                                }
                                 return null;
                               },
                             ),
@@ -277,14 +382,38 @@ class _EditProfilePageState extends State<EditProfilePage> {
                             TextFormField(
                               controller: _apellidoCtrl,
                               textInputAction: TextInputAction.next,
-                              decoration: const InputDecoration(
+                              inputFormatters: [
+                                _SnackRejectingFormatter(
+                                  allowPattern: RegExp(r"[A-Za-zÁÉÍÓÚáéíóúÑñÜü'\-\s]"),
+                                  onReject: () => _showInvalidCharSnack(
+                                    'Este campo no acepta números ni símbolos.',
+                                  ),
+                                ),
+                                _MaxLengthSnackFormatter(
+                                  maxLength: maxApellidoLen,
+                                  onMaxReached: () => _showInvalidCharSnack(
+                                    'El apellido admite máximo ${maxApellidoLen} caracteres.',
+                                  ),
+                                ),
+                              ],
+                              decoration: InputDecoration(
                                 labelText: "Apellido",
-                                prefixIcon: Icon(Icons.badge),
+                                prefixIcon: const Icon(Icons.badge),
+                                hintText: "Ej: Lovera",
+                                counterText: '${_apellidoCtrl.text.length}/${maxApellidoLen}',
                               ),
                               validator: (v) {
                                 final value = (v ?? '').trim();
                                 if (value.isEmpty) return "Campo obligatorio";
                                 if (value.length < 2) return "Mínimo 2 caracteres";
+                                if (value.length > maxApellidoLen) {
+                                  return 'Máximo ${maxApellidoLen} caracteres';
+                                }
+                                // Permite apellidos compuestos con espacio/guion/apóstrofe.
+                                if (!RegExp(r"^[A-Za-zÁÉÍÓÚáéíóúÑñÜü]+(?:[ '\-][A-Za-zÁÉÍÓÚáéíóúÑñÜü]+)*$")
+                                    .hasMatch(value)) {
+                                  return "Solo letras y espacios";
+                                }
                                 return null;
                               },
                             ),
@@ -293,16 +422,31 @@ class _EditProfilePageState extends State<EditProfilePage> {
                               controller: _cedulaCtrl,
                               textInputAction: TextInputAction.next,
                               keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(
+                              inputFormatters: [
+                                _SnackRejectingFormatter(
+                                  allowPattern: RegExp(r"[0-9]"),
+                                  onReject: () => _showInvalidCharSnack(
+                                    'La cédula solo acepta números.',
+                                  ),
+                                ),
+                                _MaxLengthSnackFormatter(
+                                  maxLength: 8,
+                                  onMaxReached: () => _showInvalidCharSnack(
+                                    'La cédula admite máximo 8 dígitos.',
+                                  ),
+                                ),
+                              ],
+                              decoration: InputDecoration(
                                 labelText: "Cédula",
-                                prefixIcon: Icon(Icons.credit_card),
+                                prefixIcon: const Icon(Icons.credit_card),
                                 hintText: "Ej: 12345678",
+                                counterText: '${_cedulaCtrl.text.length}/8',
                               ),
                               validator: (v) {
                                 final value = (v ?? '').trim();
                                 if (value.isEmpty) return "Campo obligatorio";
-                                if (!RegExp(r'^\d{6,10}$').hasMatch(value)) {
-                                  return "Solo números (6 a 10 dígitos)";
+                                if (!RegExp(r'^\d{6,8}$').hasMatch(value)) {
+                                  return "Solo números (6 a 8 dígitos)";
                                 }
                                 return null;
                               },
@@ -311,14 +455,38 @@ class _EditProfilePageState extends State<EditProfilePage> {
                             TextFormField(
                               controller: _carreraCtrl,
                               textInputAction: TextInputAction.done,
-                              decoration: const InputDecoration(
+                              inputFormatters: [
+                                _SnackRejectingFormatter(
+                                  allowPattern: RegExp(r"[A-Za-zÁÉÍÓÚáéíóúÑñÜü\s/\-\.]"),
+                                  onReject: () => _showInvalidCharSnack(
+                                    'La carrera no acepta números ni símbolos como @.',
+                                  ),
+                                ),
+                                _MaxLengthSnackFormatter(
+                                  maxLength: maxCarreraLen,
+                                  onMaxReached: () => _showInvalidCharSnack(
+                                    'La carrera admite máximo ${maxCarreraLen} caracteres.',
+                                  ),
+                                ),
+                              ],
+                              decoration: InputDecoration(
                                 labelText: "Carrera",
-                                prefixIcon: Icon(Icons.school_outlined),
+                                prefixIcon: const Icon(Icons.school_outlined),
+                                hintText: "Ej: Ing. Sistemas / Ing. Producción",
+                                counterText: '${_carreraCtrl.text.length}/${maxCarreraLen}',
                               ),
                               validator: (v) {
                                 final value = (v ?? '').trim();
                                 if (value.isEmpty) return "Campo obligatorio";
                                 if (value.length < 3) return "Mínimo 3 caracteres";
+                                if (value.length > maxCarreraLen) {
+                                  return 'Máximo ${maxCarreraLen} caracteres';
+                                }
+                                // Debe contener al menos una letra y solo caracteres permitidos.
+                                if (!RegExp(r"^(?=.*[A-Za-zÁÉÍÓÚáéíóúÑñÜü])[A-Za-zÁÉÍÓÚáéíóúÑñÜü\s/\-\.]+$")
+                                    .hasMatch(value)) {
+                                  return "Solo letras y separadores (/, -, .)";
+                                }
                                 return null;
                               },
                             ),
@@ -494,4 +662,83 @@ class _SoftPatternPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+class _SnackRejectingFormatter extends TextInputFormatter {
+  final RegExp allowPattern;
+  final VoidCallback onReject;
+
+  _SnackRejectingFormatter({
+    required this.allowPattern,
+    required this.onReject,
+  });
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final original = newValue.text;
+    final filtered = StringBuffer();
+
+    bool rejected = false;
+    for (final rune in original.runes) {
+      final ch = String.fromCharCode(rune);
+      if (allowPattern.hasMatch(ch)) {
+        filtered.write(ch);
+      } else {
+        rejected = true;
+      }
+    }
+
+    if (rejected) {
+      onReject();
+    }
+
+    final resultText = filtered.toString();
+    if (resultText == original) return newValue;
+
+    // Ajuste de cursor para que no salte raro.
+    final base = newValue.selection.baseOffset;
+    final extent = newValue.selection.extentOffset;
+    final clampedBase = base.clamp(0, resultText.length);
+    final clampedExtent = extent.clamp(0, resultText.length);
+
+    return TextEditingValue(
+      text: resultText,
+      selection: TextSelection(baseOffset: clampedBase, extentOffset: clampedExtent),
+      composing: TextRange.empty,
+    );
+  }
+}
+
+class _MaxLengthSnackFormatter extends TextInputFormatter {
+  final int maxLength;
+  final VoidCallback onMaxReached;
+
+  _MaxLengthSnackFormatter({
+    required this.maxLength,
+    required this.onMaxReached,
+  });
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    // Si no aumenta el tamaño, no hay problema (borrar, reemplazar, etc.)
+    if (newValue.text.length <= maxLength) return newValue;
+
+    // Si intentan pasar el límite, avisamos y recortamos.
+    onMaxReached();
+
+    final truncated = newValue.text.substring(0, maxLength);
+    final base = newValue.selection.baseOffset.clamp(0, truncated.length);
+    final extent = newValue.selection.extentOffset.clamp(0, truncated.length);
+
+    return TextEditingValue(
+      text: truncated,
+      selection: TextSelection(baseOffset: base, extentOffset: extent),
+      composing: TextRange.empty,
+    );
+  }
 }

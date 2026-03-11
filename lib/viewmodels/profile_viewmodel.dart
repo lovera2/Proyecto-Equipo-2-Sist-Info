@@ -43,6 +43,77 @@ class ProfileViewModel extends ChangeNotifier {
     return r;
   }
 
+  // Normaliza un estatus para poder comparar aunque venga con espacios, mayúsculas o guiones.
+  // Ej: "Devolución pendiente" -> "devolucion_pendiente"
+  String normalizarStatus(String raw) {
+    final s = raw.toLowerCase().trim();
+    return s
+        .replaceAll('á', 'a')
+        .replaceAll('é', 'e')
+        .replaceAll('í', 'i')
+        .replaceAll('ó', 'o')
+        .replaceAll('ú', 'u')
+        .replaceAll('ñ', 'n')
+        .replaceAll('-', '_')
+        .replaceAll(' ', '_');
+  }
+
+  // Regla de negocio:
+  // - En `chats`, participants[0] es el solicitante (quien pidió el libro).
+  // - "Bajo mi cuidado" = YO soy el solicitante (participants[0])
+  //   y status indica préstamo activo (devolucion_pendiente / rentado).
+  bool esBajoMiCuidado({
+    required String uidActual,
+    required List<dynamic> participants,
+    required String status,
+  }) {
+    if (participants.isEmpty) return false;
+
+    // participants[0] = solicitante (quien pidió el libro)
+    final solicitanteId = participants.first.toString().trim();
+    final statusNorm = normalizarStatus(status);
+
+    // Bajo mi cuidado cuando YO soy el solicitante y el préstamo ya fue aprobado
+    // (devolución pendiente / rentado).
+    final esPrestamoActivo = statusNorm == 'devolucion_pendiente' || statusNorm == 'rentado';
+
+    return solicitanteId == uidActual && esPrestamoActivo;
+  }
+
+  // Regla de negocio (vista Propietario):
+  // - En `chats`, participants[1] es el propietario (dueño del libro).
+  // - "Mis préstamos" = YO soy el propietario y el préstamo está activo
+  //   (devolución pendiente / rentado).
+  bool esMisPrestamos({
+    required String uidActual,
+    required List<dynamic> participants,
+    required String status,
+  }) {
+    if (participants.length < 2) return false;
+
+    final propietarioId = participants[1].toString().trim();
+    final statusNorm = normalizarStatus(status);
+
+    final esPrestamoActivo = statusNorm == 'devolucion_pendiente' || statusNorm == 'rentado';
+
+    return propietarioId == uidActual && esPrestamoActivo;
+  }
+
+  // Regla complementaria (si la quieres):
+  // "Reservados" = YO soy solicitante y status == pendiente.
+  bool esReservaPendiente({
+    required String uidActual,
+    required List<dynamic> participants,
+    required String status,
+  }) {
+    if (participants.isEmpty) return false;
+
+    final solicitanteId = participants.first.toString().trim();
+    final statusNorm = normalizarStatus(status);
+
+    return solicitanteId == uidActual && statusNorm == 'pendiente';
+  }
+
   //Limpia los datos del ViewModel para evitar datos viejos
   void _clearAll() {
     nombre = null;

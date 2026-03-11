@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
+import '../viewmodels/auth_viewmodel.dart';
 import 'individual_chat_page.dart';
 
 class ChatListPage extends StatelessWidget {
@@ -118,30 +120,56 @@ class ChatListPage extends StatelessWidget {
   }
 
   Widget _buildHeader(BuildContext context) {
+    const Color unimetBlue = Color(0xFF1B3A57);
+    const Color unimetOrange = Color(0xFFF28B31);
+
+    Future<void> handleLogout() async {
+      await context.read<AuthViewModel>().logout();
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: unimetOrange,
+          content: Text(
+            '👋 Sesión cerrada. ¡Vuelve pronto!',
+            style: TextStyle(color: Colors.white),
+          ),
+        ),
+      );
+
+      Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          // Logo y título (igual al Home)
           Row(
             children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 24),
-                onPressed: () => Navigator.pop(context),
-              ),
-              const SizedBox(width: 5),
               const Icon(Icons.menu_book, color: Colors.white, size: 30),
               const SizedBox(width: 12),
               const Text(
                 'BookLoop',
-                style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ),
+
+          // Acciones (igual al Home)
           Row(
             children: [
+              // Publicar (naranja)
               Container(
-                decoration: BoxDecoration(color: const Color(0xFFF28B31), borderRadius: BorderRadius.circular(14)),
+                decoration: BoxDecoration(
+                  color: unimetOrange,
+                  borderRadius: BorderRadius.circular(14),
+                ),
                 child: IconButton(
                   onPressed: () => Navigator.pushNamed(context, '/publish'),
                   icon: const Icon(Icons.add, color: Colors.white),
@@ -149,15 +177,60 @@ class ChatListPage extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 10),
+
+              // Inicio
               IconButton(
                 icon: const Icon(Icons.home_outlined, color: Colors.white, size: 28),
-                tooltip: 'Ir al Inicio',
-                onPressed: () => Navigator.pushNamedAndRemoveUntil(context, '/home_page', (route) => false),
+                tooltip: 'Inicio',
+                onPressed: () => Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  '/home_page',
+                  (route) => false,
+                ),
               ),
+
+              // Notificaciones / Mensajes (ya estás aquí)
+              IconButton(
+                icon: const Icon(Icons.notifications_none_outlined, color: Colors.white, size: 28),
+                tooltip: 'Mensajes',
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      backgroundColor: unimetBlue,
+                      content: Text(
+                        '📩 Ya estás en Mensajes.',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  );
+                },
+              ),
+
+              // Perfil
               IconButton(
                 icon: const Icon(Icons.person_outline, color: Colors.white, size: 28),
                 tooltip: 'Perfil',
                 onPressed: () => Navigator.pushNamed(context, '/profile'),
+              ),
+
+              // Menú (cerrar sesión)
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert, color: Colors.white, size: 28),
+                onSelected: (value) {
+                  if (value == 'logout') handleLogout();
+                },
+                itemBuilder: (context) => const [
+                  PopupMenuItem(
+                    value: 'logout',
+                    child: Row(
+                      children: [
+                        Icon(Icons.logout, color: unimetBlue),
+                        SizedBox(width: 10),
+                        Text('Cerrar Sesión'),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
