@@ -67,7 +67,7 @@ class _IndividualChatPageState extends State<IndividualChatPage> {
       ScaffoldMessenger.of(context).showSnackBar(
 
         const SnackBar(
-          content: Text("📘 Devolución registrada"),
+          content: Text("Devolución registrada"),
         ),
 
       );
@@ -82,8 +82,13 @@ class _IndividualChatPageState extends State<IndividualChatPage> {
     const Color unimetBlue = Color(0xFF1B3A57);
     const Color unimetOrange = Color(0xFFF28B31);
 
-    final String libroTitulo =
-        widget.materialData['title'] ?? 'Consultando libro...';
+    final String libroTituloLocal = (widget.materialData['title'] ??
+            widget.materialData['materialTitle'] ??
+            widget.materialData['bookTitle'] ??
+            widget.materialData['nombreLibro'] ??
+            '')
+        .toString()
+        .trim();
 
     return Scaffold(
 
@@ -91,22 +96,112 @@ class _IndividualChatPageState extends State<IndividualChatPage> {
 
         backgroundColor: unimetBlue,
         iconTheme: const IconThemeData(color: Colors.white),
+        centerTitle: true,
 
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+        title: StreamBuilder<DocumentSnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('chats')
+              .doc(widget.chatId)
+              .snapshots(),
+          builder: (context, chatSnap) {
+            // 1) Preferimos lo que venga ya en memoria (MaterialDetail -> Chat)
+            final String titleFromLocal = libroTituloLocal;
 
-            Text(
-              widget.receiverName,
-              style: const TextStyle(fontSize: 16, color: Colors.white),
-            ),
+            // 2) Si no viene en memoria, intentamos leerlo del documento del chat
+            String titleFromChat = '';
+            String materialIdFromChat = '';
 
-            Text(
-              libroTitulo,
-              style: const TextStyle(fontSize: 12, color: Colors.white70),
-            ),
+            if (chatSnap.hasData && chatSnap.data != null && chatSnap.data!.exists) {
+              final data = chatSnap.data!.data() as Map<String, dynamic>;
+              titleFromChat = (data['materialTitle'] ?? data['bookTitle'] ?? '').toString().trim();
+              materialIdFromChat = (data['materialId'] ?? '').toString().trim();
+            }
 
-          ],
+            final String resolvedTitle =
+                (titleFromLocal.isNotEmpty ? titleFromLocal : titleFromChat);
+
+            // 3) Si aún no tenemos título, consultamos la colección materials usando materialId
+            if (resolvedTitle.isEmpty && materialIdFromChat.isNotEmpty) {
+              return FutureBuilder<DocumentSnapshot>(
+                future: FirebaseFirestore.instance
+                    .collection('materials')
+                    .doc(materialIdFromChat)
+                    .get(),
+                builder: (context, matSnap) {
+                  String fetchedTitle = '';
+                  if (matSnap.hasData && matSnap.data != null && matSnap.data!.exists) {
+                    final md = matSnap.data!.data() as Map<String, dynamic>;
+                    fetchedTitle = (md['title'] ?? '').toString().trim();
+                  }
+
+                  final String finalTitle =
+                      fetchedTitle.isNotEmpty ? fetchedTitle : 'Libro';
+
+                  return SizedBox(
+                    width: double.infinity,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Text(
+                          widget.receiverName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          "Libro: $finalTitle",
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white70,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              );
+            }
+
+            return SizedBox(
+              width: double.infinity,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Text(
+                    widget.receiverName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    "Libro: ${resolvedTitle.isNotEmpty ? resolvedTitle : 'Libro'}",
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white70,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
         ),
       ),
 
@@ -423,9 +518,9 @@ class _IndividualChatPageState extends State<IndividualChatPage> {
 
       child: Container(
 
-        margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 10),
+        margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
 
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
 
         decoration: BoxDecoration(
 
@@ -446,7 +541,11 @@ class _IndividualChatPageState extends State<IndividualChatPage> {
 
         child: Text(
           text,
-          style: const TextStyle(color: Colors.black87),
+          style: const TextStyle(
+            color: Colors.black87,
+            fontSize: 15,
+            height: 1.25,
+          ),
         ),
       ),
     );
