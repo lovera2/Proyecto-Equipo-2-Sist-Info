@@ -107,21 +107,40 @@ class ChatService {
     });
   }
 
-  //Confirmar devolución por el dueño
+  // nueva funcion optimizada, con esto el chat se elimina una vez fue completada la devolucion para evitar informacion innecesaria
   Future<void> confirmBookReturn({
     required String chatId,
     required String materialId,
     required String confirmerId,
   }) async {
-    final chatRef = _firestore.collection('chats').doc(chatId);
+    try {
+      // se coloca en estado disponible de nuevo ya que fue devuelto
+      if (materialId.isNotEmpty) {
+        await _firestore.collection('materials').doc(materialId).update({
+          'status': 'disponible'
+        });
+      }
 
-    await chatRef.update({
-      'status': 'disponible',
-      'lastUpdate': FieldValue.serverTimestamp(),
-    });
+      // se borran los mensajes directamente una vez el chat ha cumplido su proposito, esto se debe hacer desde aqui
+      final messagesSnapshot = await _firestore
+          .collection('chats')
+          .doc(chatId)
+          .collection('messages')
+          .get();
 
-    await _firestore.collection('materials').doc(materialId).update({
-      'status': 'disponible'
-    });
+      for (var doc in messagesSnapshot.docs) {
+        await doc.reference.delete();
+      }
+
+      // eliminacion total del chat permanentemente
+      await _firestore.collection('chats').doc(chatId).delete();
+      
+      print("Chat $chatId eliminado exitosamente.");
+    } catch (e) {
+      print("Error al cerrar el ciclo del chat: $e");
+      rethrow;
+    }
   }
+
+  
 }

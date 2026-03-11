@@ -104,10 +104,7 @@ class _IndividualChatPageState extends State<IndividualChatPage> {
               .doc(widget.chatId)
               .snapshots(),
           builder: (context, chatSnap) {
-            // 1) Preferimos lo que venga ya en memoria (MaterialDetail -> Chat)
             final String titleFromLocal = libroTituloLocal;
-
-            // 2) Si no viene en memoria, intentamos leerlo del documento del chat
             String titleFromChat = '';
             String materialIdFromChat = '';
 
@@ -120,7 +117,6 @@ class _IndividualChatPageState extends State<IndividualChatPage> {
             final String resolvedTitle =
                 (titleFromLocal.isNotEmpty ? titleFromLocal : titleFromChat);
 
-            // 3) Si aún no tenemos título, consultamos la colección materials usando materialId
             if (resolvedTitle.isEmpty && materialIdFromChat.isNotEmpty) {
               return FutureBuilder<DocumentSnapshot>(
                 future: FirebaseFirestore.instance
@@ -257,122 +253,91 @@ class _IndividualChatPageState extends State<IndividualChatPage> {
     );
   }
 
-  Widget _buildLoanStatusBar(Color accentColor) {
+Widget _buildLoanStatusBar(Color accentColor) {
+  return StreamBuilder<DocumentSnapshot>(
+    stream: FirebaseFirestore.instance
+        .collection('chats')
+        .doc(widget.chatId)
+        .snapshots(),
+    builder: (context, snapshot) {
+      if (!snapshot.hasData || !snapshot.data!.exists) {
+        return const SizedBox();
+      }
 
-    return StreamBuilder<DocumentSnapshot>(
+      final chatData = snapshot.data!.data() as Map<String, dynamic>;
+      final String currentStatus = chatData['status'] ?? 'disponible';
+      
+      // modificaciones de la logica, para asegurar que ahora los botones sirvan otra vez
+      final String ownerIdFromChat = chatData['ownerId'] ?? '';
+      final List participants = chatData['participants'] ?? [];
+      
+      final String ownerIdFinal = ownerIdFromChat.isNotEmpty 
+          ? ownerIdFromChat 
+          : (participants.isNotEmpty ? participants[0] : '');
 
-      stream: FirebaseFirestore.instance
-          .collection('chats')
-          .doc(widget.chatId)
-          .snapshots(),
+      final bool imTheOwner = (currentUserId == ownerIdFinal);
 
-      builder: (context, snapshot) {
+      String buttonText = "";
+      IconData buttonIcon = Icons.info_outline;
+      Color buttonColor = Colors.grey;
+      VoidCallback? action;
 
-        if (!snapshot.hasData || !snapshot.data!.exists) {
-          return const SizedBox();
-        }
+      if (imTheOwner) {
+       if (currentStatus == 'devolucion_pendiente') {
+          buttonText = "Confirmar Devolución";
+          buttonIcon = Icons.assignment_return;
+          buttonColor = Colors.green;
 
-        final chatData = snapshot.data!.data() as Map<String, dynamic>;
-        final String currentStatus = chatData['status'] ?? 'disponible';
-
-        final String idDesdeMaterial = widget.materialData['userId'] ?? '';
-        final String idDesdeChat = chatData['ownerId'] ?? '';
-
-        final List participants = chatData['participants'] ?? [];
-
-        final String idAlternativo =
-            (participants.length > 1) ? participants[1] : '';
-
-        final String ownerIdFinal = idDesdeMaterial.isNotEmpty
-            ? idDesdeMaterial
-            : (idDesdeChat.isNotEmpty ? idDesdeChat : idAlternativo);
-
-        final bool imTheOwner = (currentUserId == ownerIdFinal);
-
-        String buttonText = "";
-        IconData buttonIcon = Icons.info_outline;
-        Color buttonColor = Colors.grey;
-        VoidCallback? action;
-
-        //Dueño del libro
-        if (imTheOwner) {
-
-          if(currentStatus == 'devolucion_pendiente'){
-
-            buttonText = "Confirmar Devolución";
-            buttonIcon = Icons.assignment_return;
-            buttonColor = Colors.green;
-
-            action = () => _chatService.confirmBookReturn(
+          action = () async {
+            // Mostramos un indicador de carga opcional
+            await _chatService.confirmBookReturn(
               chatId: widget.chatId,
-              materialId: widget.materialData['id'] ?? '',
+              materialId: chatData['materialId'] ?? '',
               confirmerId: currentUserId,
             );
-
-          }
-
-          else if (currentStatus == 'disponible' || currentStatus == 'solicitado') {
-
-            buttonText = "Confirmar Entrega";
-            buttonIcon = Icons.local_shipping;
-            buttonColor = Colors.green;
-
-            action = () => _chatService.updateLoanStatus(
-              widget.chatId,
-              widget.materialData['id'] ?? '',
-              'esperando_confirmacion',
-            );
-
-          }
-
-          else {
-
-            buttonText = "Esperando acción...";
-            buttonIcon = Icons.hourglass_bottom;
-            buttonColor = Colors.grey;
-            action = null;
-
-          }
-
+            
+            if (context.mounted) {
+              Navigator.pop(context);
+            }
+          };
+        } else if (currentStatus == 'solicitado' || currentStatus == 'disponible' || currentStatus == 'pendiente') {
+          buttonText = "Confirmar Entrega";
+          buttonIcon = Icons.local_shipping;
+          buttonColor = Colors.green;
+          action = () => _chatService.updateLoanStatus(
+            widget.chatId,
+            chatData['materialId'] ?? '',
+            'esperando_confirmacion',
+          );
+        } else {
+          buttonText = "Libro en préstamo";
+          buttonIcon = Icons.hourglass_bottom;
+          buttonColor = Colors.blueGrey;
+          action = null;
         }
-
-        //Usuario que pidió el libro
-        else {
-
-          if (currentStatus == 'esperando_confirmacion') {
-
-            buttonText = "Confirmar Recibido";
-            buttonIcon = Icons.handshake;
-            buttonColor = accentColor;
-
-            action = () => _chatService.updateLoanStatus(
-              widget.chatId,
-              widget.materialData['id'] ?? '',
-              'rentado',
-            );
-
-          }
-
-          else if (currentStatus == 'rentado') {
-
-            buttonText = "Registrar Devolución";
-            buttonIcon = Icons.assignment_return;
-            buttonColor = Colors.orange;
-
-            action = _openReturnPage;
-
-          }
-
-          else {
-
-            buttonText = "Esperando entrega...";
-            buttonIcon = Icons.schedule;
-            buttonColor = Colors.grey;
-            action = null;
-
-          }
-
+      } else {
+        // Logica para los que solicitan el libro
+        if (currentStatus == 'esperando_confirmacion') {
+          buttonText = "Confirmar Recibido";
+          buttonIcon = Icons.handshake;
+          buttonColor = accentColor;
+          action = () => _chatService.updateLoanStatus(
+            widget.chatId,
+            chatData['materialId'] ?? '',
+            'rentado',
+          );
+        } else if (currentStatus == 'rentado') {
+          buttonText = "Registrar Devolución";
+          buttonIcon = Icons.assignment_return;
+          buttonColor = Colors.orange;
+          action = _openReturnPage;
+        } else {
+          buttonText = "Esperando entrega...";
+          buttonIcon = Icons.schedule;
+          buttonColor = Colors.grey;
+          action = null;
         }
+      }
 
         return Container(
 
