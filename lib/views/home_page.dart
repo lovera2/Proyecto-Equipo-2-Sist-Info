@@ -19,7 +19,7 @@ class _HomePageState extends State<HomePage> {
   static const Color unimetBlue = Color(0xFF1B3A57);
   static const Color unimetOrange = Color(0xFFF28B31);
   static const Color cardBrown = Color(0xFFD2A679);
-
+  bool _hasNewNotifications = true;
   Future<void> _handleLogout(BuildContext context) async {
     await context.read<AuthViewModel>().logout();
     if (!context.mounted) return;
@@ -260,7 +260,7 @@ class _HomePageState extends State<HomePage> {
           // Botones de acción
           Row(
             children: [
-              // Botón Publicar 
+              // para publicar 
               Container(
                 decoration: BoxDecoration(
                   color: unimetOrange,
@@ -274,18 +274,41 @@ class _HomePageState extends State<HomePage> {
               ),
               const SizedBox(width: 10),
               
-              // Botón Notificaciones 
-              IconButton(
-  icon: const Icon(Icons.notifications_none_outlined, color: Colors.white, size: 28),
-  onPressed: () {
-    // Importa 'chat_list_page.dart' al inicio de tu archivo si no lo has hecho
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => ChatListPage()),
-    );
-  },
-  tooltip: 'Mis chats y notificaciones',
-),
+              // aparicion de un punto rojo en notificaciones 
+              Stack(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications_none_outlined, color: Colors.white, size: 28),
+                    onPressed: () {
+                      setState(() {
+                        _hasNewNotifications = false;
+                      });
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const ChatListPage()),
+                      );
+                    },
+                    tooltip: 'Mis chats y notificaciones',
+                  ),
+                  if (_hasNewNotifications)
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: unimetBlue, width: 1.5),
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 12,
+                          minHeight: 12,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
               
               const SizedBox(width: 5),
 
