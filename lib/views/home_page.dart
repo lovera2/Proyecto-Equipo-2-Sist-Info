@@ -143,12 +143,9 @@ class _HomePageState extends State<HomePage> {
                     constraints: BoxConstraints(
                       minHeight: screenHeight * 0.65, 
                     ),
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(30),
-                        topRight: Radius.circular(30),
-                      ),
+                      borderRadius: BorderRadius.circular(30),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -190,11 +187,11 @@ class _HomePageState extends State<HomePage> {
                               shrinkWrap: true,
                               physics: const NeverScrollableScrollPhysics(),
                               padding: const EdgeInsets.only(left: 40, right: 40, bottom: 40),
-                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 4,
-                                childAspectRatio: 0.60, // Formato vertical (Libro alto) - actualizado
-                                crossAxisSpacing: 40,
-                                mainAxisSpacing: 40,
+                              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                                maxCrossAxisExtent: 280,
+                                childAspectRatio: 0.56,
+                                crossAxisSpacing: 28,
+                                mainAxisSpacing: 28,
                               ),
                               itemCount: docs.length,
                               itemBuilder: (context, index) {
@@ -448,6 +445,20 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  bool _isMultilineText(String text, TextStyle style, double maxWidth, {int maxLines = 2}) {
+    if (text.trim().isEmpty) return false;
+
+    final painter = TextPainter(
+      text: TextSpan(text: text, style: style),
+      textDirection: TextDirection.ltr,
+      maxLines: maxLines,
+      ellipsis: '…',
+    )..layout(maxWidth: maxWidth);
+
+    // Si se renderiza en más de una línea, lo tratamos como multiline
+    return painter.computeLineMetrics().length > 1;
+  }
+
   Widget _buildBookCard(Map<String, dynamic> data) {
     final String status = (data['status'] ?? 'disponible').toString().toLowerCase();
     final bool isAvailable = status == 'disponible';
@@ -470,9 +481,9 @@ class _HomePageState extends State<HomePage> {
       ),
       child: Column(
         children: [
-          // Portada + badge estado
+          // Portada (rectangular, tipo libro)
           Expanded(
-            flex: 9,
+            flex: 8,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(10, 10, 10, 6),
               child: ClipRRect(
@@ -480,12 +491,14 @@ class _HomePageState extends State<HomePage> {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
+                    // Imagen ocupa todo el espacio disponible sin forzar aspectRatio extra.
                     _buildImage(data['imageUrl']),
+
                     Positioned(
                       right: 10,
                       bottom: 10,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                         decoration: BoxDecoration(
                           color: isAvailable ? Colors.green : Colors.red,
                           borderRadius: BorderRadius.circular(999),
@@ -498,10 +511,10 @@ class _HomePageState extends State<HomePage> {
                           ],
                         ),
                         child: Text(
-                          isAvailable ? "Disponible" : "No disponible",
+                          isAvailable ? 'Disponible' : 'No disponible',
                           style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 11,
+                            fontSize: 12,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -513,63 +526,72 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
 
-          // Texto
+          // Texto + chip (sin overflows)
           Expanded(
-            flex: 4,
+            flex: 5,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(
-                    titulo,
-                    maxLines: 2,
-                    textAlign: TextAlign.center,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 18,
-                      color: Colors.black87,
-                      height: 1.15,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    autor.isEmpty ? "—" : autor,
-                    maxLines: 1,
-                    textAlign: TextAlign.center,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontStyle: FontStyle.italic,
-                      color: Colors.black87,
-                      height: 1.1,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    alignment: WrapAlignment.center,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.65),
-                          borderRadius: BorderRadius.circular(999),
-                          border: Border.all(color: Colors.black.withOpacity(0.08)),
-                        ),
-                        child: Text(
-                          materia.isEmpty ? "—" : materia,
-                          maxLines: 1,
+                  // Bloque de título y autor ocupa el espacio disponible y mantiene el chip abajo.
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          titulo,
+                          maxLines: 2,
+                          textAlign: TextAlign.center,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 18,
                             color: Colors.black87,
-                            height: 1.0,
+                            height: 1.15,
                           ),
                         ),
+                        const SizedBox(height: 8),
+                        Text(
+                          autor.isEmpty ? '—' : autor,
+                          maxLines: 2,
+                          textAlign: TextAlign.center,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontStyle: FontStyle.italic,
+                            color: Colors.black87,
+                            height: 1.15,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  // Chip de materia siempre alineado abajo
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 220),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.65),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(color: Colors.black.withOpacity(0.08)),
                       ),
-                    ],
+                      child: Text(
+                        materia.isEmpty ? '—' : materia,
+                        maxLines: 2,
+                        textAlign: TextAlign.center,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.black87,
+                          height: 1.1,
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -584,7 +606,11 @@ class _HomePageState extends State<HomePage> {
     const String defaultCover = 'https://img.freepik.com/vector-gratis/cubierta-libro-azul-vector-top-view_1017-31355.jpg';
 
     if (url == null || url.isEmpty) {
-      return Image.network(defaultCover, fit: BoxFit.cover);
+      return Image.network(
+        defaultCover,
+        fit: BoxFit.cover,
+        alignment: Alignment.topCenter,
+      );
     }
 
     final bool isBase64 = !url.startsWith('http') && !url.startsWith('blob') && !url.startsWith('data:image');
@@ -594,12 +620,21 @@ class _HomePageState extends State<HomePage> {
         return Image.memory(
           base64Decode(url),
           fit: BoxFit.cover,
+          alignment: Alignment.topCenter,
           width: double.infinity,
           height: double.infinity,
-          errorBuilder: (_, __, ___) => Image.network(defaultCover, fit: BoxFit.cover),
+          errorBuilder: (_, __, ___) => Image.network(
+            defaultCover,
+            fit: BoxFit.cover,
+            alignment: Alignment.topCenter,
+          ),
         );
       } catch (_) {
-        return Image.network(defaultCover, fit: BoxFit.cover);
+        return Image.network(
+          defaultCover,
+          fit: BoxFit.cover,
+          alignment: Alignment.topCenter,
+        );
       }
     }
 
@@ -609,21 +644,35 @@ class _HomePageState extends State<HomePage> {
         return Image.memory(
           base64Decode(clean),
           fit: BoxFit.cover,
+          alignment: Alignment.topCenter,
           width: double.infinity,
           height: double.infinity,
-          errorBuilder: (_, __, ___) => Image.network(defaultCover, fit: BoxFit.cover),
+          errorBuilder: (_, __, ___) => Image.network(
+            defaultCover,
+            fit: BoxFit.cover,
+            alignment: Alignment.topCenter,
+          ),
         );
       } catch (_) {
-        return Image.network(defaultCover, fit: BoxFit.cover);
+        return Image.network(
+          defaultCover,
+          fit: BoxFit.cover,
+          alignment: Alignment.topCenter,
+        );
       }
     }
 
     return Image.network(
       url,
       fit: BoxFit.cover,
+      alignment: Alignment.topCenter,
       width: double.infinity,
       height: double.infinity,
-      errorBuilder: (_, __, ___) => Image.network(defaultCover, fit: BoxFit.cover),
+      errorBuilder: (_, __, ___) => Image.network(
+        defaultCover,
+        fit: BoxFit.cover,
+        alignment: Alignment.topCenter,
+      ),
     );
   }
 } 
