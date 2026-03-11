@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ChatService {
-
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   //Crear o recuperar chat entre 2 usuarios para un material
@@ -26,9 +25,23 @@ class ChatService {
     final snap = await ref.get();
 
     if (!snap.exists) {
+      // Buscamos el material para saber quién es el dueño original
+      String ownerId = '';
+      try {
+        final matDoc = await _firestore.collection('materials').doc(m).get();
+        if (matDoc.exists) {
+          final data = matDoc.data() as Map<String, dynamic>;
+          // Dependiendo de cómo lo llames en Firebase, buscamos userId u ownerId
+          ownerId = (data['userId'] ?? data['ownerId'] ?? '').toString();
+        }
+      } catch (e) {
+        // Si hay error, continuamos
+      }
+
       await ref.set({
         'participants': users,
         'materialId': m,
+        'ownerId': ownerId, // <--- AQUÍ GUARDAMOS EL DUEÑO
         'status': 'pendiente',
         'createdAt': FieldValue.serverTimestamp(),
         'lastUpdate': FieldValue.serverTimestamp(),
@@ -40,7 +53,6 @@ class ChatService {
 
   //Enviar mensaje
   Future<void> sendMessage(String chatId, String senderId, String text) async {
-
     await _firestore
         .collection('chats')
         .doc(chatId)
@@ -50,7 +62,6 @@ class ChatService {
       'text': text,
       'timestamp': FieldValue.serverTimestamp(),
     });
-
   }
 
   //Actualizar estado del préstamo
@@ -59,7 +70,6 @@ class ChatService {
       String materialId,
       String newStatus,
       ) async {
-
     await _firestore.collection('chats').doc(chatId).update({
       'status': newStatus,
       'lastUpdate': FieldValue.serverTimestamp(),
@@ -70,7 +80,6 @@ class ChatService {
         'status': newStatus,
       });
     }
-
   }
 
   //Registrar solicitud de devolución
@@ -81,56 +90,38 @@ class ChatService {
     required int utilidad,
     required int estadoFisico,
   }) async {
-
     final chatRef = _firestore.collection('chats').doc(chatId);
 
     await chatRef.update({
-
       'status': 'devolucion_pendiente',
-
       'returnData': {
-
         'utilidad': utilidad,
         'estadoFisico': estadoFisico,
         'senderId': senderId,
         'createdAt': FieldValue.serverTimestamp(),
-
       },
-
     });
 
     await _firestore.collection('materials').doc(materialId).update({
-
       'status': 'devolucion_pendiente'
-
     });
-
   }
 
   //Confirmar devolución por el dueño
   Future<void> confirmBookReturn({
-
     required String chatId,
     required String materialId,
     required String confirmerId,
-
   }) async {
-
     final chatRef = _firestore.collection('chats').doc(chatId);
 
     await chatRef.update({
-
       'status': 'disponible',
       'lastUpdate': FieldValue.serverTimestamp(),
-
     });
 
     await _firestore.collection('materials').doc(materialId).update({
-
       'status': 'disponible'
-
     });
-
   }
-
 }

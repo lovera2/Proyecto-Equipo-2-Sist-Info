@@ -6,8 +6,8 @@ import 'individual_chat_page.dart';
 class ChatListPage extends StatelessWidget {
   const ChatListPage({super.key});
 
-  // Intenta obtener nombre del otro usuario y título del material
-  // cuando el chat no trae esos campos guardados.
+  // aqui se obtiene el nombre del otro usuario y título del libro para guardarlo
+  // cuando el chat no trae esos campos ya desde antes
   Future<Map<String, String>> _resolveExtras({
     required String otherUserId,
     required String materialId,
@@ -40,7 +40,6 @@ class ChatListPage extends StatelessWidget {
         }
       }
     } catch (_) {
-      // Si falla, lo dejamos vacío para usar fallback.
     }
 
     try {
@@ -54,7 +53,7 @@ class ChatListPage extends StatelessWidget {
         bookTitle = (m['title'] ?? '').toString().trim();
       }
     } catch (_) {
-      // Si falla, fallback.
+      // i hay un error se hace fallback por si acaso
     }
 
     return {
@@ -63,6 +62,7 @@ class ChatListPage extends StatelessWidget {
       'avatarEmoji': avatarEmoji,
     };
   }
+
   void _showTermsDialog(BuildContext context) {
     const Color unimetBlue = Color(0xFF1B3A57);
     const Color unimetOrange = Color(0xFFF28B31);
@@ -170,7 +170,7 @@ class ChatListPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
 
-    // Si no hay usuario autenticado, no disparamos consultas.
+    // si no hay usuario autenticado, no hacemos consultas
     if (currentUserId.trim().isEmpty) {
       return const Scaffold(
         body: Center(child: Text('Debes iniciar sesión para ver tus mensajes.')),
@@ -183,7 +183,6 @@ class ChatListPage extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Fondo (igual estilo Home)
           Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
@@ -205,7 +204,6 @@ class ChatListPage extends StatelessWidget {
               children: [
                 _buildHeader(context),
 
-                // Sección blanca (contenedor principal)
                 Expanded(
                   child: Container(
                     width: double.infinity,
@@ -230,8 +228,9 @@ class ChatListPage extends StatelessWidget {
                           ),
                         ),
 
-                        Expanded(
+                   Expanded(
                           child: StreamBuilder<QuerySnapshot>(
+                            // Mantenemos la consulta, pero nos aseguramos de que el campo sea exacto
                             stream: FirebaseFirestore.instance
                                 .collection('chats')
                                 .where('participants', arrayContains: currentUserId)
@@ -244,82 +243,37 @@ class ChatListPage extends StatelessWidget {
                                 return const Center(child: CircularProgressIndicator(color: unimetOrange));
                               }
 
-                              final rawChats = snapshot.data?.docs ?? [];
+                              final rawDocs = snapshot.data?.docs ?? [];
+                              
+                              // 1. FILTRADO DE SEGURIDAD Y LIMPIEZA
+                              final seenKeys = <String>{};
+                              final List<QueryDocumentSnapshot> chats = [];
 
-                              // Evita listas infladas por duplicados o documentos "basura".
-                              final seen = <String>{};
-                              final chats = <QueryDocumentSnapshot<Object?>>[];
+                              for (var doc in rawDocs) {
+                                final data = doc.data() as Map<String, dynamic>;
+                                final List participants = data['participants'] ?? [];
+                                
+                                // DOBLE BLINDAJE: Si yo no estoy en la lista de participantes, este chat no es para mí
+                                if (!participants.contains(currentUserId)) continue;
 
-                              for (final d in rawChats) {
-                                final data = d.data() as Map<String, dynamic>;
+                                final String mId = (data['materialId'] ?? '').toString();
+                                // Generamos una llave única para evitar que el mismo libro/persona aparezca dos veces
+                                // Si el chat es del mismo material y las mismas personas, es un duplicado
+                                final String chatKey = "${mId}_${participants.join('_')}";
 
-                                final status = (data['status'] ?? '').toString().toLowerCase().trim();
-
-                                final hasLastMessage = (data['lastMessage'] ?? '').toString().trim().isNotEmpty ||
-                                    (data['lastMessageText'] ?? '').toString().trim().isNotEmpty;
-
-                                final hasLastMessageAt = data['lastMessageAt'] != null;
-                                final hasUpdatedAt = data['updatedAt'] != null;
-                                final hasLastUpdate = data['lastUpdate'] != null || data['lastUpdatedAt'] != null;
-                                final hasCreatedAt = data['createdAt'] != null;
-
-                                final allowPending = status == 'pendiente';
-
-                                // Si no hay señales mínimas y no está pendiente, lo ignoramos.
-                                if (!allowPending &&
-                                    !hasLastMessage &&
-                                    !hasLastMessageAt &&
-                                    !hasUpdatedAt &&
-                                    !hasLastUpdate &&
-                                    !hasCreatedAt) {
-                                  continue;
-                                }
-
-                                final String materialId = (data['materialId'] ?? data['id'] ?? '').toString().trim();
-                                final List participants = (data['participants'] ?? const []).toList();
-
-                                String otherUserId = '';
-                                for (final p in participants) {
-                                  final pid = p.toString().trim();
-                                  if (pid.isNotEmpty && pid != currentUserId) {
-                                    otherUserId = pid;
-                                    break;
-                                  }
-                                }
-
-                                final key = materialId.isNotEmpty && otherUserId.isNotEmpty
-                                    ? '$materialId|$otherUserId'
-                                    : d.id;
-
-                                if (seen.contains(key)) continue;
-                                seen.add(key);
-                                chats.add(d);
+                                if (seenKeys.contains(chatKey)) continue;
+                                
+                                seenKeys.add(chatKey);
+                                chats.add(doc);
                               }
 
-                              // Orden visual: más reciente primero.
+                              // 2. ORDENADO POR FECHA (El más reciente arriba)
                               chats.sort((a, b) {
-                                final da = a.data() as Map<String, dynamic>;
-                                final db = b.data() as Map<String, dynamic>;
-
-                                DateTime ta = DateTime.fromMillisecondsSinceEpoch(0);
-                                DateTime tb = DateTime.fromMillisecondsSinceEpoch(0);
-
-                                final la = da['lastMessageAt'];
-                                final lb = db['lastMessageAt'];
-
-                                if (la is Timestamp) ta = la.toDate();
-                                if (lb is Timestamp) tb = lb.toDate();
-
-                                if (ta.millisecondsSinceEpoch == 0) {
-                                  final ua = da['updatedAt'] ?? da['lastUpdate'] ?? da['lastUpdatedAt'] ?? da['createdAt'];
-                                  if (ua is Timestamp) ta = ua.toDate();
-                                }
-                                if (tb.millisecondsSinceEpoch == 0) {
-                                  final ub = db['updatedAt'] ?? db['lastUpdate'] ?? db['lastUpdatedAt'] ?? db['createdAt'];
-                                  if (ub is Timestamp) tb = ub.toDate();
-                                }
-
-                                return tb.compareTo(ta);
+                                final dataA = a.data() as Map<String, dynamic>;
+                                final dataB = b.data() as Map<String, dynamic>;
+                                final tsA = (dataA['lastMessageAt'] ?? dataA['createdAt'] ?? Timestamp.now()) as Timestamp;
+                                final tsB = (dataB['lastMessageAt'] ?? dataB['createdAt'] ?? Timestamp.now()) as Timestamp;
+                                return tsB.compareTo(tsA);
                               });
 
                               if (chats.isEmpty) {
@@ -338,47 +292,24 @@ class ChatListPage extends StatelessWidget {
                                 itemBuilder: (context, index) {
                                   final chatDoc = chats[index];
                                   final chatData = chatDoc.data() as Map<String, dynamic>;
-
-                                  final String materialId = (chatData['materialId'] ?? '').toString().trim();
-
-                                  final List participants = (chatData['participants'] ?? const []).toList();
-                                  String otherUserId = '';
-                                  for (final p in participants) {
-                                    final pid = p.toString().trim();
-                                    if (pid.isNotEmpty && pid != currentUserId) {
-                                      otherUserId = pid;
-                                      break;
-                                    }
-                                  }
-
-                                  final String otherUserNameStored = (chatData['otherUserName'] ?? '').toString().trim();
-                                  final String bookTitleStored = (chatData['bookTitle'] ?? '').toString().trim();
+                                  final String materialId = (chatData['materialId'] ?? '').toString();
+                                  
+                                  // Identificar al otro usuario
+                                  final List participants = chatData['participants'] ?? [];
+                                  final String otherUserId = participants.firstWhere(
+                                    (p) => p != currentUserId, 
+                                    orElse: () => ''
+                                  );
 
                                   return FutureBuilder<Map<String, String>>(
                                     future: _resolveExtras(otherUserId: otherUserId, materialId: materialId),
                                     builder: (context, extraSnap) {
-                                      final extra = extraSnap.data ?? const {'otherName': '', 'bookTitle': '', 'avatarEmoji': ''};
-
-                                      final String otherUserName = otherUserNameStored.isNotEmpty
-                                          ? otherUserNameStored
-                                          : (extra['otherName'] ?? '').trim();
-
-                                      final String bookTitle = bookTitleStored.isNotEmpty
-                                          ? bookTitleStored
-                                          : (extra['bookTitle'] ?? '').trim();
-
-                                      final String materialTitleFallback =
-                                          (chatData['materialTitle'] ?? chatData['title'] ?? '').toString().trim();
-
-                                      final String avatarEmoji = (extra['avatarEmoji'] ?? '').trim();
-
-                                      final String bookTitleToShow = bookTitle.isNotEmpty
-                                          ? bookTitle
-                                          : (materialTitleFallback.isNotEmpty ? materialTitleFallback : 'Consultar detalles');
-
-                                      final String titleToShow = otherUserName.isNotEmpty
-                                          ? otherUserName
-                                          : (otherUserId.isNotEmpty ? 'Usuario: $otherUserId' : 'Chat de material');
+                                      final extra = extraSnap.data ?? {'otherName': 'Usuario', 'bookTitle': 'Libro', 'avatarEmoji': ''};
+                                      
+                                      // Lógica de visualización (Punto 3 adelantado para que se vea genial)
+                                      final bool isOwner = chatData['ownerId'] == currentUserId;
+                                      final String displayName = extra['otherName'] ?? 'Usuario';
+                                      final String bookTitle = extra['bookTitle'] ?? 'Consultar detalles';
 
                                       return Card(
                                         margin: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
@@ -389,64 +320,30 @@ class ChatListPage extends StatelessWidget {
                                           leading: CircleAvatar(
                                             radius: 26,
                                             backgroundColor: unimetOrange,
-                                            child: avatarEmoji.isNotEmpty
-                                                ? Text(
-                                                    avatarEmoji,
-                                                    style: const TextStyle(fontSize: 22),
-                                                  )
-                                                : const Icon(Icons.person, color: Colors.white, size: 22),
+                                            child: Text(
+                                              extra['avatarEmoji']?.isNotEmpty == true ? extra['avatarEmoji']! : '📖',
+                                              style: const TextStyle(fontSize: 22),
+                                            ),
                                           ),
                                           title: Text(
-                                            titleToShow,
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              color: unimetBlue,
-                                              fontSize: 16.5,
-                                            ),
+                                            isOwner ? "$displayName pidió tu libro" : "Pediste un libro a $displayName",
+                                            style: const TextStyle(fontWeight: FontWeight.bold, color: unimetBlue, fontSize: 16),
                                           ),
-                                          subtitle: Padding(
-                                            padding: const EdgeInsets.only(top: 8),
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  'Libro:',
-                                                  style: TextStyle(
-                                                    color: Colors.grey[600],
-                                                    fontSize: 12,
-                                                    fontWeight: FontWeight.w600,
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 2),
-                                                Text(
-                                                  bookTitleToShow,
-                                                  maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis,
-                                                  style: const TextStyle(
-                                                    color: Colors.black87,
-                                                    fontSize: 14.5,
-                                                    fontWeight: FontWeight.w700,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
+                                          subtitle: Text(
+                                            "Libro: $bookTitle",
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(color: Colors.black87, fontSize: 14),
                                           ),
-                                          trailing: const Icon(
-                                            Icons.arrow_forward_ios,
-                                            size: 18,
-                                            color: unimetBlue,
-                                          ),
+                                          trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: unimetBlue),
                                           onTap: () {
-                                            final Map<String, dynamic> materialInfo = Map.from(chatData);
-                                            materialInfo['id'] = materialId;
-
                                             Navigator.push(
                                               context,
                                               MaterialPageRoute(
                                                 builder: (context) => IndividualChatPage(
                                                   chatId: chatDoc.id,
-                                                  receiverName: titleToShow,
-                                                  materialData: materialInfo,
+                                                  receiverName: displayName,
+                                                  materialData: {...chatData, 'id': materialId},
                                                 ),
                                               ),
                                             );
