@@ -107,40 +107,45 @@ class ChatService {
     });
   }
 
-  // nueva funcion optimizada, con esto el chat se elimina una vez fue completada la devolucion para evitar informacion innecesaria
+  // nueva funcion optimizada por segunda vez, con esto el chat se elimina pero no de la base de datos, asi se puede acceder a ella para el dashboard
   Future<void> confirmBookReturn({
     required String chatId,
     required String materialId,
     required String confirmerId,
   }) async {
     try {
-      // se coloca en estado disponible de nuevo ya que fue devuelto
+      // extraemos los datos antes de borrarlo para el historial
+      final chatSnap = await _firestore.collection('chats').doc(chatId).get();
+      final chatData = chatSnap.data() as Map<String, dynamic>;
+
+      // creamos un registro histórico en una nueva colección
+      await _firestore.collection('completed_loans').add({
+        'chatId': chatId,
+        'materialId': materialId,
+        'ownerId': chatData['ownerId'],
+        'borrowerId': chatData['participants'].firstWhere((id) => id != chatData['ownerId']),
+        'materialTitle': chatData['materialTitle'] ?? 'Libro',
+        'completedAt': FieldValue.serverTimestamp(),
+        'rating': chatData['returnData'] // guardamos la utilidad y estado físico que puso el usuario que son caracteristicas diferenciadoras
+      });
+
       if (materialId.isNotEmpty) {
         await _firestore.collection('materials').doc(materialId).update({
           'status': 'disponible'
         });
       }
 
-      // se borran los mensajes directamente una vez el chat ha cumplido su proposito, esto se debe hacer desde aqui
-      final messagesSnapshot = await _firestore
-          .collection('chats')
-          .doc(chatId)
-          .collection('messages')
-          .get();
-
+      // Limpiar mensajes y borrar chat
+      final messagesSnapshot = await _firestore.collection('chats').doc(chatId).collection('messages').get();
       for (var doc in messagesSnapshot.docs) {
         await doc.reference.delete();
       }
-
-      // eliminacion total del chat permanentemente
       await _firestore.collection('chats').doc(chatId).delete();
-      
-      print("Chat $chatId eliminado exitosamente.");
+
     } catch (e) {
-      print("Error al cerrar el ciclo del chat: $e");
+      print("Error al archivar y cerrar chat: $e");
       rethrow;
     }
   }
-
   
 }
