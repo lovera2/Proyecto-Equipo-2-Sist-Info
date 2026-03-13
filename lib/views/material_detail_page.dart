@@ -67,9 +67,55 @@ class MaterialDetailPage extends StatelessWidget {
             SizedBox(height: 8),
             Text("Sin imagen", style: TextStyle(color: Colors.grey, fontSize: 11)),
           ],
+          
         ),
       ),
     );
+  }
+
+  Future<void> _confirmDelete(BuildContext context, String bookId, String bookTitle) async {
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          title: const Text('Eliminar publicación', style: TextStyle(color: Color(0xFF1B3A57))),
+          content: Text('¿Estás seguro de que deseas eliminar "$bookTitle"? Esta acción no se puede deshacer.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Eliminar', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm == true) {
+      try {
+        await FirebaseFirestore.instance.collection('materials').doc(bookId).delete();
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Publicación eliminada correctamente'), backgroundColor: Colors.green, behavior: SnackBarBehavior.floating),
+          );
+          Navigator.pop(context); // Regresa a la pantalla anterior
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error al eliminar: $e'), backgroundColor: Colors.red, behavior: SnackBarBehavior.floating),
+          );
+        }
+      }
+    }
   }
 
   BoxDecoration _backgroundDecoration(bool effectiveIsAdmin) {
@@ -252,6 +298,12 @@ class MaterialDetailPage extends StatelessWidget {
                                         icon: const Icon(Icons.chat_bubble_outline),
                                         label: Text(isAvailable ? 'Solicitar préstamo' : 'Préstamo no disponible', style: const TextStyle(fontWeight: FontWeight.w700)),
                                       )
+                                    else if (isOwner)
+                                      TextButton.icon(
+                                        onPressed: () => _confirmDelete(context, materialId, title),
+                                        icon: const Icon(Icons.delete_outline, color: Colors.red, size: 26),
+                                        label: const Text('Eliminar', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                                      )
                                     else
                                       const SizedBox(width: 1),
                                     
@@ -261,7 +313,7 @@ class MaterialDetailPage extends StatelessWidget {
                                           ? UserService().isFavoriteStream(uid: currentUid, bookId: materialId) 
                                           : Stream.value(false),
                                       builder: (context, snapshot) {
-                                        final bool isFav = snapshot.data ?? false; // ¿Es favorito en la DB?
+                                        final bool isFav = snapshot.data ?? false; // Es favorito en la DB?
                                         
                                         return TextButton.icon(
                                           onPressed: () async {

@@ -9,6 +9,7 @@ import '../viewmodels/auth_viewmodel.dart';
 import 'edit_profile_page.dart';
 import 'package:bookloop_unimet/views/chat_list_page.dart';
 import 'favorites_list_page.dart';
+import 'material_detail_page.dart'; 
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -576,9 +577,7 @@ class _MyBooksRow extends StatelessWidget {
 
     if (userId.isNotEmpty && userId == u) return true;
     if (ownerId.isNotEmpty && ownerId == u) return true;
-
     if (e.isNotEmpty && (ownerEmail == e || emailField == e)) return true;
-
     if (un.isNotEmpty && (ownerUsername == un || ownerUser == un)) return true;
 
     return false;
@@ -611,6 +610,59 @@ class _MyBooksRow extends StatelessWidget {
     );
   }
 
+  // --- NUEVA FUNCIÓN PARA BORRAR ---
+  Future<void> _confirmDelete(BuildContext context, String bookId, String bookTitle) async {
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          title: const Text('Eliminar publicación', style: TextStyle(color: Color(0xFF1B3A57))),
+          content: Text('¿Estás seguro de que deseas eliminar "$bookTitle"? Esta acción no se puede deshacer.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Eliminar', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm == true) {
+      try {
+        await FirebaseFirestore.instance.collection('materials').doc(bookId).delete();
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Publicación eliminada correctamente'),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error al eliminar: $e'),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (uid == null || uid!.trim().isEmpty) {
@@ -631,25 +683,27 @@ class _MyBooksRow extends StatelessWidget {
             return const _CoversRow();
           }
 
-          final all = snapshot.data!.docs
-              .map((d) => d.data() as Map<String, dynamic>)
-              .where(_isMine)
+          
+          final myDocs = snapshot.data!.docs
+              .where((d) => _isMine(d.data() as Map<String, dynamic>))
               .toList();
 
-          if (all.isEmpty) {
+          if (myDocs.isEmpty) {
             return const _CoversRow();
           }
 
-          final items = all.take(5).toList();
+          final items = myDocs.take(5).toList();
 
           return ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: items.length,
             separatorBuilder: (_, __) => const SizedBox(width: 10),
             itemBuilder: (context, index) {
-              final data = items[index];
+              final doc = items[index];
+              final data = doc.data() as Map<String, dynamic>;
+              final bookId = doc.id; 
+              
               final imageUrl = (data['imageUrl'] ?? '').toString();
-
               final title = (data['title'] ?? '').toString().trim();
               final author = (data['author'] ?? '').toString().trim();
 
@@ -658,30 +712,61 @@ class _MyBooksRow extends StatelessWidget {
                 if (author.isNotEmpty) 'Autor: $author',
               ].join('\n');
 
-              return Tooltip(
-                message: tooltipText.isEmpty ? 'Material' : tooltipText,
-                waitDuration: const Duration(milliseconds: 350),
-                showDuration: const Duration(seconds: 3),
-                preferBelow: false,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1B3A57).withOpacity(0.95),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                textStyle: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  height: 1.25,
-                ),
-                child: Container(
-                  width: 78,
+              
+              return GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => MaterialDetailPage(
+                        materialId: bookId, 
+                        materialData: data,
+                      ),
+                    ),
+                  );
+                },
+                child: Tooltip(
+                  message: tooltipText.isEmpty ? 'Material' : tooltipText,
+                  waitDuration: const Duration(milliseconds: 350),
+                  showDuration: const Duration(seconds: 3),
+                  preferBelow: false,
                   decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey[300]!),
+                    color: const Color(0xFF1B3A57).withOpacity(0.95),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: _coverImage(imageUrl),
+                  textStyle: const TextStyle(color: Colors.white, fontSize: 12, height: 1.25),
+                  child: Container(
+                    width: 78,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: _coverImage(imageUrl),
+                        ),
+                        // Papelera roja
+                        Positioned(
+                          right: 4,
+                          bottom: 4,
+                          child: GestureDetector(
+                            onTap: () => _confirmDelete(context, bookId, title),
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.9),
+                                shape: BoxShape.circle,
+                                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4)],
+                              ),
+                              child: const Icon(Icons.delete_outline, color: Colors.red, size: 18),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               );
