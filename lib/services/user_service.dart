@@ -63,4 +63,56 @@ class UserService {
 
   // Referencia al doc
   DocumentReference<Map<String,dynamic>> userDoc(String uid)=>_usersRef.doc(uid);
+
+  // LÓGICA DE FAVORITOS (COLECCIÓN SEPARADA)
+  // Marcar como favorito
+  Future<void> addFavorite({required String uid, required String bookId}) async {
+    final docId = '${uid}_$bookId'; // Truco: ID único combinando ambos
+    await _db.collection('favoritos').doc(docId).set({
+      'userId': uid,
+      'bookId': bookId,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  // Quitar de favoritos
+  Future<void> removeFavorite({required String uid, required String bookId}) async {
+    final docId = '${uid}_$bookId';
+    await _db.collection('favoritos').doc(docId).delete();
+  }
+
+  // Escuchar en tiempo real si un libro es favorito (Para que el corazón cambie de color)
+  Stream<bool> isFavoriteStream({required String uid, required String bookId}) {
+    final docId = '${uid}_$bookId';
+    return _db.collection('favoritos').doc(docId).snapshots().map((snap) {
+      return snap.exists; // Retorna true si existe en favoritos, false si no
+    });
+  }
+
+  //Obtener todos los IDs de los libros favoritos de un usuario
+  Stream<List<String>> getUserFavoritesStream(String uid) {
+    return _db.collection('favoritos')
+        .where('userId', isEqualTo: uid) // Solo pedimos los del usuario
+        .snapshots()
+        .map((snapshot) {
+      
+      //pasamos los documentos a una lista de Dart
+      final docs = snapshot.docs.toList();
+      
+      //ordenamos la lista localmente por la fecha 'createdAt' (el más reciente primero)
+      docs.sort((a, b) {
+        final timeA = a.data()['createdAt'] as Timestamp?;
+        final timeB = b.data()['createdAt'] as Timestamp?;
+        
+        // Manejo por si acaso algún documento viejo no tiene fecha
+        if (timeA == null) return 1;
+        if (timeB == null) return -1;
+        
+        return timeB.compareTo(timeA); // Compara para ordenar descendentemente
+      });
+
+      //devolvemos solo la lista de los IDs de los libros ordenada
+      return docs.map((doc) => doc.data()['bookId'] as String).toList();
+    });
+  }
 }

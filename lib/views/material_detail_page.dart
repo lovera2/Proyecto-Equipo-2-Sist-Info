@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/chat_service.dart';
 import 'individual_chat_page.dart';
 import 'chat_list_page.dart'; 
+import '../services/user_service.dart';
 
 class MaterialDetailPage extends StatelessWidget {
   final String materialId;
@@ -144,7 +145,6 @@ class MaterialDetailPage extends StatelessWidget {
                   onPublish: () => Navigator.pushNamed(context, '/publish'),
                   onProfile: () => Navigator.pushNamed(context, '/profile'),
                   onNotifications: () {
-                    // Acción corregida: Navega a la lista de chats
                     Navigator.push(context, MaterialPageRoute(builder: (context) => const ChatListPage()));
                   },
                   onMenuLogout: () {
@@ -254,10 +254,67 @@ class MaterialDetailPage extends StatelessWidget {
                                       )
                                     else
                                       const SizedBox(width: 1),
-                                    TextButton.icon(
-                                      onPressed: () {},
-                                      icon: const Icon(Icons.favorite_border, color: Colors.grey),
-                                      label: const Text('Añadir a favoritos', style: TextStyle(color: Colors.grey)),
+                                    
+                                    StreamBuilder<bool>(
+                                      // el ID del usuario actual y el ID del libro
+                                      stream: currentUid.isNotEmpty 
+                                          ? UserService().isFavoriteStream(uid: currentUid, bookId: materialId) 
+                                          : Stream.value(false),
+                                      builder: (context, snapshot) {
+                                        final bool isFav = snapshot.data ?? false; // ¿Es favorito en la DB?
+                                        
+                                        return TextButton.icon(
+                                          onPressed: () async {
+                                            if (currentUid.isEmpty) {
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                const SnackBar(content: Text('Debes iniciar sesión para guardar favoritos')),
+                                              );
+                                              return;
+                                            }
+
+                                            final userService = UserService();
+                                            // Guardamos el messenger y el título antes del await
+                                            final messenger = ScaffoldMessenger.of(context);
+                                            final String bookTitle = (materialData['title'] ?? 'este libro').toString();
+
+                                            if (isFav) {
+                                              // Si ya era favorito, lo quitamos
+                                              await userService.removeFavorite(uid: currentUid, bookId: materialId);
+                                              messenger.showSnackBar(
+                                                SnackBar(
+                                                  content: Text('Has quitado "$bookTitle" de tus favoritos 💔'),
+                                                  backgroundColor: Colors.grey[700],
+                                                  duration: const Duration(seconds: 2),
+                                                  behavior: SnackBarBehavior.floating,
+                                                ),
+                                              );
+                                            } else {
+                                              // Si no era, lo añadimos
+                                              await userService.addFavorite(uid: currentUid, bookId: materialId);
+                                              messenger.showSnackBar(
+                                                SnackBar(
+                                                  content: Text('Has agregado "$bookTitle" a tus favoritos ❤️'),
+                                                  backgroundColor: const Color(0xFFF28B31), // Naranja Unimet
+                                                  duration: const Duration(seconds: 2),
+                                                  behavior: SnackBarBehavior.floating,
+                                                ),
+                                              );
+                                            }
+                                          },
+                                          icon: Icon(
+                                            isFav ? Icons.favorite : Icons.favorite_border,
+                                            color: isFav ? Colors.red : Colors.grey,
+                                            size: 26,
+                                          ),
+                                          label: Text(
+                                            isFav ? 'En favoritos' : 'Añadir a favoritos',
+                                            style: TextStyle(
+                                              color: isFav ? Colors.red : Colors.grey, 
+                                              fontWeight: FontWeight.bold
+                                            ),
+                                          ),
+                                        );
+                                      },
                                     ),
                                   ],
                                 ),
@@ -314,7 +371,7 @@ class _TopBar extends StatelessWidget {
               const SizedBox(width: 10),
               IconButton(icon: const Icon(Icons.home_outlined, color: Colors.white, size: 28), onPressed: onHome),
               
-              // --- BADGE DE NOTIFICACIONES CORREGIDO ---
+              
               StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
                     .collection('chats')
@@ -350,10 +407,6 @@ class _TopBar extends StatelessWidget {
     );
   }
 }
-
-// Los widgets de soporte (_CoverCard, _DetailsCard, _InfoLine, _RatingRow, _BackgroundBlobs, _BlobPainter) 
-// se mantienen igual que en tu código original para no alterar el diseño visual.
-// [AQUÍ SIGUEN TUS CLASES ORIGINALES DE SOPORTE QUE YA TIENES EN EL ARCHIVO]
 
 class _CoverCard extends StatelessWidget {
   final Widget image;

@@ -385,7 +385,6 @@ class _BackgroundBlobs extends StatelessWidget {
 class _BlobPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    // Usamos blanco con muy baja opacidad para el efecto de fondo
     final paint = Paint()..color = Colors.white.withOpacity(0.05);
     
     canvas.drawCircle(Offset(size.width * 0.2, size.height * 0.1), 100, paint);

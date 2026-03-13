@@ -8,6 +8,7 @@ import '../viewmodels/profile_viewmodel.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import 'edit_profile_page.dart';
 import 'package:bookloop_unimet/views/chat_list_page.dart';
+import 'favorites_list_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -472,8 +473,9 @@ class _TopProfileRow extends StatelessWidget {
         const SizedBox(width: 10),
         TextButton.icon(
           onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("Favoritos en desarrollo")),
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const FavoritesListPage()),
             );
           },
           icon: const Icon(Icons.favorite, color: Colors.black54),
