@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
 import '../viewmodels/payment_viewmodel.dart';
 
 class PaymentPage extends StatefulWidget {
@@ -25,6 +24,7 @@ class _PaymentPageState extends State<PaymentPage> {
 
   String? selectedAmount;
 
+  // 1. FUNCIÓN QUE LANZA EL SIMULADOR
   Future<void> _processPaymentAndRegister() async {
     if (selectedAmount == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -33,9 +33,26 @@ class _PaymentPageState extends State<PaymentPage> {
       return;
     }
 
-    final vm = context.read<PaymentViewModel>();
+    final String cleanAmount = selectedAmount!.replaceAll('\$', '').replaceAll(',', '.');
+    final double amountValue = double.parse(cleanAmount);
 
-    if (vm.isLoading) return;
+    // Navegamos a nuestra pasarela propia
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (BuildContext context) => MockPaypalScreen(
+          amount: amountValue,
+          onPaymentComplete: (paypalEmail, paypalPass) {
+            Navigator.pop(context); // Cerramos el simulador
+            _ejecutarRegistroFirebase(); // Registramos en la BD
+          },
+        ),
+      ),
+    );
+  }
+
+  // 2. FUNCIÓN DE REGISTRO EN FIREBASE
+  Future<void> _ejecutarRegistroFirebase() async {
+    final vm = context.read<PaymentViewModel>();
 
     showDialog(
       context: context,
@@ -53,19 +70,18 @@ class _PaymentPageState extends State<PaymentPage> {
     );
 
     if (!mounted) return;
-
-    Navigator.pop(context);
+    Navigator.pop(context); 
 
     if (ok) {
       _showSuccessDialog();
     } else {
-      final msg = vm.errorMessage ?? "❌ Error de conexión";
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(msg), backgroundColor: Colors.red),
+        SnackBar(content: Text(vm.errorMessage ?? "Error al registrar"), backgroundColor: Colors.red),
       );
     }
   }
 
+  // 3. DIÁLOGO DE ÉXITO
   void _showSuccessDialog() {
     showDialog(
       context: context,
@@ -74,23 +90,17 @@ class _PaymentPageState extends State<PaymentPage> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Icon(Icons.check_circle, color: Colors.green, size: 60),
         content: Text(
-          "¡Donación de $selectedAmount exitosa!\n\nTu cuenta (${widget.email}) ha sido activada correctamente en BookLoop.",
+          "¡Donación de $selectedAmount exitosa!\n\nTu cuenta (${widget.email}) ha sido activada correctamente.",
           textAlign: TextAlign.center,
         ),
         actions: [
           Center(
             child: TextButton(
               onPressed: () {
-                Navigator.pop(dialogContext); // cerrar el dialog
-                Navigator.of(context).pushNamedAndRemoveUntil(
-                  '/edit_profile',
-                  (route) => false,
-                );
+                Navigator.pop(dialogContext);
+                Navigator.of(context).pushNamedAndRemoveUntil('/edit_profile', (route) => false);
               },
-              child: const Text(
-                "Completar mi perfil",
-                style: TextStyle(fontWeight: FontWeight.bold, color: unimetOrange),
-              ),
+              child: const Text("Completar mi perfil", style: TextStyle(fontWeight: FontWeight.bold, color: unimetOrange)),
             ),
           )
         ],
@@ -110,60 +120,23 @@ class _PaymentPageState extends State<PaymentPage> {
       ),
       body: Stack(
         children: [
-          // Fondo con gradiente (igual estilo StartPage)
+          // Fondo gradiente
           Positioned.fill(
             child: Container(
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  stops: [0.0, 0.45, 1.0],
-                  colors: [
-                    Color(0xFF081827),
-                    Color(0xFF14324A),
-                    Color(0xFF204F73),
-                  ],
+                  colors: [Color(0xFF081827), Color(0xFF14324A), Color(0xFF204F73)],
                 ),
               ),
             ),
           ),
-
-          // Glow sutil
-          Positioned.fill(
-            child: IgnorePointer(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: RadialGradient(
-                    center: Alignment.topRight,
-                    radius: 1.1,
-                    colors: [
-                      Color(0x332D5E8B),
-                      Color(0x00000000),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-
-          // Pattern sutil
-          const Positioned.fill(
-            child: IgnorePointer(
-              child: CustomPaint(
-                painter: _DotPatternPainter(),
-              ),
-            ),
-          ),
-
-          // Blobs suaves
-          const Positioned.fill(
-            child: IgnorePointer(
-              child: CustomPaint(
-                painter: _BlobPainter(),
-              ),
-            ),
-          ),
-
+          // Capas decorativas
+          const Positioned.fill(child: IgnorePointer(child: CustomPaint(painter: _DotPatternPainter()))),
+          const Positioned.fill(child: IgnorePointer(child: CustomPaint(painter: _BlobPainter()))),
+          
+          // Contenido Principal
           Center(
             child: SingleChildScrollView(
               child: Container(
@@ -178,17 +151,11 @@ class _PaymentPageState extends State<PaymentPage> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text(
-                      "¿Te gusta BookLoop?",
-                      style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: unimetBlue),
-                    ),
+                    const Text("¿Te gusta BookLoop?", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: unimetBlue)),
                     const SizedBox(height: 15),
-                    const Text(
-                      "Tu aporte nos ayuda a cubrir los costos de los servidores y a seguir mejorando la herramienta para toda la comunidad UNIMET. Por favor, realiza una donación a fin de poder utilizar el servicio.",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.black54, height: 1.4),
-                    ),
+                    const Text("Tu aporte ayuda a la comunidad UNIMET. Realiza una donación para activar tu cuenta.", textAlign: TextAlign.center, style: TextStyle(color: Colors.black54)),
                     const SizedBox(height: 30),
+                    // Cuadrícula de montos
                     Wrap(
                       spacing: 15,
                       runSpacing: 15,
@@ -204,12 +171,7 @@ class _PaymentPageState extends State<PaymentPage> {
                               color: isSelected ? unimetOrange : unimetBlue,
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: Center(
-                              child: Text(
-                                amount,
-                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
-                              ),
-                            ),
+                            child: Center(child: Text(amount, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
                           ),
                         );
                       }).toList(),
@@ -222,18 +184,15 @@ class _PaymentPageState extends State<PaymentPage> {
                         minimumSize: const Size(double.infinity, 55),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                       ),
-                      child: const Text(
-                        "Realizar Donación",
-                        style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
+                      child: const Text("Realizar Donación", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
                     ),
                     const SizedBox(height: 25),
-                    Row(
+                    const Row(
                       mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
-                        Text("El pago se descontará de tu cuenta de ", style: TextStyle(fontSize: 13, color: Colors.black54)),
+                      children: [
+                        Text("Simulador seguro vía ", style: TextStyle(fontSize: 13, color: Colors.black54)),
                         Icon(Icons.paypal, color: Color(0xFF003087), size: 20),
-                        Text(" PayPal", style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF003087), fontSize: 14)),
+                        Text(" PayPal", style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF003087))),
                       ],
                     ),
                   ],
@@ -247,66 +206,92 @@ class _PaymentPageState extends State<PaymentPage> {
   }
 }
 
-class _BlobPainter extends CustomPainter {
-  const _BlobPainter();
+// ---------------------------------------------------------
+// 4. CLASE DEL SIMULADOR (DENTRO DEL MISMO ARCHIVO)
+// ---------------------------------------------------------
+class MockPaypalScreen extends StatefulWidget {
+  final double amount;
+  final Function(String email, String password) onPaymentComplete;
+
+  const MockPaypalScreen({super.key, required this.amount, required this.onPaymentComplete});
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final paintWhiteSoft = Paint()
-      ..color = Colors.white.withOpacity(0.07)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 48);
+  State<MockPaypalScreen> createState() => _MockPaypalScreenState();
+}
 
-    final paintWhiteSofter = Paint()
-      ..color = Colors.white.withOpacity(0.045)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 60);
+class _MockPaypalScreenState extends State<MockPaypalScreen> {
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  bool _isLoading = false;
 
-    final paintOrangeSoft = Paint()
-      ..color = _PaymentPageState.unimetOrange.withOpacity(0.045)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 56);
-
-    final s = size.shortestSide;
-
-    canvas.drawCircle(Offset(size.width * 0.20, size.height * 0.20), s * 0.26, paintWhiteSoft);
-    canvas.drawCircle(Offset(size.width * 0.90, size.height * 0.42), s * 0.30, paintWhiteSofter);
-    canvas.drawCircle(Offset(size.width * 0.28, size.height * 0.86), s * 0.22, paintOrangeSoft);
-    canvas.drawCircle(Offset(size.width * 0.78, size.height * 0.88), s * 0.20, paintWhiteSoft);
+  void _handlePayment() async {
+    String email = _emailController.text.trim();
+    if (!email.endsWith('@gmail.com')) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("⚠️ Solo correos @gmail.com"), backgroundColor: Colors.orange));
+      return;
+    }
+    setState(() => _isLoading = true);
+    await Future.delayed(const Duration(seconds: 2));
+    widget.onPaymentComplete(email, _passwordController.text);
   }
 
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(backgroundColor: Colors.white, elevation: 0, title: const Text("PayPal Simulation", style: TextStyle(color: Colors.black))),
+      body: Padding(
+        padding: const EdgeInsets.all(30),
+        child: Column(
+          children: [
+            Text("Pagar \$${widget.amount.toStringAsFixed(2)}", style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 30),
+            TextField(controller: _emailController, decoration: const InputDecoration(labelText: "Correo Gmail")),
+            const SizedBox(height: 15),
+            TextField(controller: _passwordController, obscureText: true, decoration: const InputDecoration(labelText: "Contraseña")),
+            const SizedBox(height: 40),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: _isLoading ? null : _handlePayment,
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0070BA)),
+                child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text("Pagar Ahora", style: TextStyle(color: Colors.white)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------
+// 5. PAINTERS (DIBUJOS DE FONDO)
+// ---------------------------------------------------------
+class _BlobPainter extends CustomPainter {
+  const _BlobPainter();
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = Colors.white.withOpacity(0.05)..maskFilter = const MaskFilter.blur(BlurStyle.normal, 40);
+    canvas.drawCircle(Offset(size.width * 0.2, size.height * 0.2), 100, paint);
+    canvas.drawCircle(Offset(size.width * 0.8, size.height * 0.8), 150, paint);
+  }
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _DotPatternPainter extends CustomPainter {
   const _DotPatternPainter();
-
   @override
   void paint(Canvas canvas, Size size) {
-    final dotPaint = Paint()..color = Colors.white.withOpacity(0.035);
-
-    final stepX = (size.width / 26).clamp(18.0, 44.0);
-    final stepY = (size.height / 18).clamp(18.0, 52.0);
-    final r = (size.shortestSide / 520).clamp(1.2, 2.0);
-
-    double y = 0;
-    int row = 0;
-    while (y <= size.height) {
-      final xOffset = (row.isEven ? stepX * 0.15 : stepX * 0.55);
-      double x = xOffset;
-      while (x <= size.width) {
-        final dx = (x - size.width * 0.55).abs() / (size.width * 0.55);
-        final dy = (y - size.height * 0.35).abs() / (size.height * 0.55);
-        final fade = (1.0 - (dx * 0.55 + dy * 0.45)).clamp(0.15, 1.0);
-
-        dotPaint.color = Colors.white.withOpacity(0.028 * fade);
-        canvas.drawCircle(Offset(x, y), r, dotPaint);
-
-        x += stepX;
+    final paint = Paint()..color = Colors.white.withOpacity(0.02);
+    for (double i = 0; i < size.width; i += 20) {
+      for (double j = 0; j < size.height; j += 20) {
+        canvas.drawCircle(Offset(i, j), 1, paint);
       }
-      y += stepY;
-      row++;
     }
   }
-
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

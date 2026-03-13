@@ -3,7 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:convert';
-
+import 'payment_page.dart';
+import '../viewmodels/payment_viewmodel.dart'; 
 import '../viewmodels/profile_viewmodel.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import 'edit_profile_page.dart';
@@ -418,7 +419,7 @@ class _TopProfileRow extends StatelessWidget {
     } else {
       tipo = "Usuario";
     }
-
+//------------------aqui colocamos el cambio----------------------------------
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -445,9 +446,9 @@ class _TopProfileRow extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1B3A57).withAlpha(15), // ~6%
+                      color: const Color(0xFF1B3A57).withAlpha(15), 
                       borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: const Color(0xFF1B3A57).withAlpha(31)), // ~12%
+                      border: Border.all(color: const Color(0xFF1B3A57).withAlpha(31)),
                     ),
                     child: Text(
                       "Usuario: ${vm.username}",
@@ -462,6 +463,43 @@ class _TopProfileRow extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               Text(tipo, style: const TextStyle(fontSize: 14, color: Colors.black54)),
+              
+              // --- NUEVO: BOTÓN DE DONACIÓN ---
+              const SizedBox(height: 10),
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => MockPaypalScreen(
+                        amount: 5.0,
+                        onPaymentComplete: (payEmail, payPass) async {
+                          // Llamamos a la lógica de suma
+                          final ok = await context.read<PaymentViewModel>().sumarDonacionExtra(
+                            userEmail: email,
+                            montoNuevoString: "5.0",
+                          );
+                          if (ok && context.mounted) {
+                            Navigator.pop(context); // Cierra el simulador
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text("¡Donación sumada con éxito!"),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.favorite, size: 16, color: Colors.white),
+                label: const Text("Donar \$5", style: TextStyle(color: Colors.white, fontSize: 12)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFF28B31), // unimetOrange
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  elevation: 0,
+                ),
+              ),
             ],
           ),
         ),
@@ -546,7 +584,7 @@ class _CoversRow extends StatelessWidget {
     );
   }
 }
-
+//--------------------aqui termina el cambio--------------------------------
 enum _LoanKind { bajoMiCuidado, reservados, misPrestamos }
 
 class _MyBooksRow extends StatelessWidget {
