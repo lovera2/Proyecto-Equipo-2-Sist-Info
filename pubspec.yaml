@@ -33,6 +33,10 @@ dependencies:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
+    # paquete para las estrellas funcionales
+  flutter_rating_bar: ^4.0.1
+  # paquete para PayPal
+  flutter_paypal_payment: ^1.0.3
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.

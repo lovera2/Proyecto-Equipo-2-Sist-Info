@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/chat_service.dart';
+import 'package:flutter_rating_bar/flutter_rating_bar.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ReturnBookPage extends StatefulWidget {
 
@@ -29,24 +31,48 @@ class _ReturnBookPageState extends State<ReturnBookPage> {
   final ChatService _chatService = ChatService();
 
   Future<void> registrarDevolucion() async {
-
     final String currentUser = FirebaseAuth.instance.currentUser?.uid ?? '';
+      final String materialId = widget.materialData['id'];
 
-    await _chatService.registerReturnRequest(
+      try {
+        // 1. Registrar la devolución en el chat (lo que ya hacías)
+        await _chatService.registerReturnRequest(
+          chatId: widget.chatId,
+          materialId: materialId,
+          senderId: currentUser,
+          utilidad: utilidad,
+          estadoFisico: estadoFisico,
+        );
 
-      chatId: widget.chatId,
-      materialId: widget.materialData['id'],
-      senderId: currentUser,
-      utilidad: utilidad,
-      estadoFisico: estadoFisico,
+        // 2. ACTUALIZAR PROMEDIO DEL LIBRO (Lógica matemática)
+        final docRef = FirebaseFirestore.instance.collection('materials').doc(materialId);
+        
+        await FirebaseFirestore.instance.runTransaction((transaction) async {
+          final snapshot = await transaction.get(docRef);
+          if (!snapshot.exists) return;
 
-    );
+          // Usamos la utilidad como nota principal para el rating del libro
+          double currentRating = (snapshot.data()?['rating'] ?? 0.0).toDouble();
+          int numRatings = snapshot.data()?['numRatings'] ?? 0;
 
-    if(!mounted) return;
+          // Fórmula: ((RatingActual * Cantidad) + NuevaNota) / (Cantidad + 1)
+          double newRating = ((currentRating * numRatings) + utilidad) / (numRatings + 1);
 
-    Navigator.pop(context,true);
+          transaction.update(docRef, {
+            'rating': newRating,
+            'numRatings': numRatings + 1,
+            'status': 'disponible', // Aprovechamos para liberarlo
+          });
+        });
 
-  }
+        if (!mounted) return;
+        Navigator.pop(context, true);
+
+      } catch (e) {
+        print("Error al registrar: $e");
+        // Podrías mostrar un SnackBar de error aquí
+      }
+    }
 
   @override
   Widget build(BuildContext context) {
@@ -103,37 +129,41 @@ class _ReturnBookPageState extends State<ReturnBookPage> {
 
               const SizedBox(height:30),
 
-              const Text("¿Qué tan útil te resultó este libro?"),
+              const Text("¿Qué tan útil te resultó este libro?", style: TextStyle(fontWeight: FontWeight.bold)),
+const SizedBox(height: 10),
+RatingBar.builder(
+  initialRating: utilidad.toDouble(),
+  minRating: 1,
+  direction: Axis.horizontal,
+  allowHalfRating: true,
+  itemCount: 5,
+  itemPadding: const EdgeInsets.symmetric(horizontal: 4.0),
+  itemBuilder: (context, _) => const Icon(Icons.star, color: Colors.amber),
+  onRatingUpdate: (rating) {
+    setState(() {
+      utilidad = rating.toInt(); 
+    });
+  },
+),
 
-              Slider(
-                value: utilidad.toDouble(),
-                min:1,
-                max:5,
-                divisions:4,
-                label: utilidad.toString(),
-                onChanged:(value){
-                  setState(() {
-                    utilidad=value.toInt();
-                  });
-                },
-              ),
+const SizedBox(height: 30),
 
-              const SizedBox(height:20),
-
-              const Text("¿Cuál es el estado físico del libro?"),
-
-              Slider(
-                value: estadoFisico.toDouble(),
-                min:1,
-                max:5,
-                divisions:4,
-                label: estadoFisico.toString(),
-                onChanged:(value){
-                  setState(() {
-                    estadoFisico=value.toInt();
-                  });
-                },
-              ),
+const Text("¿Cuál es el estado físico del libro?", style: TextStyle(fontWeight: FontWeight.bold)),
+const SizedBox(height: 10),
+RatingBar.builder(
+  initialRating: estadoFisico.toDouble(),
+  minRating: 1,
+  direction: Axis.horizontal,
+  allowHalfRating: true,
+  itemCount: 5,
+  itemPadding: const EdgeInsets.symmetric(horizontal: 4.0),
+  itemBuilder: (context, _) => const Icon(Icons.star, color: Colors.amber),
+  onRatingUpdate: (rating) {
+    setState(() {
+      estadoFisico = rating.toInt();
+    });
+  },
+),
 
               const SizedBox(height:30),
 

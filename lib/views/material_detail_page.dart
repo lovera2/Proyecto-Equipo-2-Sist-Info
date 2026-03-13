@@ -6,6 +6,7 @@ import '../services/chat_service.dart';
 import 'individual_chat_page.dart';
 import 'chat_list_page.dart'; 
 import '../services/user_service.dart';
+import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 
 class MaterialDetailPage extends StatelessWidget {
   final String materialId;
@@ -214,14 +215,14 @@ class MaterialDetailPage extends StatelessWidget {
                           builder: (context, constraints) {
                             final bool isWide = constraints.maxWidth >= 860;
                             final cover = Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                _CoverCard(image: _buildImage(materialData['imageUrl'])),
-                                const SizedBox(height: 10),
-                                const _RatingRow(rating: 4.0),
-                              ],
-                            );
-
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    _CoverCard(image: _buildImage(materialData['imageUrl'])),
+                                    const SizedBox(height: 10),
+                                    // Aquí usamos el dato real que viene de Firebase ('rating')
+                                    _RatingRow(rating: (materialData['rating'] ?? 0.0).toDouble()), 
+                                  ],
+                                );
                             final details = FutureBuilder<Map<String, String>>(
                               future: ownerFuture,
                               builder: (context, snap) {
@@ -561,26 +562,31 @@ class _InfoLine extends StatelessWidget {
     );
   }
 }
-
 class _RatingRow extends StatelessWidget {
   final double rating;
   const _RatingRow({required this.rating});
+
   @override
   Widget build(BuildContext context) {
-    final int full = rating.floor().clamp(0, 5);
-    final bool half = (rating - full) >= 0.5;
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         const Text('Calificación', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: Colors.black87)),
         const SizedBox(width: 10),
-        Text(rating.toStringAsFixed(1), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: Colors.black87)),
+        Text(rating > 0 ? rating.toStringAsFixed(1) : "S/C", // "S/C" si no tiene calificación
+            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: Colors.black87)),
         const SizedBox(width: 12),
-        Row(children: List.generate(5, (i) {
-          if (i < full) return const Icon(Icons.star, color: Colors.orange, size: 26);
-          if (i == full && half) return const Icon(Icons.star_half, color: Colors.orange, size: 26);
-          return const Icon(Icons.star_border, color: Colors.orange, size: 26);
-        })),
+        // Aquí usamos el RatingBar en modo "solo lectura" para mostrar la nota
+        RatingBarIndicator(
+          rating: rating,
+          itemBuilder: (context, index) => const Icon(
+            Icons.star,
+            color: Colors.orange,
+          ),
+          itemCount: 5,
+          itemSize: 26.0,
+          direction: Axis.horizontal,
+        ),
       ],
     );
   }
@@ -607,3 +613,4 @@ class _BlobPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
+
