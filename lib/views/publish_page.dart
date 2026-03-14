@@ -402,42 +402,55 @@ class _PublishPageState extends State<PublishPage> {
 
   //Valida los datos y llama al ViewModel para publicar.
   Future<void> _handlePublish() async {
-    final vm = context.read<PublishViewModel>();
-    
-    //Aquí validamos que NADA esté vacío
+  final vm = context.read<PublishViewModel>();
+  
+  // 1. VALIDACIÓN LOCAL: Verificamos que nada esté vacío antes de llamar al ViewModel
   if (_titleController.text.trim().isEmpty || 
       _authorController.text.trim().isEmpty || 
       _selectedCategory == null || 
       _subjectController.text.trim().isEmpty || 
       vm.selectedImage == null) {
     
-    // Si falta algo, mandamos este aviso y el 'return' detiene la publicación
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text("⚠️ Debes rellenar todos los campos y subir una foto del material."),
         backgroundColor: Colors.redAccent,
       ),
     );
-      return;
-    }
+    return; // Detenemos la ejecución aquí
+  }
 
-    final success = await vm.publish(
-      title: _titleController.text,
-      author: _authorController.text,
-      category: _selectedCategory!,
-      subject: _subjectController.text,
-      description: _descController.text,
-    );
+  // 2. LLAMADA AL VIEWMODEL: Intentamos publicar
+  final success = await vm.publish(
+    title: _titleController.text.trim(),
+    author: _authorController.text.trim(),
+    category: _selectedCategory!,
+    subject: _subjectController.text.trim(),
+    description: _descController.text.trim(),
+  );
 
-    if (success && mounted) {
-      Navigator.pop(context);
+  // 3. RESPUESTA FINAL
+  if (mounted) {
+    if (success) {
+      // ÉXITO: Mensaje verde y volvemos atrás
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Material publicado con éxito 🎉"),
+          content: Text("✅ ¡Material publicado con éxito!"),
           backgroundColor: Colors.green,
         ),
       );
+      Navigator.pop(context); 
+    } else {
+      // ERROR: Aquí es donde aparecerá el mensaje de "Intercambios agotados"
+      // o cualquier error que venga del servidor.
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(vm.errorMessage ?? "Error al publicar material"),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
+  }
   }
 }
 

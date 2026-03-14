@@ -31,48 +31,54 @@ class _ReturnBookPageState extends State<ReturnBookPage> {
   final ChatService _chatService = ChatService();
 
   Future<void> registrarDevolucion() async {
-    final String currentUser = FirebaseAuth.instance.currentUser?.uid ?? '';
-      final String materialId = widget.materialData['id'];
+  final String currentUser = FirebaseAuth.instance.currentUser?.uid ?? '';
+  final String materialId = widget.materialData['id'];
 
-      try {
-        // 1. Registrar la devolución en el chat (lo que ya hacías)
-        await _chatService.registerReturnRequest(
-          chatId: widget.chatId,
+  try {
+    // se registra la devolución en el chat
+    await _chatService.registerReturnRequest(chatId: widget.chatId,
           materialId: materialId,
           senderId: currentUser,
           utilidad: utilidad,
-          estadoFisico: estadoFisico,
-        );
+          estadoFisico: estadoFisico,);
 
-        // 2. ACTUALIZAR PROMEDIO DEL LIBRO (Lógica matemática)
-        final docRef = FirebaseFirestore.instance.collection('materials').doc(materialId);
-        
-        await FirebaseFirestore.instance.runTransaction((transaction) async {
-          final snapshot = await transaction.get(docRef);
-          if (!snapshot.exists) return;
+    // se descuenta uno de los free exchanges
+    final docRef = FirebaseFirestore.instance.collection('materials').doc(materialId);
+    final userRef = FirebaseFirestore.instance.collection('usuarios').doc(currentUser);
 
-          // Usamos la utilidad como nota principal para el rating del libro
-          double currentRating = (snapshot.data()?['rating'] ?? 0.0).toDouble();
-          int numRatings = snapshot.data()?['numRatings'] ?? 0;
+    await FirebaseFirestore.instance.runTransaction((transaction) async {
+      final snapshot = await transaction.get(docRef);
+      final userSnap = await transaction.get(userRef);
 
-          // Fórmula: ((RatingActual * Cantidad) + NuevaNota) / (Cantidad + 1)
-          double newRating = ((currentRating * numRatings) + utilidad) / (numRatings + 1);
+      if (!snapshot.exists || !userSnap.exists) return;
 
-          transaction.update(docRef, {
-            'rating': newRating,
-            'numRatings': numRatings + 1,
-            'status': 'disponible', // Aprovechamos para liberarlo
-          });
-        });
+      double currentRating = (snapshot.data()?['rating'] ?? 0.0).toDouble();
+      int numRatings = snapshot.data()?['numRatings'] ?? 0;
+      double newRating = ((currentRating * numRatings) + utilidad) / (numRatings + 1);
 
-        if (!mounted) return;
-        Navigator.pop(context, true);
-
-      } catch (e) {
-        print("Error al registrar: $e");
-        // Podrías mostrar un SnackBar de error aquí
+      // logica para los free exchanges nuevos 
+      int currentExchanges = userSnap.data()?['free_exchanges'] ?? 0;
+      
+      // solo se va restar exchanges si es mayor a 0 (si es -1 es premium y por lo que no se resta, tienen exchanges ilimitados)
+      if (currentExchanges > 0) {
+        transaction.update(userRef, {'free_exchanges': currentExchanges - 1});
       }
-    }
+
+      // se actualiza el libro
+      transaction.update(docRef, {
+        'rating': newRating,
+        'numRatings': numRatings + 1,
+        'status': 'disponible',
+      });
+    });
+
+    if (!mounted) return;
+    Navigator.pop(context, true);
+
+  } catch (e) {
+    print("Error al registrar: $e");
+  }
+}
 
   @override
   Widget build(BuildContext context) {

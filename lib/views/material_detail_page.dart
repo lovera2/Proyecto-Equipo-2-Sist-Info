@@ -282,20 +282,41 @@ class MaterialDetailPage extends StatelessWidget {
                                           elevation: 0,
                                         ),
                                         onPressed: isAvailable ? () async {
-                                          if (user == null) return;
-                                          final chatService = ChatService();
-                                          final String chatId = await chatService.getOrCreateChat(currentUid, ownerUid, materialId);
-                                          final Map<String, dynamic> dataConId = Map.from(materialData);
-                                          dataConId['id'] = materialId;
+                                              if (user == null) return;
 
-                                          Navigator.push(context, MaterialPageRoute(
-                                            builder: (context) => IndividualChatPage(
-                                              chatId: chatId,
-                                              materialData: dataConId,
-                                              receiverName: ownerNameFallback.isNotEmpty ? ownerNameFallback : 'Propietario',
-                                            ),
-                                          ));
-                                        } : null,
+                                              // 1. Verificar créditos antes de permitir el chat
+                                              final userDoc = await FirebaseFirestore.instance.collection('usuarios').doc(currentUid).get();
+                                              int exchanges = userDoc.data()?['free_exchanges'] ?? 0;
+
+                                              if (exchanges == 0) {
+                                                if (context.mounted) {
+                                                  ScaffoldMessenger.of(context).showSnackBar(
+                                                    const SnackBar(
+                                                      content: Text('No tienes intercambios disponibles. ¡Publica un libro o realiza una donación!'),
+                                                      backgroundColor: Colors.red,
+                                                      behavior: SnackBarBehavior.floating,
+                                                    ),
+                                                  );
+                                                }
+                                                return; // Bloqueamos la acción
+                                              }
+
+                                              // 2. Si tiene créditos, procedemos a crear el chat
+                                              final chatService = ChatService();
+                                              final String chatId = await chatService.getOrCreateChat(currentUid, ownerUid, materialId);
+                                              final Map<String, dynamic> dataConId = Map.from(materialData);
+                                              dataConId['id'] = materialId;
+
+                                              if (context.mounted) {
+                                                Navigator.push(context, MaterialPageRoute(
+                                                  builder: (context) => IndividualChatPage(
+                                                    chatId: chatId,
+                                                    materialData: dataConId,
+                                                    receiverName: ownerNameFallback.isNotEmpty ? ownerNameFallback : 'Propietario',
+                                                  ),
+                                                ));
+                                              }
+                                            } : null,
                                         icon: const Icon(Icons.chat_bubble_outline),
                                         label: Text(isAvailable ? 'Solicitar préstamo' : 'Préstamo no disponible', style: const TextStyle(fontWeight: FontWeight.w700)),
                                       )
@@ -613,4 +634,3 @@ class _BlobPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
-

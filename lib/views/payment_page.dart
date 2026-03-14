@@ -24,7 +24,6 @@ class _PaymentPageState extends State<PaymentPage> {
 
   String? selectedAmount;
 
-  // 1. FUNCIÓN QUE LANZA EL SIMULADOR
   Future<void> _processPaymentAndRegister() async {
     if (selectedAmount == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -36,22 +35,51 @@ class _PaymentPageState extends State<PaymentPage> {
     final String cleanAmount = selectedAmount!.replaceAll('\$', '').replaceAll(',', '.');
     final double amountValue = double.parse(cleanAmount);
 
-    // Navegamos a nuestra pasarela propia
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (BuildContext context) => MockPaypalScreen(
           amount: amountValue,
           onPaymentComplete: (paypalEmail, paypalPass) {
-            Navigator.pop(context); // Cerramos el simulador
-            _ejecutarRegistroFirebase(); // Registramos en la BD
+            Navigator.pop(context); 
+            _ejecutarRegistroFirebase(selectedAmount!); 
           },
         ),
       ),
     );
   }
 
-  // 2. FUNCIÓN DE REGISTRO EN FIREBASE
-  Future<void> _ejecutarRegistroFirebase() async {
+  // modificacion para la existencia de cuentas gratuitas
+  void _showFreeAccountWarning() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text("Atención: Cuenta Gratuita", style: TextStyle(fontWeight: FontWeight.bold)),
+          content: const Text(
+            "Al elegir la opción gratuita tienes acceso a todas las funciones pero solo podrás realizar 10 donaciones y préstamos en total.\n\n¿Deseas continuar con tu elección?\n\n(¡Siempre puedes ir a tu perfil para realizar una pequeña donación y tener acceso a préstamos y donaciones ilimitadas!)",
+            style: TextStyle(fontSize: 15),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Volver", style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade400),
+              onPressed: () {
+                Navigator.pop(context); 
+                _ejecutarRegistroFirebase("\$0,00"); 
+              },
+              child: const Text("Aceptar y Continuar", style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _ejecutarRegistroFirebase(String monto) async {
     final vm = context.read<PaymentViewModel>();
 
     showDialog(
@@ -66,14 +94,14 @@ class _PaymentPageState extends State<PaymentPage> {
       email: widget.email,
       password: widget.password,
       rol: widget.rol,
-      montoDonado: selectedAmount!,
+      montoDonado: monto,
     );
 
     if (!mounted) return;
     Navigator.pop(context); 
 
     if (ok) {
-      _showSuccessDialog();
+      _showSuccessDialog(monto);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(vm.errorMessage ?? "Error al registrar"), backgroundColor: Colors.red),
@@ -81,16 +109,22 @@ class _PaymentPageState extends State<PaymentPage> {
     }
   }
 
-  // 3. DIÁLOGO DE ÉXITO
-  void _showSuccessDialog() {
+  void _showSuccessDialog(String monto) {
+    bool esGratis = monto == "\$0,00";
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Icon(Icons.check_circle, color: Colors.green, size: 60),
+        title: Icon(
+          esGratis ? Icons.info_outline : Icons.check_circle, 
+          color: esGratis ? Colors.blue : Colors.green, 
+          size: 60
+        ),
         content: Text(
-          "¡Donación de $selectedAmount exitosa!\n\nTu cuenta (${widget.email}) ha sido activada correctamente.",
+          esGratis 
+            ? "¡Cuenta creada!\n\nHas iniciado con el plan gratuito (10 intercambios disponibles)."
+            : "¡Donación de $monto exitosa!\n\nTu cuenta (${widget.email}) ha sido activada con beneficios ilimitados.",
           textAlign: TextAlign.center,
         ),
         actions: [
@@ -120,7 +154,6 @@ class _PaymentPageState extends State<PaymentPage> {
       ),
       body: Stack(
         children: [
-          // Fondo gradiente
           Positioned.fill(
             child: Container(
               decoration: const BoxDecoration(
@@ -132,11 +165,9 @@ class _PaymentPageState extends State<PaymentPage> {
               ),
             ),
           ),
-          // Capas decorativas
           const Positioned.fill(child: IgnorePointer(child: CustomPaint(painter: _DotPatternPainter()))),
           const Positioned.fill(child: IgnorePointer(child: CustomPaint(painter: _BlobPainter()))),
           
-          // Contenido Principal
           Center(
             child: SingleChildScrollView(
               child: Container(
@@ -155,7 +186,7 @@ class _PaymentPageState extends State<PaymentPage> {
                     const SizedBox(height: 15),
                     const Text("Tu aporte ayuda a la comunidad UNIMET. Realiza una donación para activar tu cuenta.", textAlign: TextAlign.center, style: TextStyle(color: Colors.black54)),
                     const SizedBox(height: 30),
-                    // Cuadrícula de montos
+                    
                     Wrap(
                       spacing: 15,
                       runSpacing: 15,
@@ -177,6 +208,7 @@ class _PaymentPageState extends State<PaymentPage> {
                       }).toList(),
                     ),
                     const SizedBox(height: 40),
+                    
                     ElevatedButton(
                       onPressed: _processPaymentAndRegister,
                       style: ElevatedButton.styleFrom(
@@ -186,6 +218,23 @@ class _PaymentPageState extends State<PaymentPage> {
                       ),
                       child: const Text("Realizar Donación", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
                     ),
+                    
+                    const SizedBox(height: 15),
+
+                    // NUEVO BOTÓN aqui se incluyo la opcion dsictutida con franklin para el boton de no pagar nada
+                    OutlinedButton(
+                      onPressed: _showFreeAccountWarning,
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: Colors.red.shade300, width: 2),
+                        minimumSize: const Size(double.infinity, 50),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                      ),
+                      child: Text(
+                        "Continuar sin donar (\$0,00)", 
+                        style: TextStyle(color: Colors.red.shade400, fontWeight: FontWeight.bold)
+                      ),
+                    ),
+
                     const SizedBox(height: 25),
                     const Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -206,9 +255,7 @@ class _PaymentPageState extends State<PaymentPage> {
   }
 }
 
-// ---------------------------------------------------------
-// 4. CLASE DEL SIMULADOR (DENTRO DEL MISMO ARCHIVO)
-// ---------------------------------------------------------
+// simulador de paypalS
 class MockPaypalScreen extends StatefulWidget {
   final double amount;
   final Function(String email, String password) onPaymentComplete;
@@ -266,9 +313,6 @@ class _MockPaypalScreenState extends State<MockPaypalScreen> {
   }
 }
 
-// ---------------------------------------------------------
-// 5. PAINTERS (DIBUJOS DE FONDO)
-// ---------------------------------------------------------
 class _BlobPainter extends CustomPainter {
   const _BlobPainter();
   @override

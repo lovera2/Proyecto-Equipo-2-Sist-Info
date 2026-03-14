@@ -341,6 +341,58 @@ class _ProfileCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _TopProfileRow(vm: vm, onEdit: onEdit),
+              StreamBuilder<DocumentSnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('usuarios')
+                  .doc(FirebaseAuth.instance.currentUser?.uid)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) return const SizedBox.shrink();
+                final data = snapshot.data!.data() as Map<String, dynamic>;
+                final int exchanges = data['free_exchanges'] ?? 0;
+                if (exchanges < 0) return const SizedBox.shrink();
+
+                return Container(
+                  margin: const EdgeInsets.symmetric(vertical: 15),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: exchanges > 2 ? Colors.blue.shade50 : Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(15),
+                    border: Border.all(
+                      color: exchanges > 2 ? Colors.blue.shade200 : Colors.red.shade200,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        exchanges > 2 ? Icons.info_outline : Icons.warning_amber_rounded,
+                        color: exchanges > 2 ? Colors.blue.shade700 : Colors.red.shade700,
+                      ),
+                      const SizedBox(width: 15),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Intercambios restantes: $exchanges",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: exchanges > 2 ? Colors.blue.shade900 : Colors.red.shade900,
+                              ),
+                            ),
+                            const Text(
+                              "Al agotarse, deberás realizar una donación para continuar.",
+                              style: TextStyle(fontSize: 12, color: Colors.black54),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
               const SizedBox(height: 18),
               const _SectionTitle(title: "Datos personales"),
               const SizedBox(height: 8),
@@ -1168,4 +1220,3 @@ class _Footer extends StatelessWidget {
     );
   }
 }
-

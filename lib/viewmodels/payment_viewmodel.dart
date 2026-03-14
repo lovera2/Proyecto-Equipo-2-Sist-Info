@@ -46,12 +46,17 @@ Future<bool> sumarDonacionExtra({
       
      String montoTexto = datosActuales['monto_donado']?.toString() ?? "0";
 double montoActual = double.tryParse(montoTexto.replaceAll('\$', '').replaceAll(',', '.')) ?? 0.0;
-
 double nuevoTotal = montoActual + montoASumar;
+Map<String, dynamic> updates = {
+          'monto_donado': "\$${nuevoTotal.toStringAsFixed(2).replaceAll('.', ',')}",
+        };
 
-await _db.collection('usuarios').doc(docId).update({
-  'monto_donado': "\$${nuevoTotal.toStringAsFixed(2).replaceAll('.', ',')}",
-});
+        // Si la donación actual es de 5.0 o más, activamos los intercambios ilimitados (-1)
+        if (montoASumar >= 5.0) {
+          updates['free_exchanges'] = -1;
+          print("¡Usuario ascendido a Premium!");
+        }
+await _db.collection('usuarios').doc(docId).update(updates);
       return true;
     } else {
       print("No se encontró el usuario en Firebase");
@@ -84,13 +89,14 @@ await _db.collection('usuarios').doc(docId).update({
 
       final cred=await _authService.register(email,password);
       final uid=cred.user!.uid;
-
+      int intercambiosIniciales = (montoDonado == "\$0,00") ? 10 : -1;
       await _userService.createUserProfile(
         uid: uid,
         data: {
           'email': email,
           'rol': rol,
           'monto_donado': montoDonado,
+          'free_exchanges': intercambiosIniciales,
           'fecha_registro': FieldValue.serverTimestamp(),
           'status': 'activo',
         },
@@ -119,4 +125,5 @@ await _db.collection('usuarios').doc(docId).update({
       notifyListeners();
     }
   }
+
 }

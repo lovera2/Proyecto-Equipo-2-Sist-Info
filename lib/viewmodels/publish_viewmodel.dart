@@ -4,37 +4,37 @@ import '../services/material_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:convert'; // Para Base64
 import 'dart:typed_data'; // Para Uint8List
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class PublishViewModel extends ChangeNotifier {
   final MaterialService _materialService;
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
   
   PublishViewModel(this._materialService);
 
   XFile? _selectedImage;
-  Uint8List? _imageBytes; // Aquí guardamos la foto en memoria (Web y Móvil compatible)
+  Uint8List? _imageBytes; 
   
   bool _isLoading = false;
+  String? _errorMessage; // NUEVO: Para avisar qué pasó
+
   bool get isLoading => _isLoading;
+  String? get errorMessage => _errorMessage; // Getter para la UI
   XFile? get selectedImage => _selectedImage;
 
-  // Función para seleccionar y comprimir la imagen
   Future<void> pickImage() async {
     final ImagePicker picker = ImagePicker();
     
-    // CONFIGURACIÓN CLAVE PARA QUE FUNCIONE EN FIRESTORE
     final XFile? image = await picker.pickImage(
       source: ImageSource.gallery,
-      maxWidth: 500,    // Reducimos el ancho a 500px (Suficiente para celular)
-      maxHeight: 500,   // Reducimos alto
-      imageQuality: 50, // Calidad media para ahorrar espacio
+      maxWidth: 500,    
+      maxHeight: 500,   
+      imageQuality: 50, 
     );
     
     if (image != null) {
       _selectedImage = image;
-      
-      // Leemos los bytes (Funciona en Web y Móvil)
       _imageBytes = await image.readAsBytes();
-      
       notifyListeners();
     }
   }
@@ -46,36 +46,63 @@ class PublishViewModel extends ChangeNotifier {
     required String subject,
     required String description,
   }) async {
-    // Validamos que haya imagen cargada en memoria
-    if (_imageBytes == null) return false;
+    _errorMessage = null; // Limpiamos errores previos
+    if (_imageBytes == null) {
+      _errorMessage = "Por favor, selecciona una imagen.";
+      notifyListeners();
+      return false;
+    }
     
-    final String? currentUserId = FirebaseAuth.instance.currentUser?.uid;
-    if (currentUserId == null) return false;
+    final User? user = FirebaseAuth.instance.currentUser;
+    if (user == null) return false;
 
     _isLoading = true;
     notifyListeners(); 
 
     try {
-      // convierte la foto en un texto para guardarla en la BD
+      // 1. VERIFICAR INTERCAMBIOS
+      final userDoc = await _db.collection('usuarios').doc(user.uid).get();
+      if (!userDoc.exists) throw "Usuario no encontrado";
+
+      int exchanges = userDoc.data()?['free_exchanges'] ?? 0;
+
+      // Si tiene 0 y NO es premium (-1), bloqueamos
+      if (exchanges == 0) {
+        _errorMessage = "Has agotado tus intercambios gratuitos. Realiza una donación para obtener acceso ilimitado.";
+        _isLoading = false;
+        notifyListeners();
+        return false; 
+      }
+
+      // 2. PROCESAR IMAGEN Y PUBLICAR
       String base64Image = base64Encode(_imageBytes!);
 
       await _materialService.addMaterial({
-        'userId': currentUserId,
+        'userId': user.uid,
         'title': title,
         'author': author,
         'category': category,
         'subject': subject,
         'description': description,
-        'imageUrl': base64Image, // Guardamos la foto aquí
-        'isBase64': true,        // Marca para saber cómo leerla luego
+        'imageUrl': base64Image,
+        'isBase64': true,
         'status': 'disponible',
         'createdAt': DateTime.now(),
       });
+
+      // 3. DESCONTAR INTERCAMBIO
+      // Solo restamos si es un usuario con contador (exchanges > 0)
+      if (exchanges > 0) {
+        await _db.collection('usuarios').doc(user.uid).update({
+          'free_exchanges': exchanges - 1,
+        });
+      }
       
       clearData();
       return true;
     } catch (e) {
       print("Error al publicar: $e");
+      _errorMessage = "Error al conectar con el servidor.";
       _isLoading = false;
       notifyListeners();
       return false;
@@ -86,6 +113,7 @@ class PublishViewModel extends ChangeNotifier {
     _selectedImage = null;
     _imageBytes = null;
     _isLoading = false;
+    _errorMessage = null;
     notifyListeners();
   }
 }
