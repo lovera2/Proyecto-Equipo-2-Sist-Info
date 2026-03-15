@@ -1,16 +1,19 @@
+// lib/views/profile_page.dart
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:convert';
+
 import 'payment_page.dart';
-import '../viewmodels/payment_viewmodel.dart'; 
+import '../viewmodels/payment_viewmodel.dart';
 import '../viewmodels/profile_viewmodel.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import 'edit_profile_page.dart';
 import 'package:bookloop_unimet/views/chat_list_page.dart';
 import 'favorites_list_page.dart';
-import 'material_detail_page.dart'; 
+import 'material_detail_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -18,6 +21,7 @@ class ProfilePage extends StatefulWidget {
   @override
   State<ProfilePage> createState() => _ProfilePageState();
 }
+
 class _ProfilePageState extends State<ProfilePage> {
   static const Color unimetBlue = Color(0xFF1B3A57);
   static const Color unimetOrange = Color(0xFFF28B31);
@@ -52,7 +56,8 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   void _goHome(BuildContext context) {
-    final email = (context.read<ProfileViewModel>().email ?? '').toLowerCase().trim();
+    final email =
+        (context.read<ProfileViewModel>().email ?? '').toLowerCase().trim();
     final route = email.startsWith('admin') ? '/home_admin' : '/home_page';
     Navigator.of(context).pushNamedAndRemoveUntil(route, (r) => false);
   }
@@ -114,7 +119,8 @@ class _ProfilePageState extends State<ProfilePage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text("Entendido", style: TextStyle(color: unimetOrange)),
+              child: const Text("Entendido",
+                  style: TextStyle(color: unimetOrange)),
             ),
           ],
         );
@@ -148,19 +154,13 @@ class _ProfilePageState extends State<ProfilePage> {
                   onHome: () => _goHome(context),
                   onProfile: () => Navigator.pushNamed(context, '/profile'),
                   onNotifications: () {
-                    setState(() {
-                      _hasNewNotifications = false;
-                    });
+                    setState(() => _hasNewNotifications = false);
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const ChatListPage()),
+                      MaterialPageRoute(builder: (_) => const ChatListPage()),
                     );
                   },
-                  onCreate: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("Publicar/Crear en desarrollo")),
-                    );
-                  },
+                  onCreate: () => Navigator.pushNamed(context, '/publish'),
                   onLogout: () => _handleLogout(context),
                   hasNewNotifications: _hasNewNotifications,
                 ),
@@ -173,7 +173,10 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 18),
-                        child: _ProfileCard(vm: vm, onEdit: () => _openEdit(context)),
+                        child: _ProfileCard(
+                          vm: vm,
+                          onEdit: () => _openEdit(context),
+                        ),
                       ),
                     ),
                   ),
@@ -216,7 +219,6 @@ class _ProfileHeader extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Logo y Título (igual que Home)
           Row(
             children: [
               const Icon(Icons.menu_book, color: Colors.white, size: 30),
@@ -231,37 +233,32 @@ class _ProfileHeader extends StatelessWidget {
               ),
             ],
           ),
-
-          // Botones de acción (igual que Home)
           Row(
             children: [
-              // Publicar
               Container(
                 decoration: BoxDecoration(
                   color: unimetOrange,
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: IconButton(
-                  onPressed: () => Navigator.pushNamed(context, '/publish'),
+                  onPressed: onCreate,
                   icon: const Icon(Icons.add, color: Colors.white),
                   tooltip: 'Publicar material',
                 ),
               ),
               const SizedBox(width: 10),
-
-              // Inicio (volver al Home)
               IconButton(
-                icon: const Icon(Icons.home_outlined, color: Colors.white, size: 28),
+                icon: const Icon(Icons.home_outlined,
+                    color: Colors.white, size: 28),
                 onPressed: onHome,
                 tooltip: 'Inicio',
               ),
               const SizedBox(width: 10),
-
-              // Notificaciones / Chats (con punto rojo)
               Stack(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.notifications_none_outlined, color: Colors.white, size: 28),
+                    icon: const Icon(Icons.notifications_none_outlined,
+                        color: Colors.white, size: 28),
                     onPressed: onNotifications,
                     tooltip: 'Mis chats y notificaciones',
                   ),
@@ -274,7 +271,8 @@ class _ProfileHeader extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: Colors.red,
                           shape: BoxShape.circle,
-                          border: Border.all(color: const Color(0xFF1B3A57), width: 1.5),
+                          border: Border.all(
+                              color: const Color(0xFF1B3A57), width: 1.5),
                         ),
                         constraints: const BoxConstraints(
                           minWidth: 12,
@@ -284,17 +282,13 @@ class _ProfileHeader extends StatelessWidget {
                     ),
                 ],
               ),
-
               const SizedBox(width: 5),
-
-              // Perfil (ya estamos en Perfil)
               IconButton(
-                icon: const Icon(Icons.person_outline, color: Colors.white, size: 28),
+                icon: const Icon(Icons.person_outline,
+                    color: Colors.white, size: 28),
                 onPressed: () {},
                 tooltip: 'Ya estás en Perfil',
               ),
-
-              // Menú (Cerrar sesión)
               PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert, color: Colors.white, size: 28),
                 onSelected: (value) {
@@ -341,58 +335,73 @@ class _ProfileCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _TopProfileRow(vm: vm, onEdit: onEdit),
-              StreamBuilder<DocumentSnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('usuarios')
-                  .doc(FirebaseAuth.instance.currentUser?.uid)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) return const SizedBox.shrink();
-                final data = snapshot.data!.data() as Map<String, dynamic>;
-                final int exchanges = data['free_exchanges'] ?? 0;
-                if (exchanges < 0) return const SizedBox.shrink();
 
-                return Container(
-                  margin: const EdgeInsets.symmetric(vertical: 15),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: exchanges > 2 ? Colors.blue.shade50 : Colors.red.shade50,
-                    borderRadius: BorderRadius.circular(15),
-                    border: Border.all(
-                      color: exchanges > 2 ? Colors.blue.shade200 : Colors.red.shade200,
+              StreamBuilder<DocumentSnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('usuarios')
+                    .doc(FirebaseAuth.instance.currentUser?.uid)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) return const SizedBox.shrink();
+                  final raw = snapshot.data!.data();
+                  if (raw == null) return const SizedBox.shrink();
+                  final data = raw as Map<String, dynamic>;
+                  final int exchanges = data['free_exchanges'] ?? 0;
+                  if (exchanges < 0) return const SizedBox.shrink();
+
+                  return Container(
+                    margin: const EdgeInsets.symmetric(vertical: 15),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: exchanges > 2
+                          ? Colors.blue.shade50
+                          : Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(15),
+                      border: Border.all(
+                        color: exchanges > 2
+                            ? Colors.blue.shade200
+                            : Colors.red.shade200,
+                      ),
                     ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        exchanges > 2 ? Icons.info_outline : Icons.warning_amber_rounded,
-                        color: exchanges > 2 ? Colors.blue.shade700 : Colors.red.shade700,
-                      ),
-                      const SizedBox(width: 15),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              "Intercambios restantes: $exchanges",
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: exchanges > 2 ? Colors.blue.shade900 : Colors.red.shade900,
-                              ),
-                            ),
-                            const Text(
-                              "Al agotarse, deberás realizar una donación para continuar.",
-                              style: TextStyle(fontSize: 12, color: Colors.black54),
-                            ),
-                          ],
+                    child: Row(
+                      children: [
+                        Icon(
+                          exchanges > 2
+                              ? Icons.info_outline
+                              : Icons.warning_amber_rounded,
+                          color: exchanges > 2
+                              ? Colors.blue.shade700
+                              : Colors.red.shade700,
                         ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
+                        const SizedBox(width: 15),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Intercambios restantes: $exchanges",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  color: exchanges > 2
+                                      ? Colors.blue.shade900
+                                      : Colors.red.shade900,
+                                ),
+                              ),
+                              const Text(
+                                "Al agotarse, deberás realizar una donación para continuar.",
+                                style: TextStyle(
+                                    fontSize: 12, color: Colors.black54),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+
               const SizedBox(height: 18),
               const _SectionTitle(title: "Datos personales"),
               const SizedBox(height: 8),
@@ -404,7 +413,8 @@ class _ProfileCard extends StatelessWidget {
                   _ChipInfo(label: "Carrera", value: vm.carrera ?? "—"),
                 ],
               ),
-              const SizedBox(height: 20),
+
+              const SizedBox(height: 22),
               const _SectionTitle(title: "Mis Libros"),
               const SizedBox(height: 10),
               _MyBooksRow(
@@ -412,20 +422,87 @@ class _ProfileCard extends StatelessWidget {
                 email: vm.email,
                 username: vm.username,
               ),
+
+              const SizedBox(height: 22),
+
+              // =====================
+              // SECCIONES (2x2)
+              // =====================
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: const [
+                  Expanded(
+                    child: _LoanCardStream(
+                      kind: _LoanKind.bajoMiCuidado,
+                      title: "Bajo mi cuidado",
+                      emptyText: "Sin libros bajo tu cuidado",
+                      highlightColor: Color(0xFFBFD7F2),
+                      infoText:
+                          "Estos son los libros que has pedido prestados y actualmente están bajo tu cuidado.",
+                    ),
+                  ),
+                  SizedBox(width: 16),
+                  Expanded(
+                    child: _LoanCardStream(
+                      kind: _LoanKind.reservados,
+                      title: "Reservados",
+                      emptyText: "No has reservado ningún libro",
+                      highlightColor: Color(0xFFE5E5E5),
+                      infoText:
+                          "Estos son los libros que has pedido, pero el préstamo todavía no se ha concretado (está en negociación/confirmación).",
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: const [
+                  Expanded(
+                    child: _LoanCardStream(
+                      kind: _LoanKind.misPrestamos,
+                      title: "Mis préstamos",
+                      emptyText: "No tienes préstamos activos",
+                      highlightColor: Color(0xFFF7D2A6),
+                      infoText:
+                          "Estos son los libros que tú has prestado a otra persona y están activos en este momento.",
+                    ),
+                  ),
+                  SizedBox(width: 16),
+                  Expanded(
+                    child: _LoanCardStream(
+                      kind: _LoanKind.historial,
+                      title: "Historial de Préstamos",
+                      emptyText: "Aún no hay historial",
+                      highlightColor: Color(0xFFF2C27A),
+                      infoText:
+                          "Estos son los libros que pediste prestado en el pasado y ya fueron devueltos.",
+                    ),
+                  ),
+                ],
+              ),
+
               const SizedBox(height: 10),
+
               if (vm.isLoading) ...[
                 const SizedBox(height: 14),
                 const Center(
                   child: SizedBox(
                     height: 18,
                     width: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: unimetBlue),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: unimetBlue,
+                    ),
                   ),
                 ),
               ],
               if (!vm.isLoading && vm.errorMessage != null) ...[
                 const SizedBox(height: 14),
-                Text(vm.errorMessage!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+                Text(
+                  vm.errorMessage!,
+                  style: const TextStyle(color: Colors.red, fontSize: 12),
+                ),
               ],
             ],
           ),
@@ -446,7 +523,6 @@ class _TopProfileRow extends StatelessWidget {
     final email = (vm.email ?? "").trim();
     final emailLower = email.toLowerCase();
 
-    // Nombre para mostrar
     final n = (vm.nombre ?? "").trim();
     final a = (vm.apellido ?? "").trim();
     String nombreMostrar;
@@ -460,7 +536,6 @@ class _TopProfileRow extends StatelessWidget {
       nombreMostrar = "$n $a";
     }
 
-    // Rol para mostrar (derivado del correo)
     String tipo;
     if (emailLower.startsWith('admin')) {
       tipo = "Administrador";
@@ -471,7 +546,7 @@ class _TopProfileRow extends StatelessWidget {
     } else {
       tipo = "Usuario";
     }
-//------------------aqui colocamos el cambio----------------------------------
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -496,42 +571,49 @@ class _TopProfileRow extends StatelessWidget {
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1B3A57).withAlpha(15), 
+                      color: const Color(0xFF1B3A57).withAlpha(15),
                       borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: const Color(0xFF1B3A57).withAlpha(31)),
+                      border: Border.all(
+                          color: const Color(0xFF1B3A57).withAlpha(31)),
                     ),
                     child: Text(
                       "Usuario: ${vm.username}",
-                      style: const TextStyle(fontSize: 12, color: Color(0xFF1B3A57), fontWeight: FontWeight.w600),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF1B3A57),
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ],
               ),
               Text(
                 email.isEmpty ? "usuario@correo.unimet.edu.ve" : email,
-                style: const TextStyle(decoration: TextDecoration.underline, fontSize: 16),
+                style: const TextStyle(
+                    decoration: TextDecoration.underline, fontSize: 16),
               ),
               const SizedBox(height: 6),
-              Text(tipo, style: const TextStyle(fontSize: 14, color: Colors.black54)),
-              
-              // --- NUEVO: BOTÓN DE DONACIÓN ---
+              Text(tipo,
+                  style: const TextStyle(fontSize: 14, color: Colors.black54)),
               const SizedBox(height: 10),
               ElevatedButton.icon(
                 onPressed: () {
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (context) => MockPaypalScreen(
+                      builder: (_) => MockPaypalScreen(
                         amount: 5.0,
                         onPaymentComplete: (payEmail, payPass) async {
-                          // Llamamos a la lógica de suma
-                          final ok = await context.read<PaymentViewModel>().sumarDonacionExtra(
-                            userEmail: email,
-                            montoNuevoString: "5.0",
-                          );
+                          final ok = await context
+                              .read<PaymentViewModel>()
+                              .sumarDonacionExtra(
+                                userEmail: email,
+                                montoNuevoString: "5.0",
+                              );
                           if (ok && context.mounted) {
-                            Navigator.pop(context); // Cierra el simulador
+                            Navigator.pop(context);
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text("¡Donación sumada con éxito!"),
@@ -545,10 +627,12 @@ class _TopProfileRow extends StatelessWidget {
                   );
                 },
                 icon: const Icon(Icons.favorite, size: 16, color: Colors.white),
-                label: const Text("Donar \$5", style: TextStyle(color: Colors.white, fontSize: 12)),
+                label: const Text("Donar \$5",
+                    style: TextStyle(color: Colors.white, fontSize: 12)),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFF28B31), // unimetOrange
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  backgroundColor: const Color(0xFFF28B31),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
                   elevation: 0,
                 ),
               ),
@@ -566,7 +650,7 @@ class _TopProfileRow extends StatelessWidget {
           onPressed: () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const FavoritesListPage()),
+              MaterialPageRoute(builder: (_) => const FavoritesListPage()),
             );
           },
           icon: const Icon(Icons.favorite, color: Colors.black54),
@@ -584,7 +668,8 @@ class _SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w500));
+    return Text(title,
+        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w500));
   }
 }
 
@@ -607,7 +692,9 @@ class _ChipInfo extends StatelessWidget {
         text: TextSpan(
           style: const TextStyle(color: Colors.black87),
           children: [
-            TextSpan(text: "$label: ", style: const TextStyle(fontWeight: FontWeight.w600)),
+            TextSpan(
+                text: "$label: ",
+                style: const TextStyle(fontWeight: FontWeight.w600)),
             TextSpan(text: value),
           ],
         ),
@@ -636,8 +723,8 @@ class _CoversRow extends StatelessWidget {
     );
   }
 }
-//--------------------aqui termina el cambio--------------------------------
-enum _LoanKind { bajoMiCuidado, reservados, misPrestamos }
+
+enum _LoanKind { bajoMiCuidado, reservados, misPrestamos, historial }
 
 class _MyBooksRow extends StatelessWidget {
   final String? uid;
@@ -658,11 +745,13 @@ class _MyBooksRow extends StatelessWidget {
     final ownerId = (data['ownerId'] ?? '').toString().trim();
 
     final e = (email ?? '').trim().toLowerCase();
-    final ownerEmail = (data['ownerEmail'] ?? '').toString().trim().toLowerCase();
+    final ownerEmail =
+        (data['ownerEmail'] ?? '').toString().trim().toLowerCase();
     final emailField = (data['email'] ?? '').toString().trim().toLowerCase();
 
     final un = (username ?? '').trim().toLowerCase();
-    final ownerUsername = (data['ownerUsername'] ?? '').toString().trim().toLowerCase();
+    final ownerUsername =
+        (data['ownerUsername'] ?? '').toString().trim().toLowerCase();
     final ownerUser = (data['ownerUser'] ?? '').toString().trim().toLowerCase();
 
     if (userId.isNotEmpty && userId == u) return true;
@@ -679,14 +768,17 @@ class _MyBooksRow extends StatelessWidget {
       return const Icon(Icons.menu_book, color: Colors.grey);
     }
 
-    final isBase64 = !url.startsWith('http') && !url.startsWith('https') && !url.startsWith('blob');
+    final isBase64 = !url.startsWith('http') &&
+        !url.startsWith('https') &&
+        !url.startsWith('blob');
 
     if (isBase64) {
       try {
         return Image.memory(
           base64Decode(url),
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => const Icon(Icons.menu_book, color: Colors.grey),
+          errorBuilder: (_, __, ___) =>
+              const Icon(Icons.menu_book, color: Colors.grey),
         );
       } catch (_) {
         return const Icon(Icons.menu_book, color: Colors.grey);
@@ -696,28 +788,33 @@ class _MyBooksRow extends StatelessWidget {
     return Image.network(
       url,
       fit: BoxFit.cover,
-      errorBuilder: (_, __, ___) => const Icon(Icons.menu_book, color: Colors.grey),
+      errorBuilder: (_, __, ___) =>
+          const Icon(Icons.menu_book, color: Colors.grey),
     );
   }
 
-  // --- NUEVA FUNCIÓN PARA BORRAR ---
-  Future<void> _confirmDelete(BuildContext context, String bookId, String bookTitle) async {
+  Future<void> _confirmDelete(
+      BuildContext context, String bookId, String bookTitle) async {
     final bool? confirm = await showDialog<bool>(
       context: context,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-          title: const Text('Eliminar publicación', style: TextStyle(color: Color(0xFF1B3A57))),
-          content: Text('¿Estás seguro de que deseas eliminar "$bookTitle"? Esta acción no se puede deshacer.'),
+          title: const Text('Eliminar publicación',
+              style: TextStyle(color: Color(0xFF1B3A57))),
+          content: Text(
+              '¿Estás seguro de que deseas eliminar "$bookTitle"? Esta acción no se puede deshacer.'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+              child:
+                  const Text('Cancelar', style: TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
               ),
               onPressed: () => Navigator.pop(dialogContext, true),
               child: const Text('Eliminar', style: TextStyle(color: Colors.white)),
@@ -729,7 +826,10 @@ class _MyBooksRow extends StatelessWidget {
 
     if (confirm == true) {
       try {
-        await FirebaseFirestore.instance.collection('materials').doc(bookId).delete();
+        await FirebaseFirestore.instance
+            .collection('materials')
+            .doc(bookId)
+            .delete();
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -773,7 +873,6 @@ class _MyBooksRow extends StatelessWidget {
             return const _CoversRow();
           }
 
-          
           final myDocs = snapshot.data!.docs
               .where((d) => _isMine(d.data() as Map<String, dynamic>))
               .toList();
@@ -791,8 +890,8 @@ class _MyBooksRow extends StatelessWidget {
             itemBuilder: (context, index) {
               final doc = items[index];
               final data = doc.data() as Map<String, dynamic>;
-              final bookId = doc.id; 
-              
+              final bookId = doc.id;
+
               final imageUrl = (data['imageUrl'] ?? '').toString();
               final title = (data['title'] ?? '').toString().trim();
               final author = (data['author'] ?? '').toString().trim();
@@ -802,14 +901,13 @@ class _MyBooksRow extends StatelessWidget {
                 if (author.isNotEmpty) 'Autor: $author',
               ].join('\n');
 
-              
               return GestureDetector(
                 onTap: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => MaterialDetailPage(
-                        materialId: bookId, 
+                      builder: (_) => MaterialDetailPage(
+                        materialId: bookId,
                         materialData: data,
                       ),
                     ),
@@ -824,7 +922,8 @@ class _MyBooksRow extends StatelessWidget {
                     color: const Color(0xFF1B3A57).withOpacity(0.95),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  textStyle: const TextStyle(color: Colors.white, fontSize: 12, height: 1.25),
+                  textStyle: const TextStyle(
+                      color: Colors.white, fontSize: 12, height: 1.25),
                   child: Container(
                     width: 78,
                     decoration: BoxDecoration(
@@ -838,7 +937,6 @@ class _MyBooksRow extends StatelessWidget {
                           borderRadius: BorderRadius.circular(12),
                           child: _coverImage(imageUrl),
                         ),
-                        // Papelera roja
                         Positioned(
                           right: 4,
                           bottom: 4,
@@ -849,9 +947,14 @@ class _MyBooksRow extends StatelessWidget {
                               decoration: BoxDecoration(
                                 color: Colors.white.withOpacity(0.9),
                                 shape: BoxShape.circle,
-                                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4)],
+                                boxShadow: [
+                                  BoxShadow(
+                                      color: Colors.black.withOpacity(0.2),
+                                      blurRadius: 4)
+                                ],
                               ),
-                              child: const Icon(Icons.delete_outline, color: Colors.red, size: 18),
+                              child: const Icon(Icons.delete_outline,
+                                  color: Colors.red, size: 18),
                             ),
                           ),
                         ),
@@ -868,58 +971,226 @@ class _MyBooksRow extends StatelessWidget {
   }
 }
 
+class _CoverPlaceholder extends StatelessWidget {
+  final IconData icon;
+  const _CoverPlaceholder({required this.icon});
+
+  static const double _coverW = 78;
+  static const double _coverH = 96;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: _coverW,
+      height: _coverH,
+      margin: const EdgeInsets.only(right: 10),
+      decoration: BoxDecoration(
+        color: Colors.grey[200],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: Center(
+        child: Icon(icon, color: Colors.grey, size: 28),
+      ),
+    );
+  }
+}
+
+class _LoanCard extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final Color highlightColor;
+  final Widget? body;
+  final String? infoText;
+
+  const _LoanCard({
+    required this.title,
+    required this.subtitle,
+    required this.highlightColor,
+    this.body,
+    this.infoText,
+  });
+
+  void _showInfo(BuildContext context) {
+    final msg = (infoText ?? '').trim();
+    if (msg.isEmpty) return;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.info_outline, color: Color(0xFF1B3A57)),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  color: Color(0xFF1B3A57),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Text(msg, style: const TextStyle(height: 1.35)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text(
+              'Entendido',
+              style: TextStyle(color: Color(0xFFF28B31)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                title,
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+              ),
+            ),
+            if ((infoText ?? '').trim().isNotEmpty)
+              IconButton(
+                onPressed: () => _showInfo(context),
+                icon: const Icon(Icons.info_outline,
+                    size: 18, color: Colors.black54),
+                tooltip: 'Información',
+                splashRadius: 18,
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: highlightColor,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 110),
+            child: body != null
+                ? body!
+                : Row(
+                    children: [
+                      Container(
+                        width: 78,
+                        height: 96,
+                        decoration: BoxDecoration(
+                          color: Colors.grey,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          subtitle,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _LoanCardStream extends StatelessWidget {
   final _LoanKind kind;
   final String title;
   final String emptyText;
   final Color highlightColor;
+  final String infoText;
 
   const _LoanCardStream({
     required this.kind,
     required this.title,
     required this.emptyText,
     required this.highlightColor,
+    this.infoText = '',
   });
 
-  // Helper: cover image widget for a given imageUrl (base64 or network)
+  static const double _coverW = 78;
+  static const double _coverH = 96;
+
+  String _normStatus(String raw) {
+    final s = raw.toLowerCase().trim();
+    return s
+        .replaceAll('á', 'a')
+        .replaceAll('é', 'e')
+        .replaceAll('í', 'i')
+        .replaceAll('ó', 'o')
+        .replaceAll('ú', 'u')
+        .replaceAll('ñ', 'n')
+        .replaceAll('-', '_')
+        .replaceAll(' ', '_');
+  }
+
   Widget _coverImage(String raw) {
     final url = raw.trim();
     if (url.isEmpty) {
       return const Icon(Icons.menu_book, color: Colors.grey);
     }
-    final isBase64 = !url.startsWith('http') && !url.startsWith('https') && !url.startsWith('blob');
+
+    final isBase64 = !url.startsWith('http') &&
+        !url.startsWith('https') &&
+        !url.startsWith('blob');
+
     if (isBase64) {
       try {
         return Image.memory(
           base64Decode(url),
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => const Icon(Icons.menu_book, color: Colors.grey),
+          errorBuilder: (_, __, ___) =>
+              const Icon(Icons.menu_book, color: Colors.grey),
         );
       } catch (_) {
         return const Icon(Icons.menu_book, color: Colors.grey);
       }
     }
+
     return Image.network(
       url,
       fit: BoxFit.cover,
-      errorBuilder: (_, __, ___) => const Icon(Icons.menu_book, color: Colors.grey),
+      errorBuilder: (_, __, ___) =>
+          const Icon(Icons.menu_book, color: Colors.grey),
     );
   }
 
-  // Helper: fetch material docs for given materialIds, returns list of {materialId, imageUrl, title, author}
-  Future<List<Map<String, dynamic>>> _fetchMaterials(List<String> materialIds) async {
+  Future<List<Map<String, dynamic>>> _fetchMaterials(
+      List<String> materialIds) async {
     final firestore = FirebaseFirestore.instance;
     final List<Map<String, dynamic>> results = [];
+
     for (final id in materialIds) {
       if (id.isEmpty) continue;
       try {
         final doc = await firestore.collection('materials').doc(id).get();
-        final data = doc.data() ?? {};
+        final data = doc.data() ?? <String, dynamic>{};
         results.add({
           'materialId': id,
           'imageUrl': (data['imageUrl'] ?? '').toString(),
           'title': (data['title'] ?? '').toString(),
           'author': (data['author'] ?? '').toString(),
+          'data': data,
         });
       } catch (_) {
         results.add({
@@ -927,16 +1198,17 @@ class _LoanCardStream extends StatelessWidget {
           'imageUrl': '',
           'title': '',
           'author': '',
+          'data': <String, dynamic>{},
         });
       }
     }
+
     return results;
   }
 
-  // Helper: covers row for up to 5 materials, with tooltip
-  Widget _coversBody(List<Map<String, dynamic>> materials) {
+  Widget _coversBody(BuildContext context, List<Map<String, dynamic>> materials) {
     return SizedBox(
-      height: 86,
+      height: _coverH,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: materials.length,
@@ -944,12 +1216,16 @@ class _LoanCardStream extends StatelessWidget {
         itemBuilder: (context, index) {
           final m = materials[index];
           final imageUrl = (m['imageUrl'] ?? '').toString();
-          final title = (m['title'] ?? '').toString().trim();
-          final author = (m['author'] ?? '').toString().trim();
+          final t = (m['title'] ?? '').toString().trim();
+          final a = (m['author'] ?? '').toString().trim();
+          final id = (m['materialId'] ?? '').toString().trim();
+          final fullData = (m['data'] as Map<String, dynamic>?) ?? <String, dynamic>{};
+
           final tooltipText = [
-            if (title.isNotEmpty) 'Título: $title',
-            if (author.isNotEmpty) 'Autor: $author',
+            if (t.isNotEmpty) 'Título: $t',
+            if (a.isNotEmpty) 'Autor: $a',
           ].join('\n');
+
           return Tooltip(
             message: tooltipText.isEmpty ? 'Material' : tooltipText,
             waitDuration: const Duration(milliseconds: 350),
@@ -959,21 +1235,34 @@ class _LoanCardStream extends StatelessWidget {
               color: const Color(0xFF1B3A57).withOpacity(0.95),
               borderRadius: BorderRadius.circular(10),
             ),
-            textStyle: const TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              height: 1.25,
-            ),
-            child: Container(
-              width: 78,
-              decoration: BoxDecoration(
-                color: Colors.grey[200],
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey[300]!),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: _coverImage(imageUrl),
+            textStyle:
+                const TextStyle(color: Colors.white, fontSize: 12, height: 1.25),
+            child: InkWell(
+              onTap: () {
+                if (id.isEmpty) return;
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => MaterialDetailPage(
+                      materialId: id,
+                      materialData: fullData,
+                    ),
+                  ),
+                );
+              },
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                width: _coverW,
+                height: _coverH,
+                decoration: BoxDecoration(
+                  color: Colors.grey[200],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey[300]!),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: _coverImage(imageUrl),
+                ),
               ),
             ),
           );
@@ -985,19 +1274,115 @@ class _LoanCardStream extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser?.uid;
+
     if (uid == null) {
-      return _LoanCard(title: title, subtitle: emptyText, highlightColor: highlightColor);
+      return _LoanCard(
+        title: title,
+        subtitle: emptyText,
+        highlightColor: highlightColor,
+        infoText: infoText,
+      );
     }
 
-    final vm = context.read<ProfileViewModel>();
-    // Nota: usamos una consulta amplia por "participants" y luego filtramos en cliente
-    // para no depender de estructura extra en Firestore.
-    // Traemos los chats donde participo. Evitamos `orderBy` para no depender de índices compuestos.
-    // Ordenamos en cliente por lastUpdate.
+    // ===== HISTORIAL: completed_loans (borrowerId == uid) =====
+    if (kind == _LoanKind.historial) {
+      final histQ = FirebaseFirestore.instance
+          .collection('completed_loans')
+          .where('borrowerId', isEqualTo: uid)
+          .limit(120);
+
+      return StreamBuilder<QuerySnapshot>(
+        stream: histQ.snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return _LoanCard(
+              title: title,
+              subtitle: 'No se pudo cargar (revisa permisos/índices)',
+              highlightColor: highlightColor,
+              infoText: infoText,
+            );
+          }
+          if (!snapshot.hasData) {
+            return _LoanCard(
+              title: title,
+              subtitle: emptyText,
+              highlightColor: highlightColor,
+              infoText: infoText,
+            );
+          }
+
+          final docs = snapshot.data!.docs.toList();
+          docs.sort((a, b) {
+            final ma = (a.data() as Map<String, dynamic>?) ?? {};
+            final mb = (b.data() as Map<String, dynamic>?) ?? {};
+            final ta = ma['completedAt'];
+            final tb = mb['completedAt'];
+
+            DateTime da = DateTime.fromMillisecondsSinceEpoch(0);
+            DateTime db = DateTime.fromMillisecondsSinceEpoch(0);
+            if (ta is Timestamp) da = ta.toDate();
+            if (tb is Timestamp) db = tb.toDate();
+            return db.compareTo(da);
+          });
+
+          final matchedMaterialIds = <String>[];
+          for (final d in docs) {
+            final data = d.data() as Map<String, dynamic>;
+            final materialId = (data['materialId'] ?? '').toString().trim();
+            if (materialId.isEmpty) continue;
+            if (!matchedMaterialIds.contains(materialId)) {
+              matchedMaterialIds.add(materialId);
+            }
+          }
+
+          final ids = matchedMaterialIds.take(5).toList();
+          if (ids.isEmpty) {
+            return _LoanCard(
+              title: title,
+              subtitle: emptyText,
+              highlightColor: highlightColor,
+              infoText: infoText,
+            );
+          }
+
+          return FutureBuilder<List<Map<String, dynamic>>>(
+            future: _fetchMaterials(ids),
+            builder: (context, snap) {
+              if (snap.connectionState == ConnectionState.waiting) {
+                return _LoanCard(
+                  title: title,
+                  subtitle: 'Cargando...',
+                  highlightColor: highlightColor,
+                  infoText: infoText,
+                );
+              }
+              if (snap.hasError) {
+                return _LoanCard(
+                  title: title,
+                  subtitle: 'No se pudo cargar',
+                  highlightColor: highlightColor,
+                  infoText: infoText,
+                );
+              }
+              final materials = snap.data ?? [];
+              return _LoanCard(
+                title: title,
+                subtitle: '',
+                highlightColor: highlightColor,
+                infoText: infoText,
+                body: _coversBody(context, materials),
+              );
+            },
+          );
+        },
+      );
+    }
+
+    // ===== SECCIONES ACTIVAS: chats =====
     final chatsQ = FirebaseFirestore.instance
         .collection('chats')
         .where('participants', arrayContains: uid)
-        .limit(80);
+        .limit(120);
 
     return StreamBuilder<QuerySnapshot>(
       stream: chatsQ.snapshots(),
@@ -1005,21 +1390,27 @@ class _LoanCardStream extends StatelessWidget {
         if (snapshot.hasError) {
           return _LoanCard(
             title: title,
-            subtitle: 'No se pudo cargar (revisa índices/permisos en Firestore)',
+            subtitle: 'No se pudo cargar (revisa permisos/índices)',
             highlightColor: highlightColor,
+            infoText: infoText,
           );
         }
         if (!snapshot.hasData) {
-          return _LoanCard(title: title, subtitle: emptyText, highlightColor: highlightColor);
+          return _LoanCard(
+            title: title,
+            subtitle: emptyText,
+            highlightColor: highlightColor,
+            infoText: infoText,
+          );
         }
 
-        final docs = snapshot.data!.docs;
-        final ordered = [...docs];
-        ordered.sort((a, b) {
+        final docs = snapshot.data!.docs.toList();
+        docs.sort((a, b) {
           final ma = (a.data() as Map<String, dynamic>?) ?? {};
           final mb = (b.data() as Map<String, dynamic>?) ?? {};
           final ta = ma['lastUpdate'];
           final tb = mb['lastUpdate'];
+
           DateTime da = DateTime.fromMillisecondsSinceEpoch(0);
           DateTime db = DateTime.fromMillisecondsSinceEpoch(0);
           if (ta is Timestamp) da = ta.toDate();
@@ -1027,142 +1418,114 @@ class _LoanCardStream extends StatelessWidget {
           return db.compareTo(da);
         });
 
-        // Ahora, en vez de contar, filtramos los chats que corresponden a este tipo de préstamo,
-        // y extraemos los materialIds para mostrar hasta 5 portadas (como "Mis Libros").
         final matchedMaterialIds = <String>[];
-        for (final d in ordered) {
+
+        for (final d in docs) {
           final data = d.data() as Map<String, dynamic>;
           final participants = (data['participants'] as List?) ?? const [];
           if (participants.isEmpty) continue;
-          final rawStatus = (data['status'] ?? '').toString();
-          final statusNorm = vm.normalizarStatus(rawStatus);
-          // IMPORTANTE (regla del proyecto):
-          // participants[0] = dueño (propietario)
-          // participants[1] = solicitante (quien pidió el libro)
-          final propietarioId = participants.first.toString().trim();
-          final solicitanteId = participants.length > 1 ? participants[1].toString().trim() : '';
 
-          final yoSoyPropietario = propietarioId == uid;
-          final yoSoySolicitante = solicitanteId.isNotEmpty && solicitanteId == uid;
-          final activo = (statusNorm == 'rentado' || statusNorm == 'devolucion_pendiente');
-          if (kind == _LoanKind.reservados) {
-            // Reservados = yo soy solicitante y el chat sigue en pendiente.
-            if (yoSoySolicitante && statusNorm == 'pendiente') {
-              final materialId = (data['materialId'] ?? '').toString().trim();
-              if (materialId.isNotEmpty && !matchedMaterialIds.contains(materialId)) {
-                matchedMaterialIds.add(materialId);
-              }
+          final ownerIdField = (data['ownerId'] ?? '').toString().trim();
+          final rawStatus = (data['status'] ?? '').toString();
+          final status = _normStatus(rawStatus);
+
+          final bool activo =
+              (status == 'rentado' || status == 'devolucion_pendiente');
+
+          // IMPORTANTE: “ESPERANDO_CONFIRMACION” debe ir a Reservados
+          final bool reservado =
+              (status == 'pendiente' || status == 'esperando_confirmacion');
+
+          // Verificación + normalización de owner/solicitante
+          final p0 = participants[0].toString().trim();
+          final p1 =
+              participants.length > 1 ? participants[1].toString().trim() : '';
+
+          String ownerId = '';
+          String requesterId = '';
+
+          if (ownerIdField.isNotEmpty) {
+            if (p0 == ownerIdField) {
+              ownerId = p0;
+              requesterId = p1;
+            } else if (p1.isNotEmpty && p1 == ownerIdField) {
+              ownerId = p1;
+              requesterId = p0;
+              debugPrint(
+                  '[Profile] participants invertidos -> corregido (doc: ${d.id})');
+            } else {
+              ownerId = p0;
+              requesterId = p1;
+              debugPrint(
+                  '[Profile] ownerId no coincide con participants (doc: ${d.id})');
             }
-          } else if (kind == _LoanKind.bajoMiCuidado) {
-            // Bajo mi cuidado = yo soy solicitante y el préstamo ya está activo.
-            if (yoSoySolicitante && activo) {
-              final materialId = (data['materialId'] ?? '').toString().trim();
-              if (materialId.isNotEmpty && !matchedMaterialIds.contains(materialId)) {
-                matchedMaterialIds.add(materialId);
-              }
-            }
+          } else {
+            ownerId = p0;
+            requesterId = p1;
+          }
+
+          final bool yoSoyOwner = (ownerId.isNotEmpty && ownerId == uid);
+          final bool yoSoySolicitante =
+              (requesterId.isNotEmpty && requesterId == uid);
+
+          final materialId = (data['materialId'] ?? '').toString().trim();
+          if (materialId.isEmpty) continue;
+
+          bool match = false;
+
+          if (kind == _LoanKind.bajoMiCuidado) {
+            match = yoSoySolicitante && !yoSoyOwner && activo;
           } else if (kind == _LoanKind.misPrestamos) {
-            // Mis préstamos = yo soy propietario y el préstamo está activo.
-            if (yoSoyPropietario && activo) {
-              final materialId = (data['materialId'] ?? '').toString().trim();
-              if (materialId.isNotEmpty && !matchedMaterialIds.contains(materialId)) {
-                matchedMaterialIds.add(materialId);
-              }
-            }
+            match = yoSoyOwner && activo;
+          } else if (kind == _LoanKind.reservados) {
+            match = yoSoySolicitante && reservado;
+          }
+
+          if (match && !matchedMaterialIds.contains(materialId)) {
+            matchedMaterialIds.add(materialId);
           }
         }
+
         final ids = matchedMaterialIds.take(5).toList();
         if (ids.isEmpty) {
-          // Si no hay materiales, muestra el card vacío como antes.
-          return _LoanCard(title: title, subtitle: emptyText, highlightColor: highlightColor);
+          return _LoanCard(
+            title: title,
+            subtitle: emptyText,
+            highlightColor: highlightColor,
+            infoText: infoText,
+          );
         }
-        // Si hay materiales, muestra la fila de portadas (como "Mis Libros") en la tarjeta.
+
         return FutureBuilder<List<Map<String, dynamic>>>(
           future: _fetchMaterials(ids),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              // Mientras carga, muestra placeholder igual que antes (gris + "Cargando...")
+          builder: (context, snap) {
+            if (snap.connectionState == ConnectionState.waiting) {
               return _LoanCard(
                 title: title,
-                subtitle: "Cargando...",
+                subtitle: 'Cargando...',
                 highlightColor: highlightColor,
+                infoText: infoText,
               );
             }
-            if (snapshot.hasError) {
+            if (snap.hasError) {
               return _LoanCard(
                 title: title,
                 subtitle: 'No se pudo cargar',
                 highlightColor: highlightColor,
+                infoText: infoText,
               );
             }
-            final materials = snapshot.data ?? [];
+            final materials = snap.data ?? [];
             return _LoanCard(
               title: title,
+              subtitle: '',
               highlightColor: highlightColor,
-              body: _coversBody(materials),
-              subtitle: '', // not used if body is present
+              infoText: infoText,
+              body: _coversBody(context, materials),
             );
           },
         );
       },
-    );
-  }
-}
-
-class _CoverPlaceholder extends StatelessWidget {
-  final IconData icon;
-  const _CoverPlaceholder({required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 70,
-      margin: const EdgeInsets.only(right: 10),
-      decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(10)),
-      child: Icon(icon, color: Colors.grey),
-    );
-  }
-}
-
-class _LoanCard extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final Color highlightColor;
-  final Widget? body;
-
-  const _LoanCard({
-    required this.title,
-    required this.subtitle,
-    required this.highlightColor,
-    this.body,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500)),
-        const SizedBox(height: 8),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(color: highlightColor, borderRadius: BorderRadius.circular(10)),
-          child: body != null
-              ? body!
-              : Row(
-                  children: [
-                    Container(
-                      width: 55,
-                      height: 72,
-                      decoration: BoxDecoration(color: Colors.grey, borderRadius: BorderRadius.circular(8)),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(child: Text(subtitle, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500))),
-                  ],
-                ),
-        ),
-      ],
     );
   }
 }
@@ -1182,7 +1545,7 @@ class _BackgroundBlobs extends StatelessWidget {
 class _BlobPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final p1 = Paint()..color = Colors.white.withAlpha(13); // ~5%
+    final p1 = Paint()..color = Colors.white.withAlpha(13);
     canvas.drawCircle(Offset(size.width * 0.1, size.height * 0.2), 100, p1);
     canvas.drawCircle(Offset(size.width * 0.9, size.height * 0.5), 150, p1);
     canvas.drawCircle(Offset(size.width * 0.4, size.height * 0.8), 120, p1);
@@ -1191,7 +1554,6 @@ class _BlobPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
-
 
 class _Footer extends StatelessWidget {
   final VoidCallback onTerms;

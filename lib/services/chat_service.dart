@@ -18,30 +18,54 @@ class ChatService {
     }
 
     // key determinística: mismos usuarios + mismo material => mismo chat
-    final users = [a, b]..sort();
-    final chatId = '${users[0]}_${users[1]}_$m';
+    // OJO: El chatId se mantiene determinístico con los IDs ordenados.
+    // PERO el orden de `participants` NO debe depender del sort.
+    final usersForId = [a, b]..sort();
+    final chatId = '${usersForId[0]}_${usersForId[1]}_$m';
 
     final ref = _firestore.collection('chats').doc(chatId);
     final snap = await ref.get();
 
     if (!snap.exists) {
-      // Buscamos el material para saber quién es el dueño original
+      // Buscamos el material para saber quién es el dueño original.
+      // Regla: participants[0] = dueño (ownerId) y participants[1] = solicitante.
       String ownerId = '';
+      String requesterId = '';
+
       try {
         final matDoc = await _firestore.collection('materials').doc(m).get();
         if (matDoc.exists) {
           final data = matDoc.data() as Map<String, dynamic>;
           // Dependiendo de cómo lo llames en Firebase, buscamos userId u ownerId
-          ownerId = (data['userId'] ?? data['ownerId'] ?? '').toString();
+          ownerId = (data['userId'] ?? data['ownerId'] ?? '').toString().trim();
         }
-      } catch (e) {
-        // Si hay error, continuamos
+      } catch (_) {
+        // Si hay error, continuamos con fallback
       }
 
+      // Si el ownerId viene bien desde Firebase, identificamos al solicitante como "el otro".
+      if (ownerId.isNotEmpty) {
+        if (a == ownerId) {
+          requesterId = b;
+        } else if (b == ownerId) {
+          requesterId = a;
+        } else {
+          // Fallback: si el ownerId no coincide con ninguno, asumimos que quien llama (a)
+          // es el solicitante y (b) es el dueño.
+          requesterId = a;
+        }
+      } else {
+        // Fallback total: sin ownerId, asumimos que (b) es dueño y (a) solicitante.
+        ownerId = b;
+        requesterId = a;
+      }
+
+      final participantsOrdered = [ownerId, requesterId];
+
       await ref.set({
-        'participants': users,
+        'participants': participantsOrdered, // [0]=dueño, [1]=solicitante
         'materialId': m,
-        'ownerId': ownerId, // <--- AQUÍ GUARDAMOS EL DUEÑO
+        'ownerId': ownerId,
         'status': 'pendiente',
         'createdAt': FieldValue.serverTimestamp(),
         'lastUpdate': FieldValue.serverTimestamp(),
