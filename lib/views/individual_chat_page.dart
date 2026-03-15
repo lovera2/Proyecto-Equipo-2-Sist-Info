@@ -281,12 +281,77 @@ Widget _buildLoanStatusBar(Color accentColor) {
       Color buttonColor = Colors.grey;
       VoidCallback? action;
 
+      // Botón secundario (ej: rechazar solicitud)
+      String secondaryText = "";
+      IconData secondaryIcon = Icons.close;
+      Color secondaryColor = Colors.red;
+      VoidCallback? secondaryAction;
+
+      Future<void> _confirmReject() async {
+        final bool? ok = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              title: const Text("Rechazar solicitud"),
+              content: const Text(
+                "¿Seguro que quieres rechazar este pedido?\n\n"
+                "El libro volverá a estar disponible y la otra persona podrá solicitarlo nuevamente.",
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext, false),
+                  child: const Text("Cancelar"),
+                ),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: () => Navigator.pop(dialogContext, true),
+                  icon: const Icon(Icons.close),
+                  label: const Text("Rechazar"),
+                ),
+              ],
+            );
+          },
+        );
+
+        if (ok != true) return;
+
+        final String materialId = (chatData['materialId'] ?? '').toString().trim();
+
+        // 1) Cambiamos el estado del chat a rechazado
+        await _chatService.updateLoanStatus(
+          widget.chatId,
+          materialId,
+          'rechazado',
+        );
+
+        // 2) Dejamos un mensaje en el chat para que quede constancia
+        _chatService.sendMessage(
+          widget.chatId,
+          currentUserId,
+          "❌ Solicitud rechazada por el dueño.\n\n"
+          "Por ahora el libro no será prestado. Puedes intentar solicitarlo más adelante si vuelve a estar disponible.",
+        );
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Solicitud rechazada")),
+          );
+        }
+        if (context.mounted) {
+          Navigator.pop(context);
+        }
+      }
+
       if (imTheOwner) {
-       if (currentStatus == 'devolucion_pendiente') {
+        if (currentStatus == 'devolucion_pendiente') {
           buttonText = "Confirmar Devolución";
           buttonIcon = Icons.assignment_return;
           buttonColor = Colors.green;
-
           action = () async {
             // Mostramos un indicador de carga opcional
             await _chatService.confirmBookReturn(
@@ -294,12 +359,11 @@ Widget _buildLoanStatusBar(Color accentColor) {
               materialId: chatData['materialId'] ?? '',
               confirmerId: currentUserId,
             );
-            
             if (context.mounted) {
               Navigator.pop(context);
             }
           };
-        } else if (currentStatus == 'solicitado' || currentStatus == 'disponible' || currentStatus == 'pendiente') {
+        } else if (currentStatus == 'solicitado' || currentStatus == 'pendiente') {
           buttonText = "Confirmar Entrega";
           buttonIcon = Icons.local_shipping;
           buttonColor = Colors.green;
@@ -308,7 +372,24 @@ Widget _buildLoanStatusBar(Color accentColor) {
             chatData['materialId'] ?? '',
             'esperando_confirmacion',
           );
-        } else {
+
+          // Permitir rechazar la solicitud mientras está en trámite
+          secondaryText = "Rechazar pedido";
+          secondaryIcon = Icons.close;
+          secondaryColor = Colors.red;
+          secondaryAction = _confirmReject;
+        } else if (currentStatus == 'rechazado') {
+          buttonText = "Solicitud rechazada";
+          buttonIcon = Icons.block;
+          buttonColor = Colors.blueGrey;
+          action = null;
+        } else if (currentStatus == 'disponible') {
+          buttonText = "Sin solicitud activa";
+          buttonIcon = Icons.info_outline;
+          buttonColor = Colors.blueGrey;
+          action = null;
+        }
+        else {
           buttonText = "Libro en préstamo";
           buttonIcon = Icons.hourglass_bottom;
           buttonColor = Colors.blueGrey;
@@ -316,7 +397,12 @@ Widget _buildLoanStatusBar(Color accentColor) {
         }
       } else {
         // Logica para los que solicitan el libro
-        if (currentStatus == 'esperando_confirmacion') {
+        if (currentStatus == 'rechazado') {
+          buttonText = "Solicitud rechazada";
+          buttonIcon = Icons.block;
+          buttonColor = Colors.blueGrey;
+          action = null;
+        } else if (currentStatus == 'esperando_confirmacion') {
           buttonText = "Confirmar Recibido";
           buttonIcon = Icons.handshake;
           buttonColor = accentColor;
@@ -331,7 +417,7 @@ Widget _buildLoanStatusBar(Color accentColor) {
           buttonColor = Colors.orange;
           action = _openReturnPage;
         } else {
-          buttonText = "Esperando entrega...";
+          buttonText = "Esperando respuesta...";
           buttonIcon = Icons.schedule;
           buttonColor = Colors.grey;
           action = null;
@@ -354,61 +440,97 @@ Widget _buildLoanStatusBar(Color accentColor) {
             children: [
 
               Row(
-
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-
                 children: [
-
                   const Text(
                     "Estado:",
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
-
-                  Container(
-
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 2),
-
-                    decoration: BoxDecoration(
-                      color: accentColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-
-                    child: Text(
-                      currentStatus.toUpperCase(),
-                      style: TextStyle(
-                        color: accentColor,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
+                  // Chip de estado con color mejorado para 'rechazado'
+                  // Insert status-aware color logic:
+                  // final bool isRejected = currentStatus.toLowerCase() == 'rechazado';
+                  // final Color chipColor = isRejected ? Colors.red : accentColor;
+                  // ...Container...
+                  // Inserted here:
+                  // Determine chip color based on status
+                  // (must be right before Container)
+                  ...[
+                    (() {
+                      final bool isRejected = currentStatus.toLowerCase() == 'rechazado';
+                      final Color chipColor = isRejected ? Colors.red : accentColor;
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: chipColor.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          currentStatus.toUpperCase(),
+                          style: TextStyle(
+                            color: chipColor,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      );
+                    })(),
+                  ],
                 ],
               ),
 
               const SizedBox(height: 10),
 
-              SizedBox(
-
-                width: double.infinity,
-
-                child: ElevatedButton.icon(
-
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: buttonColor,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+              if (secondaryAction == null) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: buttonColor,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
+                    onPressed: action,
+                    icon: Icon(buttonIcon, size: 18),
+                    label: Text(buttonText),
                   ),
-
-                  onPressed: action,
-
-                  icon: Icon(buttonIcon, size: 18),
-                  label: Text(buttonText),
-
                 ),
-              ),
+              ] else ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: buttonColor,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        onPressed: action,
+                        icon: Icon(buttonIcon, size: 18),
+                        label: Text(buttonText),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: secondaryColor,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        onPressed: secondaryAction,
+                        icon: Icon(secondaryIcon, size: 18),
+                        label: Text(secondaryText),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
 
             ],
           ),

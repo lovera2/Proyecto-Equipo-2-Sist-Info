@@ -213,7 +213,7 @@ class _HomePageState extends State<HomePage> {
                                         ),
                                       );
                                     },
-                                    child: _buildBookCard(data),
+                                    child: _buildBookCard(doc.id, data),
                                   ),
                                 );
                               },
@@ -482,9 +482,85 @@ class _HomePageState extends State<HomePage> {
     return painter.computeLineMetrics().length > 1;
   }
 
-  Widget _buildBookCard(Map<String, dynamic> data) {
-    final String status = (data['status'] ?? 'disponible').toString().toLowerCase();
-    final bool isAvailable = status == 'disponible';
+  Widget _buildBookCard(String materialId, Map<String, dynamic> data) {
+    // =============================
+    // ESTADO DEL MATERIAL (RF-03)
+    // Disponible / Reservado / En préstamo
+    // Importante: el estado REAL puede venir de `chats`.
+    // Si existe un chat activo/pending para este materialId,
+    // esa info manda sobre `materials.status`.
+    // =============================
+
+    String _normStatus(String raw) {
+      final s = raw.toLowerCase().trim();
+      return s
+          .replaceAll('á', 'a')
+          .replaceAll('é', 'e')
+          .replaceAll('í', 'i')
+          .replaceAll('ó', 'o')
+          .replaceAll('ú', 'u')
+          .replaceAll('ñ', 'n')
+          .replaceAll('-', '_')
+          .replaceAll(' ', '_');
+    }
+
+    ({String label, Color color}) _mapStatus(String statusNorm) {
+      final bool isDisponible = statusNorm == 'disponible';
+
+      // Reservado: antes de concretar el préstamo
+      final bool isReservado = <String>{
+        'reservado',
+        'pendiente',
+        'esperando_confirmacion',
+      }.contains(statusNorm);
+
+      // En préstamo: préstamo activo o esperando devolución
+      final bool isPrestamo = <String>{
+        'rentado',
+        'devolucion_pendiente',
+        'en_prestamo',
+      }.contains(statusNorm);
+
+      final String label = isDisponible
+          ? 'Disponible'
+          : (isReservado
+              ? 'Reservado'
+              : (isPrestamo ? 'En préstamo' : 'No disponible'));
+
+      // Colores RF-03
+      final Color color = isDisponible ? Colors.green : (isReservado ? Colors.amber : Colors.red);
+
+      return (label: label, color: color);
+    }
+
+    Widget _statusChip(String effectiveStatusNorm) {
+      final mapped = _mapStatus(effectiveStatusNorm);
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: mapped.color,
+          borderRadius: BorderRadius.circular(999),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.18),
+              blurRadius: 6,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Text(
+          mapped.label,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      );
+    }
+
+    // Status base (lo que dice el material)
+    final String statusMaterialNorm = _normStatus((data['status'] ?? 'disponible').toString());
 
     final String titulo = (data['title'] ?? '').toString();
     final String autor = (data['author'] ?? '').toString();
@@ -520,27 +596,45 @@ class _HomePageState extends State<HomePage> {
                     Positioned(
                       right: 10,
                       bottom: 10,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                        decoration: BoxDecoration(
-                          color: isAvailable ? Colors.green : Colors.red,
-                          borderRadius: BorderRadius.circular(999),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.18),
-                              blurRadius: 6,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
-                        ),
-                        child: Text(
-                          isAvailable ? 'Disponible' : 'No disponible',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
+                      child: StreamBuilder<QuerySnapshot>(
+                        // Buscamos si hay un chat asociado al material.
+                        // Si existe y su status es relevante, sobre-escribe el status del material.
+                        // Esto evita que en Home se vea verde cuando ya está reservado/en préstamo.
+                        stream: FirebaseFirestore.instance
+                            .collection('chats')
+                            .where('materialId', isEqualTo: materialId)
+                            .limit(5)
+                            .snapshots(),
+                        builder: (context, snap) {
+                          String effective = statusMaterialNorm;
+
+                          if (snap.hasData && snap.data!.docs.isNotEmpty) {
+                            // Elegimos el status más "fuerte" encontrado en chats.
+                            // Prioridad: en préstamo > reservado > disponible
+                            bool foundPrestamo = false;
+                            bool foundReservado = false;
+
+                            for (final d in snap.data!.docs) {
+                              final m = (d.data() as Map<String, dynamic>?) ?? {};
+                              final s = _normStatus((m['status'] ?? '').toString());
+
+                              if (<String>{'rentado', 'devolucion_pendiente', 'en_prestamo'}.contains(s)) {
+                                foundPrestamo = true;
+                              }
+                              if (<String>{'reservado', 'pendiente', 'esperando_confirmacion'}.contains(s)) {
+                                foundReservado = true;
+                              }
+                            }
+
+                            if (foundPrestamo) {
+                              effective = 'rentado';
+                            } else if (foundReservado) {
+                              effective = 'reservado';
+                            }
+                          }
+
+                          return _statusChip(effective);
+                        },
                       ),
                     ),
                   ],

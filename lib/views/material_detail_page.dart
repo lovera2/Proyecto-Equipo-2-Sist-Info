@@ -172,239 +172,381 @@ class MaterialDetailPage extends StatelessWidget {
 
     final email = (FirebaseAuth.instance.currentUser?.email ?? '').toLowerCase().trim();
     final bool effectiveIsAdmin = isAdmin || email.startsWith('admin');
-    final bool isAvailable = (materialData['status'] ?? 'disponible').toString().toLowerCase() == 'disponible';
+    // ==============================
+    // Estado del material (RF-03)
+    // Disponible / Reservado / En préstamo
+    // ==============================
+    String _normStatus(String raw) {
+      final s = raw.toLowerCase().trim();
+      return s
+          .replaceAll('á', 'a')
+          .replaceAll('é', 'e')
+          .replaceAll('í', 'i')
+          .replaceAll('ó', 'o')
+          .replaceAll('ú', 'u')
+          .replaceAll('ñ', 'n')
+          .replaceAll('-', '_')
+          .replaceAll(' ', '_');
+    }
 
-    return Scaffold(
-      body: Stack(
-        children: [
-          Container(decoration: _backgroundDecoration(effectiveIsAdmin)),
-          const _BackgroundBlobs(),
-          SafeArea(
-            child: Column(
-              children: [
-                _TopBar(
-                  isAdmin: effectiveIsAdmin,
-                  onBack: () => Navigator.pop(context),
-                  onHome: () {
-                    final route = effectiveIsAdmin ? '/home_admin' : '/home_page';
-                    Navigator.of(context).pushNamedAndRemoveUntil(route, (r) => false);
-                  },
-                  onPublish: () => Navigator.pushNamed(context, '/publish'),
-                  onProfile: () => Navigator.pushNamed(context, '/profile'),
-                  onNotifications: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => const ChatListPage()));
-                  },
-                  onMenuLogout: () {
-                    FirebaseAuth.instance.signOut();
-                    Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
-                  },
-                ),
-                Expanded(
-                  child: Center(
-                    child: SingleChildScrollView(
-                      child: Container(
-                        constraints: const BoxConstraints(maxWidth: 1100),
-                        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                        padding: const EdgeInsets.all(22),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(26),
-                          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.18), blurRadius: 18, offset: const Offset(0, 10))],
-                        ),
-                        child: LayoutBuilder(
-                          builder: (context, constraints) {
-                            final bool isWide = constraints.maxWidth >= 860;
-                            final cover = Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    _CoverCard(image: _buildImage(materialData['imageUrl'])),
-                                    const SizedBox(height: 10),
-                                    // Aquí usamos el dato real que viene de Firebase ('rating')
-                                    _RatingRow(rating: (materialData['rating'] ?? 0.0).toDouble()), 
-                                  ],
-                                );
-                            final details = FutureBuilder<Map<String, String>>(
-                              future: ownerFuture,
-                              builder: (context, snap) {
-                                final fetchedFullName = (snap.data?['fullName'] ?? '').trim();
-                                final fetchedUsername = (snap.data?['username'] ?? '').trim();
-                                final String finalName = fetchedFullName.isNotEmpty ? fetchedFullName : ownerNameFallback;
-                                final String finalUsername = fetchedUsername.isNotEmpty ? fetchedUsername : ownerUsernameFallback;
-                                final String ownerDisplay = (finalName.isNotEmpty && finalUsername.isNotEmpty)
-                                    ? (finalName.toLowerCase() == finalUsername.toLowerCase() ? '@$finalUsername' : '$finalName (@$finalUsername)')
-                                    : (finalName.isNotEmpty ? finalName : (finalUsername.isNotEmpty ? '@$finalUsername' : 'No especificado'));
+    final String statusRaw = (materialData['status'] ?? 'disponible').toString();
+    final String status = _normStatus(statusRaw);
 
-                                return _DetailsCard(
-                                  title: title,
-                                  category: category,
-                                  ownerName: ownerDisplay,
-                                  subject: subject,
-                                  author: author,
-                                  description: desc,
-                                  isAvailable: isAvailable,
-                                  isAdmin: effectiveIsAdmin,
-                                  onEdit: () {
-                                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Editar material: Próximamente.')));
+    // Base flags: solo lo que dice el material, sin chats.
+    final bool baseIsAvailable = status == 'disponible';
+    final bool baseIsReserved = <String>{
+      'reservado',
+      'reserva',
+      'pendiente',
+      'esperando_confirmacion',
+    }.contains(status);
+    final bool baseIsOnLoan = <String>{
+      'en_prestamo',
+      'prestamo',
+      'rentado',
+      'devolucion_pendiente',
+    }.contains(status);
+
+    final chatsQ = FirebaseFirestore.instance
+        .collection('chats')
+        .where('materialId', isEqualTo: materialId)
+        .limit(80);
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: chatsQ.snapshots(),
+      builder: (context, chatSnap) {
+        // Derivamos el estado REAL del material a partir del chat más reciente.
+        String derivedStatus = '';
+
+        if (chatSnap.hasData) {
+          final docs = chatSnap.data!.docs.toList();
+          docs.sort((a, b) {
+            final ma = (a.data() as Map<String, dynamic>?) ?? {};
+            final mb = (b.data() as Map<String, dynamic>?) ?? {};
+            final ta = ma['lastUpdate'];
+            final tb = mb['lastUpdate'];
+            DateTime da = DateTime.fromMillisecondsSinceEpoch(0);
+            DateTime db = DateTime.fromMillisecondsSinceEpoch(0);
+            if (ta is Timestamp) da = ta.toDate();
+            if (tb is Timestamp) db = tb.toDate();
+            return db.compareTo(da);
+          });
+
+          if (docs.isNotEmpty) {
+            final m = (docs.first.data() as Map<String, dynamic>?) ?? {};
+            derivedStatus = _normStatus((m['status'] ?? '').toString());
+          }
+        }
+
+        // Chat manda:
+        // - Reservados: pendiente / esperando_confirmacion
+        // - En préstamo: rentado / devolucion_pendiente
+        final bool chatSaysReserved = <String>{
+          'pendiente',
+          'esperando_confirmacion',
+          'reservado',
+          'reserva',
+        }.contains(derivedStatus);
+
+        final bool chatSaysOnLoan = <String>{
+          'rentado',
+          'devolucion_pendiente',
+          'en_prestamo',
+          'prestamo',
+        }.contains(derivedStatus);
+
+        // Si el chat dice reservado/en préstamo, eso sobre-escribe lo que diga el material.
+        final bool isReserved = chatSaysReserved || (!chatSaysOnLoan && baseIsReserved);
+        final bool isOnLoan = chatSaysOnLoan || (!chatSaysReserved && baseIsOnLoan);
+
+        // Disponible solo si NO está reservado NI en préstamo.
+        final bool isAvailable = (!isReserved && !isOnLoan) && baseIsAvailable;
+
+        final String availabilityLabel = isAvailable
+            ? 'Disponible'
+            : (isReserved ? 'Reservado' : 'En préstamo');
+
+        final Color availabilityColor = isAvailable
+            ? Colors.green
+            : (isReserved ? const Color(0xFFF2C27A) : Colors.red);
+
+        // ---- UI original (Scaffold) ----
+        return Scaffold(
+          body: Stack(
+            children: [
+              Container(decoration: _backgroundDecoration(effectiveIsAdmin)),
+              const _BackgroundBlobs(),
+              SafeArea(
+                child: Column(
+                  children: [
+                    _TopBar(
+                      isAdmin: effectiveIsAdmin,
+                      onBack: () => Navigator.pop(context),
+                      onHome: () {
+                        final route = effectiveIsAdmin ? '/home_admin' : '/home_page';
+                        Navigator.of(context).pushNamedAndRemoveUntil(route, (r) => false);
+                      },
+                      onPublish: () => Navigator.pushNamed(context, '/publish'),
+                      onProfile: () => Navigator.pushNamed(context, '/profile'),
+                      onNotifications: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (context) => const ChatListPage()));
+                      },
+                      onMenuLogout: () {
+                        FirebaseAuth.instance.signOut();
+                        Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+                      },
+                    ),
+                    Expanded(
+                      child: Center(
+                        child: SingleChildScrollView(
+                          child: Container(
+                            constraints: const BoxConstraints(maxWidth: 1100),
+                            margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                            padding: const EdgeInsets.all(22),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(26),
+                              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.18), blurRadius: 18, offset: const Offset(0, 10))],
+                            ),
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                final bool isWide = constraints.maxWidth >= 860;
+                                final cover = Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        _CoverCard(image: _buildImage(materialData['imageUrl'])),
+                                        const SizedBox(height: 10),
+                                        // Aquí usamos el dato real que viene de Firebase ('rating')
+                                        _RatingRow(rating: (materialData['rating'] ?? 0.0).toDouble()), 
+                                      ],
+                                    );
+                                final details = FutureBuilder<Map<String, String>>(
+                                  future: ownerFuture,
+                                  builder: (context, snap) {
+                                    final fetchedFullName = (snap.data?['fullName'] ?? '').trim();
+                                    final fetchedUsername = (snap.data?['username'] ?? '').trim();
+                                    final String finalName = fetchedFullName.isNotEmpty ? fetchedFullName : ownerNameFallback;
+                                    final String finalUsername = fetchedUsername.isNotEmpty ? fetchedUsername : ownerUsernameFallback;
+                                    final String ownerDisplay = (finalName.isNotEmpty && finalUsername.isNotEmpty)
+                                        ? (finalName.toLowerCase() == finalUsername.toLowerCase() ? '@$finalUsername' : '$finalName (@$finalUsername)')
+                                        : (finalName.isNotEmpty ? finalName : (finalUsername.isNotEmpty ? '@$finalUsername' : 'No especificado'));
+
+                                    void showReservedInfo() {
+                                      showDialog(
+                                        context: context,
+                                        builder: (ctx) => AlertDialog(
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(16),
+                                          ),
+                                          title: const Text(
+                                            'Libro reservado',
+                                            style: TextStyle(
+                                              color: Color(0xFF1B3A57),
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          content: const Text(
+                                            'Este material está reservado y se encuentra en trámite de confirmación.\n\n'
+                                            'Puede volver a estar disponible si el préstamo no se concreta o si el solicitante lo cancela. '
+                                            'Te recomendamos revisar más tarde.',
+                                            style: TextStyle(fontSize: 14, height: 1.35),
+                                          ),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () => Navigator.pop(ctx),
+                                              child: const Text(
+                                                'Entendido',
+                                                style: TextStyle(color: Color(0xFFF28B31)),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    }
+
+                                    return _DetailsCard(
+                                      title: title,
+                                      category: category,
+                                      ownerName: ownerDisplay,
+                                      subject: subject,
+                                      author: author,
+                                      description: desc,
+                                      availabilityLabel: availabilityLabel,
+                                      availabilityColor: availabilityColor,
+                                      isAdmin: effectiveIsAdmin,
+                                      isReserved: isReserved,
+                                      onEdit: () {
+                                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Editar material: Próximamente.')));
+                                      },
+                                      onReservedInfo: showReservedInfo,
+                                    );
                                   },
                                 );
-                              },
-                            );
 
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
+                                return Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    if (isWide) ...[
-                                      cover,
-                                      const SizedBox(width: 22),
-                                      Expanded(child: details),
-                                    ] else ...[
-                                      Expanded(child: details),
-                                    ]
-                                  ],
-                                ),
-                                if (!isWide) ...[const SizedBox(height: 16), cover],
-                                const SizedBox(height: 18),
-                                Divider(color: Colors.black.withOpacity(0.08)),
-                                const SizedBox(height: 14),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                                  children: [
-                                    if (!isOwner && !effectiveIsAdmin)
-                                      ElevatedButton.icon(
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: isAvailable ? (effectiveIsAdmin ? unimetBlue : unimetOrange) : Colors.grey.shade500,
-                                          foregroundColor: Colors.white,
-                                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                                          elevation: 0,
-                                        ),
-                                        onPressed: isAvailable ? () async {
-                                              if (user == null) return;
+                                    Row(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        if (isWide) ...[
+                                          cover,
+                                          const SizedBox(width: 22),
+                                          Expanded(child: details),
+                                        ] else ...[
+                                          Expanded(child: details),
+                                        ]
+                                      ],
+                                    ),
+                                    if (!isWide) ...[const SizedBox(height: 16), cover],
+                                    const SizedBox(height: 18),
+                                    Divider(color: Colors.black.withOpacity(0.08)),
+                                    const SizedBox(height: 14),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                      children: [
+                                        if (!isOwner && !effectiveIsAdmin)
+                                          ElevatedButton.icon(
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: isAvailable
+                                                  ? (effectiveIsAdmin ? unimetBlue : unimetOrange)
+                                                  : (isReserved ? const Color(0xFFF2C27A) : Colors.grey.shade500),
+                                              foregroundColor: Colors.white,
+                                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                              elevation: 0,
+                                            ),
+                                            onPressed: isAvailable ? () async {
+                                                  if (user == null) return;
 
-                                              // 1. Verificar créditos antes de permitir el chat
-                                              final userDoc = await FirebaseFirestore.instance.collection('usuarios').doc(currentUid).get();
-                                              int exchanges = userDoc.data()?['free_exchanges'] ?? 0;
+                                                  // 1. Verificar créditos antes de permitir el chat
+                                                  final userDoc = await FirebaseFirestore.instance.collection('usuarios').doc(currentUid).get();
+                                                  int exchanges = userDoc.data()?['free_exchanges'] ?? 0;
 
-                                              if (exchanges == 0) {
-                                                if (context.mounted) {
+                                                  if (exchanges == 0) {
+                                                    if (context.mounted) {
+                                                      ScaffoldMessenger.of(context).showSnackBar(
+                                                        const SnackBar(
+                                                          content: Text('No tienes intercambios disponibles. ¡Publica un libro o realiza una donación!'),
+                                                          backgroundColor: Colors.red,
+                                                          behavior: SnackBarBehavior.floating,
+                                                        ),
+                                                      );
+                                                    }
+                                                    return; // Bloqueamos la acción
+                                                  }
+
+                                                  // 2. Si tiene créditos, procedemos a crear el chat
+                                                  final chatService = ChatService();
+                                                  final String chatId = await chatService.getOrCreateChat(currentUid, ownerUid, materialId);
+                                                  final Map<String, dynamic> dataConId = Map.from(materialData);
+                                                  dataConId['id'] = materialId;
+
+                                                  if (context.mounted) {
+                                                    Navigator.push(context, MaterialPageRoute(
+                                                      builder: (context) => IndividualChatPage(
+                                                        chatId: chatId,
+                                                        materialData: dataConId,
+                                                        receiverName: ownerNameFallback.isNotEmpty ? ownerNameFallback : 'Propietario',
+                                                      ),
+                                                    ));
+                                                  }
+                                                } : null,
+                                            icon: const Icon(Icons.chat_bubble_outline),
+                                            label: Text(
+                                              isAvailable
+                                                  ? 'Solicitar préstamo'
+                                                  : (isReserved ? 'Reservado' : 'En préstamo'),
+                                              style: const TextStyle(fontWeight: FontWeight.w700),
+                                            ),
+                                          )
+                                        else if (isOwner)
+                                          TextButton.icon(
+                                            onPressed: () => _confirmDelete(context, materialId, title),
+                                            icon: const Icon(Icons.delete_outline, color: Colors.red, size: 26),
+                                            label: const Text('Eliminar', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                                          )
+                                        else
+                                          const SizedBox(width: 1),
+                                        
+                                        StreamBuilder<bool>(
+                                          // el ID del usuario actual y el ID del libro
+                                          stream: currentUid.isNotEmpty 
+                                              ? UserService().isFavoriteStream(uid: currentUid, bookId: materialId) 
+                                              : Stream.value(false),
+                                          builder: (context, snapshot) {
+                                            final bool isFav = snapshot.data ?? false; // Es favorito en la DB?
+                                            
+                                            return TextButton.icon(
+                                              onPressed: () async {
+                                                if (currentUid.isEmpty) {
                                                   ScaffoldMessenger.of(context).showSnackBar(
-                                                    const SnackBar(
-                                                      content: Text('No tienes intercambios disponibles. ¡Publica un libro o realiza una donación!'),
-                                                      backgroundColor: Colors.red,
+                                                    const SnackBar(content: Text('Debes iniciar sesión para guardar favoritos')),
+                                                  );
+                                                  return;
+                                                }
+
+                                                final userService = UserService();
+                                                // Guardamos el messenger y el título antes del await
+                                                final messenger = ScaffoldMessenger.of(context);
+                                                final String bookTitle = (materialData['title'] ?? 'este libro').toString();
+
+                                                if (isFav) {
+                                                  // Si ya era favorito, lo quitamos
+                                                  await userService.removeFavorite(uid: currentUid, bookId: materialId);
+                                                  messenger.showSnackBar(
+                                                    SnackBar(
+                                                      content: Text('Has quitado "$bookTitle" de tus favoritos 💔'),
+                                                      backgroundColor: Colors.grey[700],
+                                                      duration: const Duration(seconds: 2),
+                                                      behavior: SnackBarBehavior.floating,
+                                                    ),
+                                                  );
+                                                } else {
+                                                  // Si no era, lo añadimos
+                                                  await userService.addFavorite(uid: currentUid, bookId: materialId);
+                                                  messenger.showSnackBar(
+                                                    SnackBar(
+                                                      content: Text('Has agregado "$bookTitle" a tus favoritos ❤️'),
+                                                      backgroundColor: const Color(0xFFF28B31), // Naranja Unimet
+                                                      duration: const Duration(seconds: 2),
                                                       behavior: SnackBarBehavior.floating,
                                                     ),
                                                   );
                                                 }
-                                                return; // Bloqueamos la acción
-                                              }
-
-                                              // 2. Si tiene créditos, procedemos a crear el chat
-                                              final chatService = ChatService();
-                                              final String chatId = await chatService.getOrCreateChat(currentUid, ownerUid, materialId);
-                                              final Map<String, dynamic> dataConId = Map.from(materialData);
-                                              dataConId['id'] = materialId;
-
-                                              if (context.mounted) {
-                                                Navigator.push(context, MaterialPageRoute(
-                                                  builder: (context) => IndividualChatPage(
-                                                    chatId: chatId,
-                                                    materialData: dataConId,
-                                                    receiverName: ownerNameFallback.isNotEmpty ? ownerNameFallback : 'Propietario',
-                                                  ),
-                                                ));
-                                              }
-                                            } : null,
-                                        icon: const Icon(Icons.chat_bubble_outline),
-                                        label: Text(isAvailable ? 'Solicitar préstamo' : 'Préstamo no disponible', style: const TextStyle(fontWeight: FontWeight.w700)),
-                                      )
-                                    else if (isOwner)
-                                      TextButton.icon(
-                                        onPressed: () => _confirmDelete(context, materialId, title),
-                                        icon: const Icon(Icons.delete_outline, color: Colors.red, size: 26),
-                                        label: const Text('Eliminar', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-                                      )
-                                    else
-                                      const SizedBox(width: 1),
-                                    
-                                    StreamBuilder<bool>(
-                                      // el ID del usuario actual y el ID del libro
-                                      stream: currentUid.isNotEmpty 
-                                          ? UserService().isFavoriteStream(uid: currentUid, bookId: materialId) 
-                                          : Stream.value(false),
-                                      builder: (context, snapshot) {
-                                        final bool isFav = snapshot.data ?? false; // Es favorito en la DB?
-                                        
-                                        return TextButton.icon(
-                                          onPressed: () async {
-                                            if (currentUid.isEmpty) {
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                const SnackBar(content: Text('Debes iniciar sesión para guardar favoritos')),
-                                              );
-                                              return;
-                                            }
-
-                                            final userService = UserService();
-                                            // Guardamos el messenger y el título antes del await
-                                            final messenger = ScaffoldMessenger.of(context);
-                                            final String bookTitle = (materialData['title'] ?? 'este libro').toString();
-
-                                            if (isFav) {
-                                              // Si ya era favorito, lo quitamos
-                                              await userService.removeFavorite(uid: currentUid, bookId: materialId);
-                                              messenger.showSnackBar(
-                                                SnackBar(
-                                                  content: Text('Has quitado "$bookTitle" de tus favoritos 💔'),
-                                                  backgroundColor: Colors.grey[700],
-                                                  duration: const Duration(seconds: 2),
-                                                  behavior: SnackBarBehavior.floating,
+                                              },
+                                              icon: Icon(
+                                                isFav ? Icons.favorite : Icons.favorite_border,
+                                                color: isFav ? Colors.red : Colors.grey,
+                                                size: 26,
+                                              ),
+                                              label: Text(
+                                                isFav ? 'En favoritos' : 'Añadir a favoritos',
+                                                style: TextStyle(
+                                                  color: isFav ? Colors.red : Colors.grey, 
+                                                  fontWeight: FontWeight.bold
                                                 ),
-                                              );
-                                            } else {
-                                              // Si no era, lo añadimos
-                                              await userService.addFavorite(uid: currentUid, bookId: materialId);
-                                              messenger.showSnackBar(
-                                                SnackBar(
-                                                  content: Text('Has agregado "$bookTitle" a tus favoritos ❤️'),
-                                                  backgroundColor: const Color(0xFFF28B31), // Naranja Unimet
-                                                  duration: const Duration(seconds: 2),
-                                                  behavior: SnackBarBehavior.floating,
-                                                ),
-                                              );
-                                            }
+                                              ),
+                                            );
                                           },
-                                          icon: Icon(
-                                            isFav ? Icons.favorite : Icons.favorite_border,
-                                            color: isFav ? Colors.red : Colors.grey,
-                                            size: 26,
-                                          ),
-                                          label: Text(
-                                            isFav ? 'En favoritos' : 'Añadir a favoritos',
-                                            style: TextStyle(
-                                              color: isFav ? Colors.red : Colors.grey, 
-                                              fontWeight: FontWeight.bold
-                                            ),
-                                          ),
-                                        );
-                                      },
+                                        ),
+                                      ],
                                     ),
                                   ],
-                                ),
-                              ],
-                            );
-                          },
+                                );
+                              },
+                            ),
+                          ),
                         ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -503,13 +645,26 @@ class _CoverCard extends StatelessWidget {
 
 class _DetailsCard extends StatelessWidget {
   final String title, category, ownerName, subject, author, description;
-  final bool isAvailable, isAdmin;
+  final String availabilityLabel;
+  final Color availabilityColor;
+  final bool isAdmin;
+  final bool isReserved;
   final VoidCallback onEdit;
+  final VoidCallback onReservedInfo;
 
   const _DetailsCard({
-    required this.title, required this.category, required this.ownerName,
-    required this.subject, required this.author, required this.description,
-    required this.isAvailable, required this.isAdmin, required this.onEdit,
+    required this.title,
+    required this.category,
+    required this.ownerName,
+    required this.subject,
+    required this.author,
+    required this.description,
+    required this.availabilityLabel,
+    required this.availabilityColor,
+    required this.isAdmin,
+    required this.isReserved,
+    required this.onEdit,
+    required this.onReservedInfo,
   });
 
   @override
@@ -528,7 +683,47 @@ class _DetailsCard extends StatelessWidget {
               _InfoLine(label: 'Categoría', value: category),
               _InfoLine(label: 'Dueño', value: ownerName),
               _InfoLine(label: 'Asignatura', value: subject),
-              _InfoLine(label: 'Disponibilidad', value: isAvailable ? 'Disponible' : 'No disponible', valueColor: isAvailable ? Colors.green : Colors.red),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    RichText(
+                      text: TextSpan(
+                        style: const TextStyle(
+                          color: Colors.black87,
+                          fontSize: 16,
+                          height: 1.25,
+                        ),
+                        children: [
+                          const TextSpan(
+                            text: 'Disponibilidad: ',
+                            style: TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                          TextSpan(
+                            text: availabilityLabel,
+                            style: TextStyle(color: availabilityColor),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (isReserved) ...[
+                      const SizedBox(width: 8),
+                      IconButton(
+                        onPressed: onReservedInfo,
+                        tooltip: '¿Qué significa “Reservado”?',
+                        icon: const Icon(
+                          Icons.info_outline,
+                          color: Color(0xFF1B3A57),
+                          size: 20,
+                        ),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
               const SizedBox(height: 14),
               Container(
                 width: double.infinity, padding: const EdgeInsets.all(14),
