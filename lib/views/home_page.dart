@@ -365,7 +365,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildCategoryFilter(HomeViewModel vm) {
-    final categories = ["TODO", "FACES", "Ingeniería", "Humanidades", "Derecho"];
+    final categories = ["TODO", "Faces", "Ingeniería", "Humanidades", "Derecho"];
 
     const Color brownBtn = cardBrown;
 

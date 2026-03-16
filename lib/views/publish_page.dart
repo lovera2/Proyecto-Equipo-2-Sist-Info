@@ -28,7 +28,7 @@ class _PublishPageState extends State<PublishPage> {
 
   String? _selectedCategory; // Aquí guardaremos la opción elegida
   final List<String> _categories = [
-    'FACES',
+    'Faces',
     'Ingeniería',
     'Humanidades',
     'Derecho',
