@@ -5,15 +5,17 @@ import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:convert';
+import 'donation_screen.dart';
 
-import 'payment_page.dart';
-import '../viewmodels/payment_viewmodel.dart';
+
+
 import '../viewmodels/profile_viewmodel.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import 'edit_profile_page.dart';
 import 'package:bookloop_unimet/views/chat_list_page.dart';
 import 'favorites_list_page.dart';
 import 'material_detail_page.dart';
+
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -603,36 +605,15 @@ class _TopProfileRow extends StatelessWidget {
                 onPressed: () {
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (_) => MockPaypalScreen(
-                        amount: 5.0,
-                        onPaymentComplete: (payEmail, payPass) async {
-                          final ok = await context
-                              .read<PaymentViewModel>()
-                              .sumarDonacionExtra(
-                                userEmail: email,
-                                montoNuevoString: "5.0",
-                              );
-                          if (ok && context.mounted) {
-                            Navigator.pop(context);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text("¡Donación sumada con éxito!"),
-                                backgroundColor: Colors.green,
-                              ),
-                            );
-                          }
-                        },
-                      ),
+                      builder: (_) => const DonationScreen(),
                     ),
                   );
                 },
                 icon: const Icon(Icons.favorite, size: 16, color: Colors.white),
-                label: const Text("Donar \$5",
-                    style: TextStyle(color: Colors.white, fontSize: 12)),
+                label: const Text("Realizar donación", style: TextStyle(color: Colors.white, fontSize: 12)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFF28B31),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   elevation: 0,
                 ),
               ),
