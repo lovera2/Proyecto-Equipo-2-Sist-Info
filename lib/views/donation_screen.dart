@@ -93,22 +93,39 @@ class _DonationScreenState extends State<DonationScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // LOGO UNIMET (3 Barras naranjas) falta modificar
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Container(width: 10, height: 42, color: unimetOrange, margin: const EdgeInsets.only(right: 6)),
-                          Container(width: 10, height: 32, color: unimetOrange, margin: const EdgeInsets.only(right: 6)),
-                          Container(width: 10, height: 22, color: unimetOrange),
-                        ],
-                      ),
-                     
+
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.end, 
+                            children: [
+                             
+                              IconButton(
+                                icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+                                onPressed: () => Navigator.pop(context),
+                              ),
+                              const SizedBox(width: 6), 
+                              
+                              Row(
+                                children: const [
+                                  Icon(Icons.menu_book, color: Colors.white, size: 28),
+                                  SizedBox(width: 10), 
+                                  Text(
+                                    "BookLoop",
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold, 
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
                       Row(
                         children: [
                           Container(
                             decoration: BoxDecoration(
                               color: unimetOrange,
-                              borderRadius: BorderRadius.circular(14), // Redondeado idéntico al Home
+                              borderRadius: BorderRadius.circular(14), 
                             ),
                             child: IconButton(
                               icon: const Icon(Icons.add, color: Colors.white),
