@@ -95,28 +95,17 @@ class _DonationScreenState extends State<DonationScreen> {
                     children: [
 
                           Row(
-                            crossAxisAlignment: CrossAxisAlignment.end, 
-                            children: [
-                             
-                              IconButton(
-                                icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
-                                onPressed: () => Navigator.pop(context),
-                              ),
-                              const SizedBox(width: 6), 
-                              
-                              Row(
-                                children: const [
-                                  Icon(Icons.menu_book, color: Colors.white, size: 28),
-                                  SizedBox(width: 10), 
-                                  Text(
-                                    "BookLoop",
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold, 
-                                    ),
-                                  ),
-                                ],
+                            crossAxisAlignment: CrossAxisAlignment.center, 
+                            children: const [
+                              Icon(Icons.menu_book, color: Colors.white, size: 28),
+                              SizedBox(width: 10), 
+                              Text(
+                                "BookLoop",
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 22, 
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ],
                           ),
