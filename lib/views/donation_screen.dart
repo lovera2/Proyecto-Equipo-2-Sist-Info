@@ -106,47 +106,45 @@ class _DonationScreenState extends State<DonationScreen> {
                       Row(
                         children: [
                           Container(
-                            decoration: BoxDecoration(color: unimetOrange, borderRadius: BorderRadius.circular(10)),
+                            decoration: BoxDecoration(
+                              color: unimetOrange,
+                              borderRadius: BorderRadius.circular(14), // Redondeado idéntico al Home
+                            ),
                             child: IconButton(
-                              icon: const Icon(Icons.add, color: Colors.white, size: 22),
+                              icon: const Icon(Icons.add, color: Colors.white),
                               onPressed: () => Navigator.pushNamed(context, '/publish'),
-                              padding: const EdgeInsets.all(8),
-                              constraints: const BoxConstraints(),
+                              tooltip: 'Publicar material',
                             ),
                           ),
-                          const SizedBox(width: 15),
+                          const SizedBox(width: 10),
                           IconButton(
-                            icon: const Icon(Icons.home, color: Colors.grey, size: 30),
+                            icon: const Icon(Icons.home_outlined, color: Colors.white, size: 28),
                             onPressed: () {
                               final email = context.read<ProfileViewModel>().email?.toLowerCase() ?? '';
                               final route = email.startsWith('admin') ? '/home_admin' : '/home_page';
                               Navigator.pushNamedAndRemoveUntil(context, route, (route) => false);
                             },
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
+                            tooltip: 'Inicio',
                           ),
-                          const SizedBox(width: 15),
+                          const SizedBox(width: 10),
+                          // CAMPANA
                           IconButton(
-                            icon: const Icon(Icons.person, color: Colors.grey, size: 30),
-                            onPressed: () => Navigator.pop(context), 
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                          ),
-                          const SizedBox(width: 15),
-                          
-                          IconButton(
-                            icon: const Icon(Icons.notifications_none, color: Colors.white, size: 30),
+                            icon: const Icon(Icons.notifications_none_outlined, color: Colors.white, size: 28),
                             onPressed: () {
                               Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatListPage()));
                             }, 
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
+                            tooltip: 'Notificaciones',
                           ),
-                          const SizedBox(width: 15),
-                         
+                          const SizedBox(width: 5),
+                          // PERFIL
+                          IconButton(
+                            icon: const Icon(Icons.person_outline, color: Colors.white, size: 28),
+                            onPressed: () => Navigator.pop(context), 
+                            tooltip: 'Perfil',
+                          ),
+                          // TRES PUNTOS
                           PopupMenuButton<String>(
-                            icon: const Icon(Icons.more_vert, color: Colors.white, size: 30),
-                            padding: EdgeInsets.zero,
+                            icon: const Icon(Icons.more_vert, color: Colors.white, size: 28),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                             onSelected: (value) async {
                               if (value == 'logout') {
@@ -161,7 +159,7 @@ class _DonationScreenState extends State<DonationScreen> {
                                 value: 'logout',
                                 child: Row(
                                   children: [
-                                    Icon(Icons.logout, color: unimetBlue),
+                                    Icon(Icons.logout, color: Color(0xFF1B3A57)),
                                     SizedBox(width: 10),
                                     Text('Cerrar sesión'),
                                   ],
@@ -193,18 +191,23 @@ class _DonationScreenState extends State<DonationScreen> {
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             
+                            // Título y flecha
                             Row(
                               children: [
                                 IconButton(
-                                  icon: const Icon(Icons.arrow_back, color: Colors.black87),
+                                  icon: const Icon(Icons.arrow_back, color: unimetBlue, size: 26),
                                   onPressed: () => Navigator.pop(context),
                                   padding: EdgeInsets.zero,
                                   constraints: const BoxConstraints(),
                                 ),
-                                const SizedBox(width: 10),
+                                const SizedBox(width: 12),
                                 const Text(
                                   "Donaciones",
-                                  style: TextStyle(fontSize: 26, fontWeight: FontWeight.normal, color: Colors.black87),
+                                  style: TextStyle(
+                                    fontSize: 24, 
+                                    fontWeight: FontWeight.bold, 
+                                    color: unimetBlue, 
+                                  ),
                                 ),
                               ],
                             ),
