@@ -7,8 +7,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:convert';
 import 'donation_screen.dart';
 
-
-
+import 'payment_page.dart';
+import '../viewmodels/payment_viewmodel.dart';
 import '../viewmodels/profile_viewmodel.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import 'edit_profile_page.dart';
@@ -776,26 +776,99 @@ class _MyBooksRow extends StatelessWidget {
 
   Future<void> _confirmDelete(
       BuildContext context, String bookId, String bookTitle) async {
+    
+    //Mostrar círculo de carga para que la app no parezca "congelada" al tocar la papelera
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const Center(child: CircularProgressIndicator(color: Color(0xFFF28B31))),
+    );
+
+    try {
+      final cleanBookId = bookId.trim();
+      bool isLoanActive = false;
+
+      //Buscamos directamente el material exacto en los chats 
+      final chatsSnapshot = await FirebaseFirestore.instance
+          .collection('chats')
+          .where('materialId', isEqualTo: cleanBookId)
+          .get();
+
+      for (var doc in chatsSnapshot.docs) {
+        final status = (doc.data()['status'] ?? '').toString().toLowerCase().trim();
+        
+        // Comprobamos la lista de estados ocupados
+        if (['pendiente', 'solicitado', 'esperando_confirmacion', 'rentado', 'devolucion_pendiente'].contains(status)) {
+          isLoanActive = true;
+          break;
+        }
+      }
+
+      //Quitamos el círculo de carga porque ya verificamos
+      if (context.mounted) Navigator.pop(context);
+
+      if (isLoanActive) {
+        // MOSTRAR BLOQUEO Y ABORTAR ELIMINACIÓN
+        if (context.mounted) {
+          showDialog(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+              title: const Row(
+                children: [
+                  Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
+                  SizedBox(width: 10),
+                  Text('Acción denegada', style: TextStyle(color: Color(0xFF1B3A57), fontSize: 18, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              content: Text('No puedes eliminar "$bookTitle" porque actualmente se encuentra en un proceso de reserva o préstamo activo.\n\nDebes rechazar la solicitud o concluir el préstamo antes de eliminar el material.'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Entendido', style: TextStyle(color: Color(0xFFF28B31), fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+          );
+        }
+        return; // Salimos de la función, NO se borra el libro
+      }
+      
+    } catch (e) {
+      // Si el internet o Firebase fallan, quitamos la carga y evitamos el borrado por seguridad
+      if (context.mounted) Navigator.pop(context); 
+      debugPrint("Error verificando base de datos: $e");
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error al verificar el estado del libro. Revisa tu conexión.'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return; 
+    }
+
+    //SI NO ESTÁ PRESTADO, PREGUNTAMOS SI ESTÁ SEGURO DE BORRAR 
+    if (!context.mounted) return;
+
     final bool? confirm = await showDialog<bool>(
       context: context,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-          title: const Text('Eliminar publicación',
-              style: TextStyle(color: Color(0xFF1B3A57))),
-          content: Text(
-              '¿Estás seguro de que deseas eliminar "$bookTitle"? Esta acción no se puede deshacer.'),
+          title: const Text('Eliminar publicación', style: TextStyle(color: Color(0xFF1B3A57))),
+          content: Text('¿Estás seguro de que deseas eliminar "$bookTitle"? Esta acción no se puede deshacer.'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
-              child:
-                  const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+              child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
               onPressed: () => Navigator.pop(dialogContext, true),
               child: const Text('Eliminar', style: TextStyle(color: Colors.white)),
@@ -805,12 +878,10 @@ class _MyBooksRow extends StatelessWidget {
       },
     );
 
-    if (confirm == true) {
+    //PROCESO FINAL DE ELIMINAR 
+    if (confirm == true && context.mounted) {
       try {
-        await FirebaseFirestore.instance
-            .collection('materials')
-            .doc(bookId)
-            .delete();
+        await FirebaseFirestore.instance.collection('materials').doc(bookId).delete();
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -823,11 +894,7 @@ class _MyBooksRow extends StatelessWidget {
       } catch (e) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error al eliminar: $e'),
-              backgroundColor: Colors.red,
-              behavior: SnackBarBehavior.floating,
-            ),
+            SnackBar(content: Text('Error al eliminar: $e'), backgroundColor: Colors.red),
           );
         }
       }
