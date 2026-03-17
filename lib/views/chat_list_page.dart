@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import 'individual_chat_page.dart';
+import 'donation_screen.dart';
 
 class ChatListPage extends StatelessWidget {
   const ChatListPage({super.key});
@@ -215,23 +216,49 @@ class ChatListPage extends StatelessWidget {
 
               // Menú (cerrar sesión)
               PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert, color: Colors.white, size: 28),
-                onSelected: (value) {
-                  if (value == 'logout') handleLogout();
-                },
-                itemBuilder: (context) => const [
-                  PopupMenuItem(
-                    value: 'logout',
-                    child: Row(
-                      children: [
-                        Icon(Icons.logout, color: unimetBlue),
-                        SizedBox(width: 10),
-                        Text('Cerrar Sesión'),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+                            
+                            icon: const Icon(Icons.more_vert, color: Colors.white, size: 28), 
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                            onSelected: (value) async {
+                              if (value == 'donate') {
+                                
+                                Navigator.push(
+                                  context, 
+                                  MaterialPageRoute(builder: (_) => const DonationScreen())
+                                );
+                              } else if (value == 'logout') {
+                                await FirebaseAuth.instance.signOut();
+                                if (context.mounted) {
+                  
+                                  Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false); 
+                                }
+                              }
+                            },
+                            itemBuilder: (context) => [
+                              // donaciones
+                              const PopupMenuItem(
+                                value: 'donate',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.volunteer_activism, color: Color(0xFFF28B31)), 
+                                    SizedBox(width: 10),
+                                    Text('Realizar donación'),
+                                  ],
+                                ),
+                              ),
+                              // cerrar sesion
+                              const PopupMenuItem(
+                                value: 'logout',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.logout, color: Color(0xFF1B3A57)), 
+                                    SizedBox(width: 10),
+                                    Text('Cerrar sesión'),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
             ],
           ),
         ],
