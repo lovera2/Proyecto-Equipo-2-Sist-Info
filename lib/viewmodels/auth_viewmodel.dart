@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../services/auth_service.dart';
 
@@ -38,7 +39,6 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
-  //Acción: login 
   Future<bool> login(String email, String password) async {
     isLoading = true;
     errorMessage = null;
@@ -46,6 +46,33 @@ class AuthViewModel extends ChangeNotifier {
 
     try {
       await _authService.login(email, password);
+
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        errorMessage = "❌ No se pudo iniciar sesión. Intenta nuevamente.";
+        return false;
+      }
+
+      final doc = await FirebaseFirestore.instance
+          .collection('usuarios')
+          .doc(user.uid)
+          .get();
+
+      if (!doc.exists) {
+        await _authService.logout();
+        errorMessage = "⛔ Esta cuenta ha sido eliminada permanentemente por el administrador.";
+        return false;
+      }
+
+      final data = doc.data() ?? <String, dynamic>{};
+      final status = (data['status'] ?? 'activo').toString().toLowerCase().trim();
+
+      if (status == 'suspendido') {
+        await _authService.logout();
+        errorMessage = "⛔ Esta cuenta está suspendida. Contacta al administrador.";
+        return false;
+      }
+
       return true;
     } on FirebaseAuthException catch (e) {
       errorMessage = _mensajeAuthES(e.code);

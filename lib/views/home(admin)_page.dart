@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../viewmodels/home_viewmodel.dart';
 import '../viewmodels/auth_viewmodel.dart';
+import '../viewmodels/admin_user_management_viewmodel.dart';
 import 'admin_dashboard_page.dart';
+import 'admin_user_management_page.dart';
 
 
 class HomeAdminPage extends StatefulWidget {
@@ -33,23 +35,47 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
   void _showTermsDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
+      builder: (BuildContext dialogContext) {
+        final h = MediaQuery.of(dialogContext).size.height;
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: const Text(
             "Términos y Condiciones",
             style: TextStyle(color: unimetBlue, fontWeight: FontWeight.bold),
           ),
-          content: const SingleChildScrollView(
-            child: Text(
-              "Al usar BookLoop UNIMET, aceptas el intercambio responsable de material académico...",
-              style: TextStyle(fontSize: 14),
+          content: SizedBox(
+            width: 520,
+            height: h * 0.62,
+            child: const SingleChildScrollView(
+              child: Text(
+                "Al usar BookLoop aceptas lo siguiente:\n\n"
+                "1) Acceso y verificación\n"
+                "• Solo se permite el uso de correos institucionales UNIMET (docente y estudiante).\n"
+                "• La cuenta es personal e intransferible.\n\n"
+                "2) Uso responsable\n"
+                "• Mantén un trato respetuoso en publicaciones y mensajes.\n"
+                "• Está prohibido publicar contenido ofensivo, engañoso o spam.\n"
+                "• BookLoop puede limitar o suspender cuentas ante evidencias de abuso.\n\n"
+                "3) Préstamos y devoluciones\n"
+                "• Al solicitar/aceptar un préstamo te comprometes a cumplir fecha, condiciones y lugar acordados.\n"
+                "• Quien recibe el material es responsable de cuidarlo y devolverlo en el estado acordado.\n"
+                "• En caso de pérdida o daño, las partes deben coordinar una solución (reposición o acuerdo).\n\n"
+                "4) Seguridad y reportes\n"
+                "• BookLoop puede limitar funciones (publicar/solicitar) si detecta patrones de incumplimiento.\n\n"
+                "5) Privacidad y datos\n"
+                "• Se almacenan datos mínimos para operar la plataforma.\n"
+                "• No se publican datos sensibles.\n\n"
+                "6) Alcance del servicio\n"
+                "• BookLoop es una herramienta de coordinación; no garantiza la disponibilidad de material.\n"
+                "• La UNIMET y el equipo de BookLoop no se responsabilizan por acuerdos fuera de la plataforma.\n",
+                style: TextStyle(fontSize: 14, height: 1.35),
+              ),
             ),
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Cerrar", style: TextStyle(color: unimetOrange)),
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text("Entendido", style: TextStyle(color: unimetOrange)),
             ),
           ],
         );
@@ -79,21 +105,85 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
           SafeArea(
             child: Column(
               children: [
-                _buildHeader(context),
-                
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  child: Column(
-                    children: [
-                      _buildSearchBar(homeVM),
-                      const SizedBox(height: 10),
-                    ],
+                if (!_showDashboard) ...[
+                  _buildHeader(context),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    child: Column(
+                      children: [
+                        _buildSearchBar(homeVM),
+                        const SizedBox(height: 10),
+                      ],
+                    ),
                   ),
-                ),
+                ],
 
                 Expanded(
                   child: _showDashboard 
-                    ? AdminDashboardView(onBack: () => setState(() => _showDashboard = false))
+                    ? AdminDashboardView(
+                        onBack: () => setState(() => _showDashboard = false),
+                        onOpenMenu: () async {
+                          final value = await showMenu<String>(
+                            context: context,
+                            position: const RelativeRect.fromLTRB(1000, 90, 20, 0),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(15),
+                            ),
+                            items: const [
+                              PopupMenuItem(
+                                value: 'dashboard',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.dashboard, color: unimetBlue, size: 20),
+                                    SizedBox(width: 12),
+                                    Text('Dashboard'),
+                                  ],
+                                ),
+                              ),
+                              PopupMenuItem(
+                                value: 'perfiles',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.people, color: unimetBlue, size: 20),
+                                    SizedBox(width: 12),
+                                    Text('Gestión de Usuarios'),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          );
+
+                          if (!context.mounted || value == null) return;
+
+                          if (value == 'dashboard') {
+                            if (_showDashboard) {
+                              ScaffoldMessenger.of(context)
+                                ..clearSnackBars()
+                                ..showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Ya estás en Dashboard.'),
+                                    duration: Duration(seconds: 2),
+                                  ),
+                                );
+                            } else {
+                              setState(() => _showDashboard = true);
+                            }
+                            return;
+                          }
+
+                          if (value == 'perfiles') {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ChangeNotifierProvider(
+                                  create: (_) => AdminUserManagementViewModel(),
+                                  child: const AdminUserManagementPage(),
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                      )
                     : Center( 
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -163,17 +253,28 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
                 icon: const Icon(Icons.settings_suggest, color: Colors.white),
                 onSelected: (value) {
                   if (value == 'dashboard') {
-                    setState(() => _showDashboard = true);
+                    if (_showDashboard) {
+                      ScaffoldMessenger.of(context)
+                        ..clearSnackBars()
+                        ..showSnackBar(
+                          const SnackBar(
+                            content: Text('Ya estás en Dashboard.'),
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                    } else {
+                      setState(() => _showDashboard = true);
+                    }
                     return;
                   }
 
                   if (value == 'perfiles') {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        backgroundColor: unimetOrange,
-                        content: Text(
-                          "🛠️ Gestión de Perfiles: en desarrollo",
-                          style: TextStyle(color: Colors.white),
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ChangeNotifierProvider(
+                          create: (_) => AdminUserManagementViewModel(),
+                          child: const AdminUserManagementPage(),
                         ),
                       ),
                     );
@@ -197,7 +298,7 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
                       children: [
                         Icon(Icons.people, color: unimetBlue, size: 20),
                         SizedBox(width: 12),
-                        Text('Gestión de Perfiles'),
+                        Text('Gestión de Usuarios'),
                       ],
                     ),
                   ),
@@ -270,73 +371,6 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
       ),
     );
   }
-Widget _buildDashboardView() {
-  return Column(
-    children: [
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Row(
-          children: [
-            TextButton.icon(
-              onPressed: () => setState(() => _showDashboard = false),
-              icon: const Icon(Icons.arrow_back, color: Colors.white),
-              label: const Text("Regresar", style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        ),
-      ),
-      Expanded(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            children: [
-              _buildMetricCard("Usuarios Registrados", "150", Icons.people, Colors.blue),
-              const SizedBox(height: 15),
-              _buildMetricCard("Intercambios Totales", "45", Icons.swap_horiz, Colors.orange),
-              const SizedBox(height: 15),
-              _buildMetricCard("Libros Activos", "320", Icons.book, Colors.green),
-              const SizedBox(height: 20),
-              Container(
-                height: 150,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(15),
-                  border: Border.all(color: Colors.white24)
-                ),
-                child: const Center(
-                  child: Text("Gráfico de Categorías", style: TextStyle(color: Colors.white60)),
-                ),
-              )
-            ],
-          ),
-        ),
-      ),
-    ],
-  );
-}
-
-Widget _buildMetricCard(String title, String value, IconData icon, Color color) {
-  return Container(
-    padding: const EdgeInsets.all(20),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(15),
-    ),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Row(
-          children: [
-            Icon(icon, color: color, size: 30),
-            const SizedBox(width: 15),
-            Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          ],
-        ),
-        Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: unimetBlue)),
-      ],
-    ),
-  );
-}
 
 }
 

@@ -1,11 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
+import 'chat_list_page.dart';
+import 'profile_page.dart';
 
 class AdminDashboardView extends StatefulWidget {
   final VoidCallback onBack;
+  final VoidCallback? onOpenMenu;
 
-  const AdminDashboardView({super.key, required this.onBack});
+  const AdminDashboardView({
+    super.key,
+    required this.onBack,
+    this.onOpenMenu,
+  });
 
   @override
   State<AdminDashboardView> createState() => _AdminDashboardViewState();
@@ -14,6 +23,7 @@ class AdminDashboardView extends StatefulWidget {
 class _AdminDashboardViewState extends State<AdminDashboardView> {
   static const Color unimetBlue = Color(0xFF1B3A57);
   static const Color unimetOrange = Color(0xFFF28B31);
+  bool _hasNewNotifications = true;
 
   DateTimeRange? _range;
   String _preset = '30d';
@@ -26,6 +36,63 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
   void initState() {
     super.initState();
     _applyPreset('30d');
+  }
+
+  Future<void> _handleLogout(BuildContext context) async {
+    await FirebaseAuth.instance.signOut();
+    if (!context.mounted) return;
+    Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+  }
+
+  void _showTermsDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        final h = MediaQuery.of(dialogContext).size.height;
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text(
+            "Términos y Condiciones",
+            style: TextStyle(color: unimetBlue, fontWeight: FontWeight.bold),
+          ),
+          content: SizedBox(
+            width: 520,
+            height: h * 0.62,
+            child: const SingleChildScrollView(
+              child: Text(
+                "Al usar BookLoop aceptas lo siguiente:\n\n"
+                "1) Acceso y verificación\n"
+                "• Solo se permite el uso de correos institucionales UNIMET (docente y estudiante).\n"
+                "• La cuenta es personal e intransferible.\n\n"
+                "2) Uso responsable\n"
+                "• Mantén un trato respetuoso en publicaciones y mensajes.\n"
+                "• Está prohibido publicar contenido ofensivo, engañoso o spam.\n"
+                "• BookLoop puede limitar o suspender cuentas ante evidencias de abuso.\n\n"
+                "3) Préstamos y devoluciones\n"
+                "• Al solicitar/aceptar un préstamo te comprometes a cumplir fecha, condiciones y lugar acordados.\n"
+                "• Quien recibe el material es responsable de cuidarlo y devolverlo en el estado acordado.\n"
+                "• En caso de pérdida o daño, las partes deben coordinar una solución (reposición o acuerdo).\n\n"
+                "4) Seguridad y reportes\n"
+                "• BookLoop puede limitar funciones (publicar/solicitar) si detecta patrones de incumplimiento.\n\n"
+                "5) Privacidad y datos\n"
+                "• Se almacenan datos mínimos para operar la plataforma.\n"
+                "• No se publican datos sensibles.\n\n"
+                "6) Alcance del servicio\n"
+                "• BookLoop es una herramienta de coordinación; no garantiza la disponibilidad de material.\n"
+                "• La UNIMET y el equipo de BookLoop no se responsabilizan por acuerdos fuera de la plataforma.\n",
+                style: TextStyle(fontSize: 14, height: 1.35),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text("Entendido", style: TextStyle(color: unimetOrange)),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _applyPreset(String preset) {
@@ -391,7 +458,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
       color: Colors.transparent,
       child: Column(
         children: [
-          _buildTopBar(context),
+          _buildHeader(context),
           Expanded(
             child: FutureBuilder<_DashboardData>(
               future: _future,
@@ -525,7 +592,9 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                             ],
                           ),
 
-                          const SizedBox(height: 50),
+                          const SizedBox(height: 40),
+                          _Footer(onTerms: () => _showTermsDialog(context)),
+                          const SizedBox(height: 12),
                         ],
                       ),
                     );
@@ -539,23 +608,138 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
     );
   }
 
-  Widget _buildTopBar(BuildContext context) {
+  Widget _buildHeader(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
-            onPressed: widget.onBack,
+          Row(
+            children: [
+              IconButton(
+                onPressed: widget.onBack,
+                icon: const Icon(
+                  Icons.arrow_back,
+                  color: Colors.white,
+                  size: 30,
+                ),
+                tooltip: 'Volver',
+              ),
+              const SizedBox(width: 4),
+              const Icon(Icons.menu_book, color: Colors.white, size: 30),
+              const SizedBox(width: 12),
+              const Text(
+                'BookLoop ADMIN',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          const Text(
-            "Estadísticas Dashboard",
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
+          Row(
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  color: unimetBlue,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: IconButton(
+                  onPressed: () => Navigator.pushNamed(context, '/publish'),
+                  icon: const Icon(Icons.add, color: Colors.white),
+                  tooltip: 'Publicar material',
+                ),
+              ),
+              const SizedBox(width: 10),
+              Stack(
+                children: [
+                  IconButton(
+                    icon: const Icon(
+                      Icons.notifications_none_outlined,
+                      color: Colors.white,
+                      size: 28,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _hasNewNotifications = false;
+                      });
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const ChatListPage()),
+                      );
+                    },
+                    tooltip: 'Mis chats y notificaciones',
+                  ),
+                  if (_hasNewNotifications)
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: unimetBlue, width: 1.5),
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 12,
+                          minHeight: 12,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(width: 5),
+              IconButton(
+                icon: const Icon(
+                  Icons.person_outline,
+                  color: Colors.white,
+                  size: 28,
+                ),
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const ProfilePage()),
+                  );
+                },
+                tooltip: 'Mi perfil',
+              ),
+              IconButton(
+                icon: const Icon(
+                  Icons.settings_suggest,
+                  color: Colors.white,
+                  size: 28,
+                ),
+                onPressed: widget.onOpenMenu,
+                tooltip: 'Mostrar menú',
+              ),
+              PopupMenuButton<String>(
+                icon: const Icon(
+                  Icons.more_vert,
+                  color: Colors.white,
+                  size: 28,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                onSelected: (value) async {
+                  if (value == 'logout') {
+                    await _handleLogout(context);
+                  }
+                },
+                itemBuilder: (context) => const [
+                  PopupMenuItem(
+                    value: 'logout',
+                    child: Row(
+                      children: [
+                        Icon(Icons.logout, color: Color(0xFF1B3A57)),
+                        SizedBox(width: 10),
+                        Text('Cerrar sesión'),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ],
       ),
@@ -1434,4 +1618,33 @@ class _DashboardData {
     required this.materialsByBucketCat,
     required this.useDailyBuckets,
   });
+}
+
+
+class _Footer extends StatelessWidget {
+  final VoidCallback onTerms;
+  const _Footer({required this.onTerms});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      child: Row(
+        children: [
+          const Text(
+            '© BookLoop • UNIMET',
+            style: TextStyle(color: Colors.white60, fontSize: 12),
+          ),
+          const Spacer(),
+          TextButton(
+            onPressed: onTerms,
+            child: const Text(
+              'Términos y condiciones',
+              style: TextStyle(color: Colors.white70, fontSize: 12),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
