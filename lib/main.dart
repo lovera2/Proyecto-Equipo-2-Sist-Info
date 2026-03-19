@@ -19,6 +19,7 @@ import 'views/publish_page.dart';
 import 'services/auth_service.dart';
 import 'services/user_service.dart';
 import 'services/material_service.dart';
+import 'services/admin_material_service.dart';
 
 // ViewModels
 import 'viewmodels/auth_viewmodel.dart';
@@ -27,6 +28,7 @@ import 'viewmodels/register_viewmodel.dart';
 import 'viewmodels/profile_viewmodel.dart';
 import 'viewmodels/home_viewmodel.dart';
 import 'viewmodels/publish_viewmodel.dart';
+import 'viewmodels/admin_material_viewmodel.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -72,6 +74,11 @@ class BookLoopApp extends StatelessWidget {
         ChangeNotifierProvider<HomeViewModel>(
           create: (context) => HomeViewModel(
             context.read<MaterialService>(), 
+          ),
+        ),
+        ChangeNotifierProvider<AdminMaterialViewModel>(
+          create: (context) => AdminMaterialViewModel(
+            context.read<AdminMaterialService>(),
           ),
         ),
         ChangeNotifierProvider<PublishViewModel>(

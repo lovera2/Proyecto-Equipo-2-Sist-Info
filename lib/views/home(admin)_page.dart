@@ -11,6 +11,10 @@ import 'material_detail_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'chat_list_page.dart';
 import 'profile_page.dart';
+import 'admin_material_management_page.dart';
+import '../viewmodels/admin_material_viewmodel.dart';
+import '../services/admin_material_service.dart';
+import 'package:provider/provider.dart';
 
 
 class HomeAdminPage extends StatefulWidget {
@@ -364,7 +368,6 @@ Widget _buildBookCard(String materialId, Map<String, dynamic> data) {
   final dynamic rawImage = data['imageUrl']; 
   final String? imageBase64 = rawImage is String ? rawImage : null;
 
-  // SOLUCIÓN: Inicializamos con un widget por defecto para evitar el error de compilación
   Widget imageWidget = const Center(child: Icon(Icons.book, size: 50, color: Colors.grey));
 
   try {
@@ -388,7 +391,7 @@ Widget _buildBookCard(String materialId, Map<String, dynamic> data) {
 
   return Container(
     decoration: BoxDecoration(
-      color: cardBrown, // Color original de home(admin)_page(wrong).dart
+      color: cardBrown,
       borderRadius: BorderRadius.circular(16),
       boxShadow: [
         BoxShadow(
@@ -400,7 +403,6 @@ Widget _buildBookCard(String materialId, Map<String, dynamic> data) {
     ),
     child: Column(
       children: [
-        // Portada + badge de estado (Diseño recuperado de la versión anterior)
         Expanded(
           flex: 9,
           child: Padding(
@@ -436,7 +438,6 @@ Widget _buildBookCard(String materialId, Map<String, dynamic> data) {
           ),
         ),
 
-        // Textos de Título y Autor
         Expanded(
           flex: 4,
           child: Padding(
@@ -534,6 +535,16 @@ class _AdminTopHeader extends StatelessWidget {
           ],
         ),
       ),
+      PopupMenuItem(
+        value: 'materiales',
+        child: Row(
+          children: [
+            Icon(Icons.book, color: Color(0xFF1B3A57), size: 20),
+            SizedBox(width: 12),
+            Text('Gestión de Material'),
+          ],
+        ),
+      ),
     ],
   );
 
@@ -543,13 +554,24 @@ class _AdminTopHeader extends StatelessWidget {
     onOpenDashboard();
     return;
   } 
-  if (value == 'perfiles') {
+  else if (value == 'perfiles') {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => ChangeNotifierProvider(
           create: (_) => AdminUserManagementViewModel(),
           child: const AdminUserManagementPage(),
+        ),
+      ),
+    );
+  }
+  else if (value == 'materiales') {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ChangeNotifierProvider(
+          create: (_) => AdminMaterialViewModel(AdminMaterialService()),
+          child: const AdminMaterialManagementPage(),
         ),
       ),
     );
