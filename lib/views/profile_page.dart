@@ -34,7 +34,7 @@ class _ProfilePageState extends State<ProfilePage> {
   static const Color unimetBlue = Color(0xFF1B3A57);
   static const Color unimetOrange = Color(0xFFF28B31);
 
-  bool _hasNewNotifications = true;
+  bool _hasNewNotifications = false;
 
   @override
   void initState() {
@@ -360,24 +360,6 @@ class _ProfileHeader extends StatelessWidget {
                     onPressed: onNotifications,
                     tooltip: 'Mis chats y notificaciones',
                   ),
-                  if (hasNewNotifications)
-                    Positioned(
-                      right: 8,
-                      top: 8,
-                      child: Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                              color: const Color(0xFF1B3A57), width: 1.5),
-                        ),
-                        constraints: const BoxConstraints(
-                          minWidth: 12,
-                          minHeight: 12,
-                        ),
-                      ),
-                    ),
                 ],
               ),
               const SizedBox(width: 5),

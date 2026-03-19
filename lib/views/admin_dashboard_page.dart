@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import 'chat_list_page.dart';
 import 'profile_page.dart';
+import 'home(admin)_page.dart';
 import 'package:provider/provider.dart';
 import '../viewmodels/admin_user_management_viewmodel.dart';
 import '../viewmodels/admin_material_viewmodel.dart';
@@ -30,7 +31,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
   static const Color unimetBlue = Color(0xFF1B3A57);
   static const Color unimetOrange = Color(0xFFF28B31);
 
-  bool _hasNewNotifications = true;
+  bool _hasNewNotifications = false;
 
   DateTimeRange? _range;
   String _preset = '30d';
@@ -49,6 +50,30 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
     await FirebaseAuth.instance.signOut();
     if (!context.mounted) return;
     Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+  }
+
+  void _goHome(BuildContext context) {
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        pageBuilder: (_, __, ___) => const HomeAdminPage(),
+        transitionDuration: const Duration(milliseconds: 280),
+        reverseTransitionDuration: const Duration(milliseconds: 280),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          final curved = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+          );
+
+          return SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(-1, 0),
+              end: Offset.zero,
+            ).animate(curved),
+            child: child,
+          );
+        },
+      ),
+    );
   }
 
   Future<void> _mostrarMenuAdmin(BuildContext context) async {
@@ -781,16 +806,6 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
         children: [
           Row(
             children: [
-              IconButton(
-                onPressed: widget.onBack,
-                icon: const Icon(
-                  Icons.arrow_back,
-                  color: Colors.white,
-                  size: 30,
-                ),
-                tooltip: 'Volver',
-              ),
-              const SizedBox(width: 4),
               const Icon(Icons.menu_book, color: Colors.white, size: 30),
               const SizedBox(width: 12),
               const Text(
@@ -807,7 +822,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
             children: [
               Container(
                 decoration: BoxDecoration(
-                  color: unimetBlue,
+                  color: unimetOrange,
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: IconButton(
@@ -817,6 +832,15 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                 ),
               ),
               const SizedBox(width: 10),
+              IconButton(
+                icon: const Icon(
+                  Icons.home_outlined,
+                  color: Colors.white,
+                  size: 28,
+                ),
+                tooltip: 'Inicio',
+                onPressed: () => _goHome(context),
+              ),
               Stack(
                 children: [
                   IconButton(
@@ -837,23 +861,6 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                     },
                     tooltip: 'Mis chats y notificaciones',
                   ),
-                  if (_hasNewNotifications)
-                    Positioned(
-                      right: 8,
-                      top: 8,
-                      child: Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: unimetBlue, width: 1.5),
-                        ),
-                        constraints: const BoxConstraints(
-                          minWidth: 12,
-                          minHeight: 12,
-                        ),
-                      ),
-                    ),
                 ],
               ),
               const SizedBox(width: 5),

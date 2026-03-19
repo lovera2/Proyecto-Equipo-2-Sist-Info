@@ -772,16 +772,6 @@ class _AdminTopHeader extends StatelessWidget {
         children: [
           Row(
             children: [
-              IconButton(
-                onPressed: onBack,
-                icon: const Icon(
-                  Icons.arrow_back,
-                  color: Colors.white,
-                  size: 30,
-                ),
-                tooltip: 'Volver',
-              ),
-              const SizedBox(width: 4),
               const Icon(Icons.menu_book, color: Colors.white, size: 30),
               const SizedBox(width: 12),
               const Text(
@@ -796,16 +786,10 @@ class _AdminTopHeader extends StatelessWidget {
           ),
           Row(
             children: [
-              Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1B3A57),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: IconButton(
-                  onPressed: () => Navigator.pushNamed(context, '/publish'),
-                  icon: const Icon(Icons.add, color: Colors.white),
-                  tooltip: 'Publicar material',
-                ),
+              IconButton(
+                onPressed: () => Navigator.pushNamed(context, '/publish'),
+                icon: const Icon(Icons.add, color: Colors.white, size: 28),
+                tooltip: 'Publicar material',
               ),
               const SizedBox(width: 10),
               IconButton(

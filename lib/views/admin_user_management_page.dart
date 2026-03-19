@@ -12,6 +12,7 @@ import '../viewmodels/admin_material_viewmodel.dart';
 import '../services/admin_material_service.dart';
 import 'admin_dashboard_page.dart';
 import 'admin_material_management_page.dart';
+import 'home(admin)_page.dart';
 
 class AdminUserManagementPage extends StatefulWidget {
   const AdminUserManagementPage({super.key});
@@ -39,6 +40,30 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _goHome(BuildContext context) {
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        pageBuilder: (_, __, ___) => const HomeAdminPage(),
+        transitionDuration: const Duration(milliseconds: 280),
+        reverseTransitionDuration: const Duration(milliseconds: 280),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          final curved = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+          );
+
+          return SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(-1, 0),
+              end: Offset.zero,
+            ).animate(curved),
+            child: child,
+          );
+        },
+      ),
+    );
   }
 
   Future<void> _confirmarSuspension(BuildContext context) async {
@@ -295,7 +320,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _AdminTopHeader(
-                      onBack: () => Navigator.pop(context),
+                      onGoHome: () => _goHome(context),
                     ),
                     const SizedBox(height: 6),
                     const Padding(
@@ -1535,9 +1560,11 @@ class _InfoBox extends StatelessWidget {
   }
 }
 class _AdminTopHeader extends StatelessWidget {
-  final VoidCallback onBack;
+  final VoidCallback onGoHome;
 
-  const _AdminTopHeader({required this.onBack});
+  const _AdminTopHeader({required this.onGoHome});
+
+  static const Color adminOrange = Color(0xFFE58A34);
 
   Future<void> _handleLogout(BuildContext context) async {
     await FirebaseAuth.instance.signOut();
@@ -1632,16 +1659,6 @@ class _AdminTopHeader extends StatelessWidget {
         children: [
           Row(
             children: [
-              IconButton(
-                onPressed: onBack,
-                icon: const Icon(
-                  Icons.arrow_back,
-                  color: Colors.white,
-                  size: 30,
-                ),
-                tooltip: 'Volver',
-              ),
-              const SizedBox(width: 4),
               const Icon(Icons.menu_book, color: Colors.white, size: 30),
               const SizedBox(width: 12),
               const Text(
@@ -1656,9 +1673,10 @@ class _AdminTopHeader extends StatelessWidget {
           ),
           Row(
             children: [
+              // Publicar (naranja)
               Container(
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1B3A57),
+                  color: adminOrange,
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: IconButton(
@@ -1668,6 +1686,18 @@ class _AdminTopHeader extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 10),
+
+              // Inicio
+              IconButton(
+                icon: const Icon(
+                  Icons.home_outlined,
+                  color: Colors.white,
+                  size: 28,
+                ),
+                tooltip: 'Inicio',
+                onPressed: onGoHome,
+              ),
+
               IconButton(
                 icon: const Icon(
                   Icons.notifications_none_outlined,

@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'chat_list_page.dart';
 import 'profile_page.dart';
+import 'home(admin)_page.dart';
 import 'admin_user_management_page.dart';
 import '../viewmodels/admin_user_management_viewmodel.dart';
 import '../viewmodels/admin_material_viewmodel.dart';
@@ -37,6 +38,30 @@ class _AdminMaterialManagementPageState
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _goHome(BuildContext context) {
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        pageBuilder: (_, __, ___) => const HomeAdminPage(),
+        transitionDuration: const Duration(milliseconds: 280),
+        reverseTransitionDuration: const Duration(milliseconds: 280),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          final curved = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+          );
+
+          return SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(-1, 0),
+              end: Offset.zero,
+            ).animate(curved),
+            child: child,
+          );
+        },
+      ),
+    );
   }
 
   String _normalizarCategoriaLocal(String texto) {
@@ -296,6 +321,65 @@ class _AdminMaterialManagementPageState
     }
   }
 
+  void _showTermsDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        final h = MediaQuery.of(dialogContext).size.height;
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Text(
+            'Términos y Condiciones',
+            style: TextStyle(
+              color: unimetBlue,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: SizedBox(
+            width: 520,
+            height: h * 0.62,
+            child: const SingleChildScrollView(
+              child: Text(
+                'Al usar BookLoop aceptas lo siguiente:\n\n'
+                '1) Acceso y verificación\n'
+                '• Solo se permite el uso de correos institucionales UNIMET (docente y estudiante).\n'
+                '• La cuenta es personal e intransferible.\n\n'
+                '2) Uso responsable\n'
+                '• Mantén un trato respetuoso en publicaciones y mensajes.\n'
+                '• Está prohibido publicar contenido ofensivo, engañoso o spam.\n'
+                '• BookLoop puede limitar o suspender cuentas ante evidencias de abuso.\n\n'
+                '3) Préstamos y devoluciones\n'
+                '• Al solicitar/aceptar un préstamo te comprometes a cumplir fecha, condiciones y lugar acordados.\n'
+                '• Quien recibe el material es responsable de cuidarlo y devolverlo en el estado acordado.\n'
+                '• En caso de pérdida o daño, las partes deben coordinar una solución (reposición o acuerdo).\n\n'
+                '4) Seguridad y reportes\n'
+                '• BookLoop puede limitar funciones (publicar/solicitar) si detecta patrones de incumplimiento.\n\n'
+                '5) Privacidad y datos\n'
+                '• Se almacenan datos mínimos para operar la plataforma.\n'
+                '• No se publican datos sensibles.\n\n'
+                '6) Alcance del servicio\n'
+                '• BookLoop es una herramienta de coordinación; no garantiza la disponibilidad de material.\n'
+                '• La UNIMET y el equipo de BookLoop no se responsabilizan por acuerdos fuera de la plataforma.\n',
+                style: TextStyle(fontSize: 14, height: 1.35),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text(
+                'Entendido',
+                style: TextStyle(color: adminOrange),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -316,7 +400,7 @@ class _AdminMaterialManagementPageState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _AdminTopHeader(
-                  onBack: () => Navigator.pop(context),
+                  onGoHome: () => _goHome(context),
                   onOpenDashboard:
                       () => Navigator.popUntil(context, (route) => route.isFirst),
                 ),
@@ -400,7 +484,7 @@ class _AdminMaterialManagementPageState
                     ),
                   ),
                 ),
-                _Footer(onTerms: () {}),
+                _Footer(onTerms: () => _showTermsDialog(context)),
               ],
             ),
           ),
@@ -1450,11 +1534,12 @@ class _AdminMaterialManagementPageState
 }
 
 class _AdminTopHeader extends StatelessWidget {
-  final VoidCallback onBack;
+  static const Color adminOrange = Color(0xFFE58A34);
+  final VoidCallback onGoHome;
   final VoidCallback onOpenDashboard;
 
   const _AdminTopHeader({
-    required this.onBack,
+    required this.onGoHome,
     required this.onOpenDashboard,
   });
 
@@ -1542,12 +1627,6 @@ class _AdminTopHeader extends StatelessWidget {
         children: [
           Row(
             children: [
-              IconButton(
-                onPressed: onBack,
-                icon: const Icon(Icons.arrow_back, color: Colors.white, size: 30),
-                tooltip: 'Volver',
-              ),
-              const SizedBox(width: 4),
               const Icon(Icons.menu_book, color: Colors.white, size: 30),
               const SizedBox(width: 12),
               const Text(
@@ -1562,9 +1641,10 @@ class _AdminTopHeader extends StatelessWidget {
           ),
           Row(
             children: [
+              // Publicar (naranja)
               Container(
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1B3A57),
+                  color: adminOrange,
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: IconButton(
@@ -1574,6 +1654,17 @@ class _AdminTopHeader extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 10),
+
+              // Inicio
+              IconButton(
+                icon: const Icon(
+                  Icons.home_outlined,
+                  color: Colors.white,
+                  size: 28,
+                ),
+                tooltip: 'Inicio',
+                onPressed: onGoHome,
+              ),
               IconButton(
                 icon: const Icon(
                   Icons.notifications_none_outlined,
@@ -1581,9 +1672,11 @@ class _AdminTopHeader extends StatelessWidget {
                   size: 28,
                 ),
                 onPressed: () {
-                  Navigator.of(
-                    context,
-                  ).push(MaterialPageRoute(builder: (_) => const ChatListPage()));
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const ChatListPage(isAdmin: true),
+                    ),
+                  );
                 },
                 tooltip: 'Mis chats y notificaciones',
               ),

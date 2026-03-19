@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../viewmodels/auth_viewmodel.dart';
 import 'register_page.dart';
+import 'start_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -65,11 +66,36 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  void _goBackFromLogin() {
+    Navigator.of(context).pushAndRemoveUntil(
+      PageRouteBuilder(
+        pageBuilder: (_, __, ___) => const StartPage(),
+        transitionDuration: const Duration(milliseconds: 280),
+        reverseTransitionDuration: const Duration(milliseconds: 280),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          final curved = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+          );
+
+          return SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(-1, 0),
+              end: Offset.zero,
+            ).animate(curved),
+            child: child,
+          );
+        },
+      ),
+      (route) => false,
+    );
+  }
+
   Widget _backButton({required Color color}) {
     return IconButton(
       tooltip: 'Volver',
       icon: Icon(Icons.arrow_back_ios_new_rounded, color: color),
-      onPressed: () => Navigator.pop(context),
+      onPressed: _goBackFromLogin,
     );
   }
 
