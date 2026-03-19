@@ -120,7 +120,7 @@ class _AdminMaterialManagementPageState
                       ),
                       SizedBox(height: 6),
                       Text(
-                        'Administra el catálogo de libros, consulta su información, controla la disponibilidad y gestiona las facultades.',
+                        'Administra el catálogo de libros, consulta su información, controla la disponibilidad y gestiona las categorías.',
                         style: TextStyle(color: Colors.white70, fontSize: 14),
                       ),
                     ],
@@ -245,6 +245,7 @@ class _AdminMaterialManagementPageState
                         final libro = vm.materiales[index];
                         final esSeleccionado =
                             vm.materialSeleccionado?['id'] == libro['id'];
+
                         return ListTile(
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -291,11 +292,11 @@ class _AdminMaterialManagementPageState
         children: [
           Row(
             children: [
-              const Icon(Icons.school, color: unimetBlue),
+              const Icon(Icons.category, color: unimetBlue),
               const SizedBox(width: 8),
               const Expanded(
                 child: Text(
-                  'Gestión de facultades',
+                  'Gestión de categorías',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
@@ -319,13 +320,13 @@ class _AdminMaterialManagementPageState
           ),
           const SizedBox(height: 8),
           const Text(
-            'Puedes crear, renombrar o eliminar facultades. Al renombrarlas, todos los libros asociados se actualizan automáticamente. La categoría Otros siempre debe existir.',
+            'Las categorías base no se pueden borrar. Las categorías creadas sí pueden eliminarse si todos sus libros están disponibles.',
             style: TextStyle(color: Colors.black54, fontSize: 12),
           ),
           const SizedBox(height: 14),
           if (vm.categorias.isEmpty)
             const Text(
-              'No hay facultades registradas.',
+              'No hay categorías registradas.',
               style: TextStyle(color: Colors.grey),
             )
           else
@@ -334,17 +335,24 @@ class _AdminMaterialManagementPageState
               runSpacing: 8,
               children:
                   vm.categorias.map((categoria) {
-                    final esOtros = categoria.trim().toLowerCase() == 'otros';
+                    final esBase = vm.esCategoriaBase(categoria);
+
                     return Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 12,
                         vertical: 8,
                       ),
                       decoration: BoxDecoration(
-                        color: unimetBlue.withOpacity(0.08),
+                        color:
+                            esBase
+                                ? Colors.grey.shade200
+                                : unimetBlue.withOpacity(0.08),
                         borderRadius: BorderRadius.circular(30),
                         border: Border.all(
-                          color: unimetBlue.withOpacity(0.15),
+                          color:
+                              esBase
+                                  ? Colors.grey.shade300
+                                  : unimetBlue.withOpacity(0.15),
                         ),
                       ),
                       child: Row(
@@ -352,51 +360,49 @@ class _AdminMaterialManagementPageState
                         children: [
                           Text(
                             categoria,
-                            style: const TextStyle(
-                              color: unimetBlue,
+                            style: TextStyle(
+                              color: esBase ? Colors.black54 : unimetBlue,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          InkWell(
-                            onTap:
-                                esOtros
-                                    ? null
-                                    : () => _mostrarDialogoRenombrarCategoria(
-                                      context,
-                                      vm,
-                                      categoria,
-                                    ),
-                            borderRadius: BorderRadius.circular(30),
-                            child: Padding(
-                              padding: const EdgeInsets.all(2),
-                              child: Icon(
-                                Icons.edit,
-                                size: 18,
-                                color: esOtros ? Colors.grey : unimetBlue,
+                          if (!esBase) ...[
+                            const SizedBox(width: 8),
+                            InkWell(
+                              onTap:
+                                  () => _mostrarDialogoRenombrarCategoria(
+                                    context,
+                                    vm,
+                                    categoria,
+                                  ),
+                              borderRadius: BorderRadius.circular(30),
+                              child: const Padding(
+                                padding: EdgeInsets.all(2),
+                                child: Icon(
+                                  Icons.edit,
+                                  size: 18,
+                                  color: unimetBlue,
+                                ),
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 6),
-                          InkWell(
-                            onTap:
-                                esOtros
-                                    ? null
-                                    : () => _confirmarEliminarCategoria(
-                                      context,
-                                      vm,
-                                      categoria,
-                                    ),
-                            borderRadius: BorderRadius.circular(30),
-                            child: Padding(
-                              padding: const EdgeInsets.all(2),
-                              child: Icon(
-                                Icons.close,
-                                size: 18,
-                                color: esOtros ? Colors.grey : Colors.red,
+                            const SizedBox(width: 6),
+                            InkWell(
+                              onTap:
+                                  () => _confirmarEliminarCategoria(
+                                    context,
+                                    vm,
+                                    categoria,
+                                  ),
+                              borderRadius: BorderRadius.circular(30),
+                              child: const Padding(
+                                padding: EdgeInsets.all(2),
+                                child: Icon(
+                                  Icons.close,
+                                  size: 18,
+                                  color: Colors.red,
+                                ),
                               ),
                             ),
-                          ),
+                          ],
                         ],
                       ),
                     );
@@ -421,7 +427,7 @@ class _AdminMaterialManagementPageState
               borderRadius: BorderRadius.circular(18),
             ),
             title: const Text(
-              'Agregar facultad',
+              'Agregar categoría',
               style: TextStyle(
                 color: unimetBlue,
                 fontWeight: FontWeight.bold,
@@ -448,11 +454,13 @@ class _AdminMaterialManagementPageState
                 onPressed: () async {
                   try {
                     await vm.agregarCategoria(controller.text);
+
                     if (!context.mounted) return;
                     Navigator.pop(context);
+
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Facultad creada correctamente'),
+                        content: Text('Categoría creada correctamente'),
                         backgroundColor: Colors.green,
                       ),
                     );
@@ -490,7 +498,7 @@ class _AdminMaterialManagementPageState
               borderRadius: BorderRadius.circular(18),
             ),
             title: const Text(
-              'Renombrar facultad',
+              'Renombrar categoría',
               style: TextStyle(
                 color: unimetBlue,
                 fontWeight: FontWeight.bold,
@@ -500,7 +508,7 @@ class _AdminMaterialManagementPageState
               controller: controller,
               autofocus: true,
               decoration: const InputDecoration(
-                hintText: 'Nuevo nombre de la facultad',
+                hintText: 'Nuevo nombre de la categoría',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -520,11 +528,13 @@ class _AdminMaterialManagementPageState
                       categoriaActual,
                       controller.text,
                     );
+
                     if (!context.mounted) return;
                     Navigator.pop(context);
+
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Facultad renombrada correctamente'),
+                        content: Text('Categoría renombrada correctamente'),
                         backgroundColor: Colors.green,
                       ),
                     );
@@ -560,12 +570,12 @@ class _AdminMaterialManagementPageState
               borderRadius: BorderRadius.circular(18),
             ),
             title: const Text(
-              'Eliminar facultad',
+              'Eliminar categoría',
               style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
             ),
             content: Text(
-              'Se eliminará la facultad "$categoria" y todos los libros asociados.\n\n'
-              'Solo se permitirá si todos los libros de esa facultad están disponibles.',
+              'Se eliminará la categoría "$categoria" y todos los libros asociados.\n\n'
+              'Solo se permitirá si todos los libros de esa categoría están disponibles.',
             ),
             actions: [
               TextButton(
@@ -579,13 +589,15 @@ class _AdminMaterialManagementPageState
                 ),
                 onPressed: () async {
                   Navigator.pop(context);
+
                   try {
                     await vm.eliminarCategoria(categoria);
+
                     if (!mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
-                          'Facultad "$categoria" eliminada correctamente',
+                          'Categoría "$categoria" eliminada correctamente',
                         ),
                         backgroundColor: Colors.green,
                       ),

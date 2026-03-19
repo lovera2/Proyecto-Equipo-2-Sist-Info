@@ -3,12 +3,25 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class AdminMaterialService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  static const List<String> categoriasBase = [
+    'Faces',
+    'Ingeniería',
+    'Humanidades',
+    'Derecho',
+    'Otros',
+  ];
+
   String _normalizarTexto(String valor) {
     return valor.trim().toLowerCase();
   }
 
   String _buildCategoryDocId(String categoryName) {
     return _normalizarTexto(categoryName).replaceAll('/', '_');
+  }
+
+  bool esCategoriaBase(String nombreCategoria) {
+    final normalizada = _normalizarTexto(nombreCategoria);
+    return categoriasBase.any((c) => _normalizarTexto(c) == normalizada);
   }
 
   Future<List<Map<String, dynamic>>> obtenerMateriales() async {
@@ -32,8 +45,56 @@ class AdminMaterialService {
     await _firestore.collection('materials').doc(id).delete();
   }
 
+  Future<void> asegurarCategoriasBase() async {
+    for (final categoria in categoriasBase) {
+      final docRef =
+          _firestore.collection('categories').doc(_buildCategoryDocId(categoria));
+      final doc = await docRef.get();
+
+      if (!doc.exists) {
+        await docRef.set({
+          'name': categoria,
+          'normalizedName': _normalizarTexto(categoria),
+          'isBase': true,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
+    }
+  }
+
+  Future<void> sincronizarCategoriasDesdeMateriales() async {
+    final materialsSnapshot = await _firestore.collection('materials').get();
+
+    for (final materialDoc in materialsSnapshot.docs) {
+      final data = materialDoc.data();
+      final categoria = (data['category'] ?? '').toString().trim();
+
+      if (categoria.isEmpty) continue;
+
+      final normalizada = _normalizarTexto(categoria);
+      final existing = await _firestore
+          .collection('categories')
+          .where('normalizedName', isEqualTo: normalizada)
+          .limit(1)
+          .get();
+
+      if (existing.docs.isEmpty) {
+        await _firestore
+            .collection('categories')
+            .doc(_buildCategoryDocId(categoria))
+            .set({
+          'name': categoria,
+          'normalizedName': normalizada,
+          'isBase': esCategoriaBase(categoria),
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
+    }
+  }
+
   Future<List<String>> obtenerCategorias() async {
-    await asegurarCategoriaOtros();
+    await asegurarCategoriasBase();
+    await sincronizarCategoriasDesdeMateriales();
 
     final snapshot = await _firestore.collection('categories').get();
 
@@ -45,20 +106,6 @@ class AdminMaterialService {
 
     categorias.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
     return categorias;
-  }
-
-  Future<void> asegurarCategoriaOtros() async {
-    final docRef =
-        _firestore.collection('categories').doc(_buildCategoryDocId('Otros'));
-    final doc = await docRef.get();
-
-    if (!doc.exists) {
-      await docRef.set({
-        'name': 'Otros',
-        'normalizedName': 'otros',
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-    }
   }
 
   Future<void> crearCategoria(String nombre) async {
@@ -85,6 +132,7 @@ class AdminMaterialService {
         .set({
       'name': limpio,
       'normalizedName': normalizado,
+      'isBase': false,
       'createdAt': FieldValue.serverTimestamp(),
     });
   }
@@ -102,14 +150,12 @@ class AdminMaterialService {
       throw Exception('Los nombres de la categoría no pueden estar vacíos.');
     }
 
-    if (actualNormalizado == 'otros') {
-      throw Exception('La categoría Otros no puede ser renombrada.');
+    if (esCategoriaBase(actualLimpio)) {
+      throw Exception('Las categorías base no pueden renombrarse.');
     }
 
     if (actualNormalizado == nuevoNormalizado) {
-      throw Exception(
-        'Debes ingresar un nombre diferente para renombrar la categoría.',
-      );
+      throw Exception('Debes ingresar un nombre diferente.');
     }
 
     final existing = await _firestore
@@ -135,6 +181,7 @@ class AdminMaterialService {
     batch.set(newCategoryRef, {
       'name': nuevoLimpio,
       'normalizedName': nuevoNormalizado,
+      'isBase': false,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
@@ -157,15 +204,14 @@ class AdminMaterialService {
     batch.delete(oldCategoryRef);
 
     await batch.commit();
-    await asegurarCategoriaOtros();
   }
 
   Future<void> eliminarCategoria(String nombreCategoria) async {
     final categoriaLimpia = nombreCategoria.trim();
     final categoriaNormalizada = _normalizarTexto(categoriaLimpia);
 
-    if (categoriaNormalizada == 'otros') {
-      throw Exception('La categoría Otros no puede eliminarse.');
+    if (esCategoriaBase(categoriaLimpia)) {
+      throw Exception('Las categorías base no pueden eliminarse.');
     }
 
     final materialsSnapshot = await _firestore.collection('materials').get();
@@ -185,7 +231,7 @@ class AdminMaterialService {
 
     if (materialesNoDisponibles.isNotEmpty) {
       throw Exception(
-        'Hay libros de esta categoría que están en préstamo o no disponibles. No se puede completar la solicitud.',
+        'No se puede eliminar la categoría porque tiene libros prestados, reservados o no disponibles.',
       );
     }
 
@@ -202,6 +248,5 @@ class AdminMaterialService {
     batch.delete(categoriaDoc);
 
     await batch.commit();
-    await asegurarCategoriaOtros();
   }
 }

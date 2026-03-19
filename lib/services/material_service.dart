@@ -11,30 +11,59 @@ class MaterialService {
     'Otros',
   ];
 
-  Future<void> ensureDefaultCategories() async {
-    final batch = _firestore.batch();
+  String _normalize(String value) {
+    return value.trim().toLowerCase();
+  }
 
+  String _docIdFromCategory(String value) {
+    return _normalize(value).replaceAll('/', '_');
+  }
+
+  Future<void> ensureDefaultCategories() async {
     for (final category in defaultCategories) {
-      final normalized = category.trim().toLowerCase();
-      final docId = normalized.replaceAll('/', '_');
-      final docRef = _firestore.collection('categories').doc(docId);
+      final normalized = _normalize(category);
+      final docRef =
+          _firestore.collection('categories').doc(_docIdFromCategory(category));
       final doc = await docRef.get();
 
       if (!doc.exists) {
-        batch.set(docRef, {
+        await docRef.set({
           'name': category,
           'normalizedName': normalized,
+          'isBase': true,
           'createdAt': FieldValue.serverTimestamp(),
         });
       }
     }
-
-    await batch.commit();
   }
 
   Future<void> addMaterial(Map<String, dynamic> data) async {
     try {
       await ensureDefaultCategories();
+
+      final category = (data['category'] ?? '').toString().trim();
+      if (category.isNotEmpty) {
+        final normalized = _normalize(category);
+        final existing = await _firestore
+            .collection('categories')
+            .where('normalizedName', isEqualTo: normalized)
+            .limit(1)
+            .get();
+
+        if (existing.docs.isEmpty) {
+          await _firestore
+              .collection('categories')
+              .doc(_docIdFromCategory(category))
+              .set({
+            'name': category,
+            'normalizedName': normalized,
+            'isBase': defaultCategories
+                .any((c) => _normalize(c) == normalized),
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+        }
+      }
+
       await _firestore.collection('materials').add(data);
     } catch (e) {
       print("Error guardando: $e");
@@ -68,16 +97,6 @@ class MaterialService {
           .toList();
 
       categorias.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-
-      if (categorias.isEmpty) {
-        return defaultCategories;
-      }
-
-      if (!categorias.any((c) => c.trim().toLowerCase() == 'otros')) {
-        categorias.add('Otros');
-        categorias.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-      }
-
       return categorias;
     });
   }

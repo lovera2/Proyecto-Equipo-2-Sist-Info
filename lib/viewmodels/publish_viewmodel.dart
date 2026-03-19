@@ -47,7 +47,6 @@ class PublishViewModel extends ChangeNotifier {
     required String description,
   }) async {
     _errorMessage = null;
-
     if (_imageBytes == null) {
       _errorMessage = "Por favor, selecciona una imagen.";
       notifyListeners();

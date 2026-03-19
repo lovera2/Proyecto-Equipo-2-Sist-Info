@@ -1,5 +1,5 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/admin_material_service.dart';
 
 class AdminMaterialViewModel extends ChangeNotifier {
@@ -16,6 +16,10 @@ class AdminMaterialViewModel extends ChangeNotifier {
   List<String> get categorias => _categorias;
   Map<String, dynamic>? get materialSeleccionado => _materialSeleccionado;
   bool get isLoading => _isLoading;
+
+  bool esCategoriaBase(String categoria) {
+    return _service.esCategoriaBase(categoria);
+  }
 
   Future<void> actualizarMaterial(
     String id,
@@ -56,16 +60,16 @@ class AdminMaterialViewModel extends ChangeNotifier {
 
   void filtrarMateriales(String query) {
     if (query.isEmpty) {
-      _materialesFiltrados = _todosLosMateriales;
+      _materialesFiltrados = List.from(_todosLosMateriales);
     } else {
       final texto = query.toLowerCase();
       _materialesFiltrados = _todosLosMateriales.where((m) {
         final titulo = m['title']?.toString().toLowerCase() ?? '';
-        final categoria = m['category']?.toString().toLowerCase() ?? '';
         final autor = m['author']?.toString().toLowerCase() ?? '';
+        final categoria = m['category']?.toString().toLowerCase() ?? '';
         return titulo.contains(texto) ||
-            categoria.contains(texto) ||
-            autor.contains(texto);
+            autor.contains(texto) ||
+            categoria.contains(texto);
       }).toList();
     }
     notifyListeners();
