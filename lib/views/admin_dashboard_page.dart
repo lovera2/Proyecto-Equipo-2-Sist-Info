@@ -5,6 +5,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import 'chat_list_page.dart';
 import 'profile_page.dart';
+import 'package:provider/provider.dart';
+import '../viewmodels/admin_user_management_viewmodel.dart';
+import '../viewmodels/admin_material_viewmodel.dart';
+import '../services/admin_material_service.dart';
+import 'admin_user_management_page.dart';
+import 'admin_material_management_page.dart';
 
 class AdminDashboardView extends StatefulWidget {
   final VoidCallback onBack;
@@ -43,6 +49,75 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
     await FirebaseAuth.instance.signOut();
     if (!context.mounted) return;
     Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+  }
+
+  Future<void> _mostrarMenuAdmin(BuildContext context) async {
+    final value = await showMenu<String>(
+      context: context,
+      position: const RelativeRect.fromLTRB(1000, 90, 20, 0),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+      ),
+      items: const [
+        PopupMenuItem(
+          value: 'dashboard',
+          child: Row(
+            children: [
+              Icon(Icons.dashboard, color: Color(0xFF1B3A57), size: 20),
+              SizedBox(width: 12),
+              Text('Dashboard'),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'perfiles',
+          child: Row(
+            children: [
+              Icon(Icons.people, color: Color(0xFF1B3A57), size: 20),
+              SizedBox(width: 12),
+              Text('Gestión de Usuarios'),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'materiales',
+          child: Row(
+            children: [
+              Icon(Icons.book, color: Color(0xFF1B3A57), size: 20),
+              SizedBox(width: 12),
+              Text('Gestión de Material'),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    if (!context.mounted || value == null) return;
+
+    if (value == 'dashboard') {
+      return;
+    } else if (value == 'perfiles') {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ChangeNotifierProvider(
+            create: (_) => AdminUserManagementViewModel(),
+            child: const AdminUserManagementPage(),
+          ),
+        ),
+      );
+      return;
+    } else if (value == 'materiales') {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ChangeNotifierProvider(
+            create: (_) => AdminMaterialViewModel(AdminMaterialService()),
+            child: const AdminMaterialManagementPage(),
+          ),
+        ),
+      );
+    }
   }
 
   void _showTermsDialog(BuildContext context) {
@@ -803,7 +878,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                   color: Colors.white,
                   size: 28,
                 ),
-                onPressed: widget.onOpenMenu,
+                onPressed: () => _mostrarMenuAdmin(context),
                 tooltip: 'Mostrar menú',
               ),
               PopupMenuButton<String>(

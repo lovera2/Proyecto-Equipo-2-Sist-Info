@@ -8,6 +8,10 @@ import 'chat_list_page.dart';
 import 'profile_page.dart';
 
 import '../viewmodels/admin_user_management_viewmodel.dart';
+import '../viewmodels/admin_material_viewmodel.dart';
+import '../services/admin_material_service.dart';
+import 'admin_dashboard_page.dart';
+import 'admin_material_management_page.dart';
 
 class AdminUserManagementPage extends StatefulWidget {
   const AdminUserManagementPage({super.key});
@@ -1569,13 +1573,28 @@ class _AdminTopHeader extends StatelessWidget {
             ],
           ),
         ),
+        PopupMenuItem(
+          value: 'materiales',
+          child: Row(
+            children: [
+              Icon(Icons.book, color: Color(0xFF1B3A57), size: 20),
+              SizedBox(width: 12),
+              Text('Gestión de Material'),
+            ],
+          ),
+        ),
       ],
     );
 
     if (!context.mounted || value == null) return;
 
     if (value == 'dashboard') {
-      onBack();
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const _AdminDashboardShellFromUsers(),
+        ),
+      );
       return;
     }
 
@@ -1584,10 +1603,23 @@ class _AdminTopHeader extends StatelessWidget {
         ..clearSnackBars()
         ..showSnackBar(
           const SnackBar(
-            content: Text('Ya estás en Gestión de usuarios.'),
+            content: Text('Ya estás en Gestión de Usuarios.'),
             duration: Duration(seconds: 2),
           ),
         );
+      return;
+    }
+
+    if (value == 'materiales') {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ChangeNotifierProvider(
+            create: (_) => AdminMaterialViewModel(AdminMaterialService()),
+            child: const AdminMaterialManagementPage(),
+          ),
+        ),
+      );
     }
   }
 
@@ -1644,7 +1676,9 @@ class _AdminTopHeader extends StatelessWidget {
                 ),
                 onPressed: () {
                   Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const ChatListPage()),
+                    MaterialPageRoute(
+                      builder: (_) => const ChatListPage(isAdmin: true),
+                    ),
                   );
                 },
                 tooltip: 'Mis chats y notificaciones',
@@ -1837,6 +1871,43 @@ class _MaxLengthSnackFormatter extends TextInputFormatter {
       text: truncated,
       selection: TextSelection(baseOffset: base, extentOffset: extent),
       composing: TextRange.empty,
+    );
+  }
+}
+class _AdminDashboardShellFromUsers extends StatelessWidget {
+  const _AdminDashboardShellFromUsers();
+
+  static const Color unimetOrange = Color(0xFFF28B31);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [unimetOrange, Color(0xFFD67628)],
+              ),
+            ),
+          ),
+          const _AdminBackgroundBlobs(),
+          SafeArea(
+            child: Column(
+              children: [
+                Expanded(
+                  child: AdminDashboardView(
+                    onBack: () => Navigator.pop(context),
+                    onOpenMenu: () async {},
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
