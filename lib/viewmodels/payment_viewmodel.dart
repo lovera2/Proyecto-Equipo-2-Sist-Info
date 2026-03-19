@@ -106,7 +106,7 @@ await _db.collection('usuarios').doc(docId).update(updates);
 
     } on FirebaseAuthException catch(e){
       if(e.code=='email-already-in-use'){
-        errorMessage="⚠️ Este correo ya está en uso. Por favor, modifique la dirección de correo.";
+        errorMessage="⚠️ Este correo ya está en uso en la plataforma BookLoop. Por favor, modifique la dirección de correo.";
       }else if(e.code=='weak-password'){
         errorMessage="❌ La clave es muy débil.";
       }else if(e.code=='invalid-email'){
