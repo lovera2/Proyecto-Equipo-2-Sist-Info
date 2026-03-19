@@ -2,10 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../viewmodels/home_viewmodel.dart';
 import '../viewmodels/auth_viewmodel.dart';
-import 'package:bookloop_unimet/views/chat_list_page.dart';
+import '../viewmodels/admin_user_management_viewmodel.dart';
 import 'admin_dashboard_page.dart';
+import 'admin_user_management_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'dart:convert'; 
+import 'dart:convert';
+import 'material_detail_page.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'chat_list_page.dart';
+import 'profile_page.dart';
 
 
 class HomeAdminPage extends StatefulWidget {
@@ -37,23 +42,47 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
   void _showTermsDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
+      builder: (BuildContext dialogContext) {
+        final h = MediaQuery.of(dialogContext).size.height;
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: const Text(
             "Términos y Condiciones",
             style: TextStyle(color: unimetBlue, fontWeight: FontWeight.bold),
           ),
-          content: const SingleChildScrollView(
-            child: Text(
-              "Al usar BookLoop UNIMET, aceptas el intercambio responsable de material académico...",
-              style: TextStyle(fontSize: 14),
+          content: SizedBox(
+            width: 520,
+            height: h * 0.62,
+            child: const SingleChildScrollView(
+              child: Text(
+                "Al usar BookLoop aceptas lo siguiente:\n\n"
+                "1) Acceso y verificación\n"
+                "• Solo se permite el uso de correos institucionales UNIMET (docente y estudiante).\n"
+                "• La cuenta es personal e intransferible.\n\n"
+                "2) Uso responsable\n"
+                "• Mantén un trato respetuoso en publicaciones y mensajes.\n"
+                "• Está prohibido publicar contenido ofensivo, engañoso o spam.\n"
+                "• BookLoop puede limitar o suspender cuentas ante evidencias de abuso.\n\n"
+                "3) Préstamos y devoluciones\n"
+                "• Al solicitar/aceptar un préstamo te comprometes a cumplir fecha, condiciones y lugar acordados.\n"
+                "• Quien recibe el material es responsable de cuidarlo y devolverlo en el estado acordado.\n"
+                "• En caso de pérdida o daño, las partes deben coordinar una solución (reposición o acuerdo).\n\n"
+                "4) Seguridad y reportes\n"
+                "• BookLoop puede limitar funciones (publicar/solicitar) si detecta patrones de incumplimiento.\n\n"
+                "5) Privacidad y datos\n"
+                "• Se almacenan datos mínimos para operar la plataforma.\n"
+                "• No se publican datos sensibles.\n\n"
+                "6) Alcance del servicio\n"
+                "• BookLoop es una herramienta de coordinación; no garantiza la disponibilidad de material.\n"
+                "• La UNIMET y el equipo de BookLoop no se responsabilizan por acuerdos fuera de la plataforma.\n",
+                style: TextStyle(fontSize: 14, height: 1.35),
+              ),
             ),
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Cerrar", style: TextStyle(color: unimetOrange)),
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text("Entendido", style: TextStyle(color: unimetOrange)),
             ),
           ],
         );
@@ -61,9 +90,10 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
     );
   }
 
-  @override
+ @override
   Widget build(BuildContext context) {
     final homeVM = context.watch<HomeViewModel>();
+    final double screenHeight = MediaQuery.of(context).size.height;
 
     return Scaffold(
       body: Stack(
@@ -81,294 +111,163 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
           const _BackgroundBlobs(),
 
           SafeArea(
-            child: Column(
-              children: [
-                _buildHeader(context),
-                
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  child: Column(
+            child: _showDashboard
+                ? Column(
                     children: [
-                      _buildSearchBar(homeVM),
-                      const SizedBox(height: 10),
+                      Expanded(
+                        child: AdminDashboardView(
+                          onBack: () => setState(() => _showDashboard = false),
+                          onOpenMenu: () async {
+                          },
+                        ),
+                      ),
+                      _Footer(onTerms: () => _showTermsDialog(context)),
                     ],
-                  ),
-                ),
-
-                Expanded(
-                  child: _showDashboard 
-                    ? AdminDashboardView(onBack: () => setState(() => _showDashboard = false))
-                    : _buildCatalogView(homeVM, MediaQuery.of(context).size.height), 
-                ),
-
-                _Footer(onTerms: () => _showTermsDialog(context)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeader(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.menu_book, color: Colors.white, size: 30),
-              const SizedBox(width: 12),
-              const Text(
-                "BookLoop ADMIN",
-                style: TextStyle(
-                  color: Colors.white, 
-                  fontSize: 22, 
-                  fontWeight: FontWeight.bold
-                ),
-              ),
-            ],
-          ),
-          Row(
-            children: [
-              PopupMenuButton<String>(
-                icon: const Icon(Icons.settings_suggest, color: Colors.white),
-                onSelected: (value) {
-                  if (value == 'dashboard') {
-                    setState(() => _showDashboard = true);
-                  }
-                },
-                itemBuilder: (context) => [
-                  const PopupMenuItem(
-                    value: 'dashboard',
-                    child: Row(
+                  )
+                : SingleChildScrollView(
+                    child: Column(
                       children: [
-                        Icon(Icons.dashboard, color: unimetBlue, size: 20),
-                        SizedBox(width: 12),
-                        Text('Dashboard'),
+                        _AdminTopHeader(
+                          onBack: () {},
+                          onOpenDashboard: () => setState(() => _showDashboard = true),
+                        ),
+                        
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                          child: Column(
+                            children: [
+                              _buildSearchBar(homeVM), 
+                              const SizedBox(height: 25), 
+                            ],
+                          ),
+                        ),
+
+                        _buildCategoryFilter(homeVM),
+                        const SizedBox(height: 15),
+
+                        Container(
+                          width: double.infinity,
+                          margin: const EdgeInsets.symmetric(horizontal: 200),
+                          constraints: BoxConstraints(minHeight: screenHeight * 0.65),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 30),
+                              const Padding(
+                                padding: EdgeInsets.only(left: 40, bottom: 20),
+                                child: Text(
+                                  "Material Reciente", 
+                                  style: TextStyle(
+                                    fontSize: 22, 
+                                    fontWeight: FontWeight.bold, 
+                                    color: unimetBlue
+                                  ),
+                                ),
+                              ),
+
+                        StreamBuilder<List<QueryDocumentSnapshot>>(
+                          stream: homeVM.filteredMaterialsStream,
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState == ConnectionState.waiting) {
+                              return const Padding(
+                                padding: EdgeInsets.all(50.0),
+                                child: Center(child: CircularProgressIndicator(color: unimetOrange)),
+                              );
+                            }
+                            
+                            if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                              return Padding(
+                                padding: const EdgeInsets.all(50.0),
+                                child: _buildEmptyState(),
+                              );
+                            }
+
+                            final docs = snapshot.data!;
+
+                            return GridView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              padding: const EdgeInsets.only(left: 40, right: 40, bottom: 40),
+                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 4,
+                                childAspectRatio: 0.60,
+                                crossAxisSpacing: 40,
+                                mainAxisSpacing: 40,  
+                              ),
+                              itemCount: docs.length,
+                              itemBuilder: (context, index) {
+                                final doc = docs[index];
+                                final data = doc.data() as Map<String, dynamic>;
+                                return Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => MaterialDetailPage(
+                                            materialId: doc.id,
+                                            materialData: data,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    child: _buildBookCard(doc.id, data),
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                       ), 
                       ],
                     ),
                   ),
-                  const PopupMenuItem(
-                    value: 'perfiles',
-                    child: Row(
-                      children: [
-                        Icon(Icons.people, color: unimetBlue, size: 20),
-                        SizedBox(width: 12),
-                        Text('Gestión de Perfiles'),
-                      ],
-                    ),
-                  ),
+                  
+                  _Footer(onTerms: () => _showTermsDialog(context)),
                 ],
               ),
-              IconButton(
-                icon: const Icon(Icons.notifications_none_outlined, color: Colors.white, size: 28),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => ChatListPage()),
-                  );
-                },
-                tooltip: 'Mis chats y notificaciones',
-              ),
-              const SizedBox(width: 5),
-              IconButton(
-                icon: const Icon(Icons.person_outline, color: Colors.white, size: 28),
-                onPressed: () {},
-              ),
-              PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert, color: Colors.white, size: 28),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                onSelected: (value) {
-                  if (value == 'logout') {
-                    _handleLogout(context);
-                  }
-                },
-                itemBuilder: (context) => [
-                  const PopupMenuItem(
-                    value: 'logout',
-                    child: Row(
-                      children: [
-                        Icon(Icons.logout, color: unimetBlue),
-                        SizedBox(width: 10),
-                        Text("Cerrar Sesión"),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  PopupMenuItem<String> _buildAdminMenuItem(IconData icon, String text) {
-    return PopupMenuItem(
-      value: text.toLowerCase(),
-      child: Row(
-        children: [
-          Icon(icon, color: unimetBlue, size: 20),
-          const SizedBox(width: 12),
-          Text(text),
-        ],
-      ),
-    );
-  }
-
-
-Widget _buildDashboardView() {
-  return Column(
-    children: [
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Row(
-          children: [
-            TextButton.icon(
-              onPressed: () => setState(() => _showDashboard = false),
-              icon: const Icon(Icons.arrow_back, color: Colors.white),
-              label: const Text("Regresar", style: TextStyle(color: Colors.white)),
             ),
-          ],
-        ),
-      ),
-      Expanded(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            children: [
-              _buildMetricCard("Usuarios Registrados", "150", Icons.people, Colors.blue),
-              const SizedBox(height: 15),
-              _buildMetricCard("Intercambios Totales", "45", Icons.swap_horiz, Colors.orange),
-              const SizedBox(height: 15),
-              _buildMetricCard("Libros Activos", "320", Icons.book, Colors.green),
-              const SizedBox(height: 20),
-              Container(
-                height: 150,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(15),
-                  border: Border.all(color: Colors.white24)
-                ),
-                child: const Center(
-                  child: Text("Gráfico de Categorías", style: TextStyle(color: Colors.white60)),
-                ),
-              )
-            ],
           ),
-        ),
+
+        ],
       ),
-    ],
-  );
-}
-
-Widget _buildMetricCard(String title, String value, IconData icon, Color color) {
-  return Container(
-    padding: const EdgeInsets.all(20),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(15),
-    ),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Row(
-          children: [
-            Icon(icon, color: color, size: 30),
-            const SizedBox(width: 15),
-            Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          ],
-        ),
-        Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: unimetBlue)),
-      ],
-    ),
-  );
-}
-
-  Widget _buildImage(String? base64String) {
-    if (base64String == null || base64String.isEmpty) {
-      return Container(
-        color: cardBrown,
-        child: const Center(
-          child: Icon(Icons.menu_book, color: Colors.white, size: 50),
-        ),
-      );
-    }
-    
-    try {
-      return Image.memory(
-        base64Decode(base64String),
-        fit: BoxFit.cover,
-        width: double.infinity,
-      );
-    } catch (e) {
-      debugPrint("Error decodificando imagen: $e");
-      return Container(
-        color: cardBrown,
-        child: const Center(
-          child: Icon(Icons.broken_image, color: Colors.white, size: 50),
-        ),
-      );
-    }
+    );
   }
 
-  Widget _buildSearchBar(HomeViewModel homeVM) {
+
+  Widget _buildSearchBar(HomeViewModel vm) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 15),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(15),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8)],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
       child: TextField(
-        onChanged: (value) => homeVM.updateSearchQuery(value),
+        onChanged: (value) => vm.updateSearchQuery(value),
+        style: const TextStyle(color: unimetBlue),
         decoration: const InputDecoration(
-          hintText: "Buscar libros, guías...",
+          hintText: "Buscar por título, autor o facultad",
+          hintStyle: TextStyle(color: Colors.grey),
+          prefixIcon: Icon(Icons.search, color: unimetOrange),
           border: InputBorder.none,
-          icon: Icon(Icons.search, color: unimetBlue),
+          contentPadding: EdgeInsets.symmetric(vertical: 15),
         ),
       ),
     );
   }
 
-  Widget _buildCatalogView(HomeViewModel homeVM, double screenHeight) {
-    return SingleChildScrollView(
-      child: Column(
-        children: [
-          _buildCategoryFilter(homeVM),
-          const SizedBox(height: 15),
-          Container(
-            width: double.infinity,
-            margin: const EdgeInsets.symmetric(horizontal: 200), 
-            constraints: BoxConstraints(minHeight: screenHeight * 0.7),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(30),
-                topRight: Radius.circular(30),
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Padding(
-                  padding: EdgeInsets.only(left: 40, top: 30, bottom: 20),
-                  child: Text("Catálogo de Libros", 
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: unimetBlue)),
-                ),
-                _buildBooksGrid(homeVM),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-    Widget _buildCategoryFilter(HomeViewModel vm) {
-    final categories = ["TODO", "FACES", "Ingeniería", "Humanidades", "Derecho"];
+  Widget _buildCategoryFilter(HomeViewModel vm) {
+    final categories = ["TODO", "Faces", "Ingeniería", "Humanidades", "Derecho"];
 
     const Color brownBtn = cardBrown;
 
@@ -455,171 +354,138 @@ Widget _buildMetricCard(String title, String value, IconData icon, Color color) 
     );
   }
 
-  Widget _buildBooksGrid(HomeViewModel homeVM) {
-    return StreamBuilder(
-      stream: homeVM.filteredMaterialsStream, 
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
+Widget _buildBookCard(String materialId, Map<String, dynamic> data) {
+  final String title = data['title'] ?? 'Sin título';
+  final String author = data['author'] ?? 'Autor desconocido';
+  final String materia = data['subject'] ?? '';
+  final String status = (data['status'] ?? 'disponible').toString().toLowerCase();
+  final bool isAvailable = status == 'disponible';
+  
+  final dynamic rawImage = data['imageUrl']; 
+  final String? imageBase64 = rawImage is String ? rawImage : null;
 
-        if (snapshot.hasError) {
-          debugPrint("Error en el Stream: ${snapshot.error}");
-          return const Center(child: Text("Ocurrió un error al cargar el catálogo."));
-        }
+  // SOLUCIÓN: Inicializamos con un widget por defecto para evitar el error de compilación
+  Widget imageWidget = const Center(child: Icon(Icons.book, size: 50, color: Colors.grey));
 
-        if (!snapshot.hasData || (snapshot.data as List).isEmpty) {
-          return const Center(child: Text("No hay libros disponibles."));
-        }
-
-        final docs = snapshot.data as List; 
-
-        return GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          padding: const EdgeInsets.only(left: 40, right: 40, bottom: 40),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 4,
-            childAspectRatio: 0.60,
-            crossAxisSpacing: 40,
-            mainAxisSpacing: 40,
-          ),
-          itemCount: docs.length,
-          itemBuilder: (context, index) {
-            final data = docs[index].data() as Map<String, dynamic>;
-            return _buildBookCard(data); 
-          },
-        );
-      },
-    );
+  try {
+    if (imageBase64 != null && imageBase64.isNotEmpty) {
+      final cleanBase64 = imageBase64.contains(',') 
+          ? imageBase64.split(',').last 
+          : imageBase64;
+          
+      imageWidget = Image.memory(
+        base64Decode(cleanBase64),
+        fit: BoxFit.cover,
+        width: double.infinity,
+        errorBuilder: (context, error, stackTrace) => const Center(
+          child: Icon(Icons.broken_image, size: 50, color: Colors.grey)
+        ),
+      );
+    }
+  } catch (e) {
+    imageWidget = const Center(child: Icon(Icons.error_outline, size: 50, color: Colors.red));
   }
 
-  Widget _buildBookCard(Map<String, dynamic> data) {
-    final String status = (data['status'] ?? 'disponible').toString().toLowerCase();
-    final bool isAvailable = status == 'disponible';
-
-    final String titulo = (data['title'] ?? '').toString();
-    final String autor = (data['author'] ?? '').toString();
-    final String materia = (data['subject'] ?? '').toString();
-
-    return Container(
-      decoration: BoxDecoration(
-        color: cardBrown,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.14),
-            blurRadius: 8,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Portada + badge estado
-          Expanded(
-            flex: 9,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(10, 10, 10, 6),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    _buildImage(data['imageUrl']),
-                    Positioned(
-                      right: 10,
-                      bottom: 10,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: isAvailable ? Colors.green : Colors.red,
-                          borderRadius: BorderRadius.circular(999),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.18),
-                              blurRadius: 6,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
-                        ),
-                        child: Text(
-                          isAvailable ? "Disponible" : "No disponible",
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-
-          // Texto
-          Expanded(
-            flex: 4,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+  return Container(
+    decoration: BoxDecoration(
+      color: cardBrown, // Color original de home(admin)_page(wrong).dart
+      borderRadius: BorderRadius.circular(16),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.14),
+          blurRadius: 8,
+          offset: const Offset(0, 6),
+        ),
+      ],
+    ),
+    child: Column(
+      children: [
+        // Portada + badge de estado (Diseño recuperado de la versión anterior)
+        Expanded(
+          flex: 9,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(10, 10, 10, 6),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Stack(
+                fit: StackFit.expand,
                 children: [
-                  Text(
-                    titulo,
-                    maxLines: 2,
-                    textAlign: TextAlign.center,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 18,
-                      color: Colors.black87,
-                      height: 1.15,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    autor.isEmpty ? "—" : autor,
-                    maxLines: 1,
-                    textAlign: TextAlign.center,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontStyle: FontStyle.italic,
-                      color: Colors.black87,
-                      height: 1.1,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    alignment: WrapAlignment.center,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.65),
-                          borderRadius: BorderRadius.circular(999),
-                          border: Border.all(color: Colors.black.withOpacity(0.08)),
-                        ),
-                        child: Text(
-                          materia.isEmpty ? "—" : materia,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.black87,
-                            height: 1.0,
-                          ),
+                  imageWidget,
+                  Positioned(
+                    right: 10,
+                    bottom: 10,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: isAvailable ? Colors.green : Colors.red,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        isAvailable ? "Disponible" : "No disponible",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
-                    ],
+                    ),
                   ),
                 ],
               ),
             ),
+          ),
+        ),
+
+        // Textos de Título y Autor
+        Expanded(
+          flex: 4,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  title,
+                  maxLines: 2,
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 16,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  author,
+                  maxLines: 1,
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontStyle: FontStyle.italic,
+                    color: Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.library_books_outlined, size: 60, color: Colors.grey[300]),
+          const SizedBox(height: 10),
+          Text(
+            "No hay libros en esta categoría", 
+            style: TextStyle(color: Colors.grey[500], fontSize: 16)
           ),
         ],
       ),
@@ -628,7 +494,184 @@ Widget _buildMetricCard(String title, String value, IconData icon, Color color) 
 
 }
 
+class _AdminTopHeader extends StatelessWidget {
+  final VoidCallback onBack;
+  final VoidCallback onOpenDashboard;
 
+  const _AdminTopHeader({required this.onBack, required this.onOpenDashboard});
+
+  Future<void> _handleLogout(BuildContext context) async {
+    await FirebaseAuth.instance.signOut();
+    if (!context.mounted) return;
+    Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+  }
+
+  Future<void> _mostrarMenuAdmin(BuildContext context) async {
+  final value = await showMenu<String>(
+    context: context,
+    position: const RelativeRect.fromLTRB(1000, 90, 20, 0),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(15),
+    ),
+    items: const [
+      PopupMenuItem(
+        value: 'dashboard',
+        child: Row(
+          children: [
+            Icon(Icons.dashboard, color: Color(0xFF1B3A57), size: 20),
+            SizedBox(width: 12),
+            Text('Dashboard'),
+          ],
+        ),
+      ),
+      PopupMenuItem(
+        value: 'perfiles',
+        child: Row(
+          children: [
+            Icon(Icons.people, color: Color(0xFF1B3A57), size: 20),
+            SizedBox(width: 12),
+            Text('Gestión de Usuarios'),
+          ],
+        ),
+      ),
+    ],
+  );
+
+  if (!context.mounted || value == null) return;
+
+  if (value == 'dashboard') {
+    onOpenDashboard();
+    return;
+  } 
+  if (value == 'perfiles') {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ChangeNotifierProvider(
+          create: (_) => AdminUserManagementViewModel(),
+          child: const AdminUserManagementPage(),
+        ),
+      ),
+    );
+  }
+}
+
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              IconButton(
+                onPressed: onBack,
+                icon: const Icon(
+                  Icons.arrow_back,
+                  color: Colors.white,
+                  size: 30,
+                ),
+                tooltip: 'Volver',
+              ),
+              const SizedBox(width: 4),
+              const Icon(Icons.menu_book, color: Colors.white, size: 30),
+              const SizedBox(width: 12),
+              const Text(
+                'BookLoop ADMIN',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          Row(
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1B3A57),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: IconButton(
+                  onPressed: () => Navigator.pushNamed(context, '/publish'),
+                  icon: const Icon(Icons.add, color: Colors.white),
+                  tooltip: 'Publicar material',
+                ),
+              ),
+              const SizedBox(width: 10),
+              IconButton(
+                icon: const Icon(
+                  Icons.notifications_none_outlined,
+                  color: Colors.white,
+                  size: 28,
+                ),
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const ChatListPage()),
+                  );
+                },
+                tooltip: 'Mis chats y notificaciones',
+              ),
+              const SizedBox(width: 5),
+              IconButton(
+                icon: const Icon(
+                  Icons.person_outline,
+                  color: Colors.white,
+                  size: 28,
+                ),
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const ProfilePage()),
+                  );
+                },
+                tooltip: 'Mi perfil',
+              ),
+              IconButton(
+                icon: const Icon(
+                  Icons.settings_suggest,
+                  color: Colors.white,
+                  size: 28,
+                ),
+                onPressed: () => _mostrarMenuAdmin(context),
+                tooltip: 'Mostrar menú',
+              ),
+              PopupMenuButton<String>(
+                icon: const Icon(
+                  Icons.more_vert,
+                  color: Colors.white,
+                  size: 28,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                onSelected: (value) {
+                  if (value == 'logout') {
+                    _handleLogout(context);
+                  }
+                },
+                itemBuilder: (context) => const [
+                  PopupMenuItem(
+                    value: 'logout',
+                    child: Row(
+                      children: [
+                        Icon(Icons.logout, color: Color(0xFF1B3A57)),
+                        SizedBox(width: 10),
+                        Text('Cerrar sesión'),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class _Footer extends StatelessWidget {
   final VoidCallback onTerms;
@@ -673,7 +716,6 @@ class _BackgroundBlobs extends StatelessWidget {
 class _BlobPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    // Usamos blanco con muy baja opacidad para el efecto de fondo
     final paint = Paint()..color = Colors.white.withOpacity(0.05);
     
     canvas.drawCircle(Offset(size.width * 0.2, size.height * 0.1), 100, paint);
