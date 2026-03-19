@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'chat_list_page.dart';
 import 'profile_page.dart';
 import 'admin_user_management_page.dart';
@@ -35,6 +37,222 @@ class _AdminMaterialManagementPageState
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  String _normalizarCategoriaLocal(String texto) {
+    return texto
+        .trim()
+        .toLowerCase()
+        .replaceAll('á', 'a')
+        .replaceAll('é', 'e')
+        .replaceAll('í', 'i')
+        .replaceAll('ó', 'o')
+        .replaceAll('ú', 'u')
+        .replaceAll('ñ', 'n');
+  }
+
+  String _normalizarStatus(String raw) {
+    return raw
+        .toLowerCase()
+        .trim()
+        .replaceAll('á', 'a')
+        .replaceAll('é', 'e')
+        .replaceAll('í', 'i')
+        .replaceAll('ó', 'o')
+        .replaceAll('ú', 'u')
+        .replaceAll('ñ', 'n')
+        .replaceAll('-', '_')
+        .replaceAll(' ', '_');
+  }
+
+  bool _esStatusTerminalChat(String statusNormalizado) {
+    return [
+      'rechazado',
+      'cancelado',
+      'cerrado',
+      'finalizado',
+      'completado',
+      'devuelto',
+    ].contains(statusNormalizado);
+  }
+
+  String _labelStatus(String statusNormalizado) {
+    switch (statusNormalizado) {
+      case 'pendiente':
+      case 'solicitado':
+      case 'esperando_confirmacion':
+      case 'reservado':
+        return 'reservado';
+      case 'rentado':
+      case 'en_prestamo':
+        return 'en_prestamo';
+      case 'devolucion_pendiente':
+        return 'devolucion_pendiente';
+      case 'rechazado':
+      case 'cancelado':
+      case 'cerrado':
+      case 'finalizado':
+      case 'completado':
+      case 'devuelto':
+        return 'disponible';
+      default:
+        return statusNormalizado.isEmpty ? 'desconocido' : statusNormalizado;
+    }
+  }
+
+  String _resolverStatusEfectivo({
+    required String materialStatus,
+    required List<QueryDocumentSnapshot<Map<String, dynamic>>> chats,
+  }) {
+    String statusMaterialNormalizado = _normalizarStatus(materialStatus);
+
+    for (final doc in chats) {
+      final chatStatus = _normalizarStatus((doc.data()['status'] ?? '').toString());
+      if (!_esStatusTerminalChat(chatStatus)) {
+        return _labelStatus(chatStatus);
+      }
+    }
+
+    return _labelStatus(statusMaterialNormalizado);
+  }
+
+  Stream<String> _streamStatusEfectivoMaterial(String materialId) {
+    final materialRef = FirebaseFirestore.instance
+        .collection('materials')
+        .doc(materialId);
+
+    final chatsRef = FirebaseFirestore.instance
+        .collection('chats')
+        .where('materialId', isEqualTo: materialId);
+
+    late final StreamController<String> controller;
+    StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? materialSub;
+    StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? chatsSub;
+
+    String materialStatus = 'desconocido';
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> chats = [];
+
+    void emitirStatus() {
+      if (!controller.isClosed) {
+        controller.add(
+          _resolverStatusEfectivo(
+            materialStatus: materialStatus,
+            chats: chats,
+          ),
+        );
+      }
+    }
+
+    controller = StreamController<String>(
+      onListen: () {
+        materialSub = materialRef.snapshots().listen((materialSnap) {
+          final materialData = materialSnap.data();
+          materialStatus =
+              (materialData?['status'] ?? 'desconocido').toString();
+          emitirStatus();
+        });
+
+        chatsSub = chatsRef.snapshots().listen((chatsSnap) {
+          chats = chatsSnap.docs;
+          emitirStatus();
+        });
+      },
+      onCancel: () async {
+        await materialSub?.cancel();
+        await chatsSub?.cancel();
+      },
+    );
+
+    return controller.stream;
+  }
+
+  Future<String> _obtenerStatusEfectivoActual(String materialId) async {
+    final materialSnap = await FirebaseFirestore.instance
+        .collection('materials')
+        .doc(materialId)
+        .get();
+
+    final chatsSnap = await FirebaseFirestore.instance
+        .collection('chats')
+        .where('materialId', isEqualTo: materialId)
+        .get();
+
+    final materialData = materialSnap.data();
+    final materialStatus = (materialData?['status'] ?? 'desconocido').toString();
+
+    return _resolverStatusEfectivo(
+      materialStatus: materialStatus,
+      chats: chatsSnap.docs,
+    );
+  }
+
+  Future<String> _obtenerStatusEfectivoMaterialEnCategoria(
+    Map<String, dynamic> material,
+  ) async {
+    final materialId = (material['id'] ?? '').toString();
+    if (materialId.isEmpty) return 'desconocido';
+    return _obtenerStatusEfectivoActual(materialId);
+  }
+
+  Future<Map<String, String>?> _buscarPrimerBloqueoCategoria(
+    String categoria,
+  ) async {
+    final snapshot = await FirebaseFirestore.instance.collection('materials').get();
+
+    for (final doc in snapshot.docs) {
+      final data = doc.data();
+      final categoriaMaterial = (data['category'] ?? '').toString();
+
+      if (_normalizarCategoriaLocal(categoriaMaterial) !=
+          _normalizarCategoriaLocal(categoria)) {
+        continue;
+      }
+
+      final material = Map<String, dynamic>.from(data);
+      material['id'] = doc.id;
+
+      final statusEfectivo = await _obtenerStatusEfectivoMaterialEnCategoria(material);
+
+      if (_normalizarStatus(statusEfectivo) != 'disponible') {
+        return {
+          'titulo': (material['title'] ?? 'Este libro').toString(),
+          'status': statusEfectivo,
+        };
+      }
+    }
+
+    return null;
+  }
+
+  Future<void> _mostrarBloqueoEliminacion(
+    BuildContext context,
+    String titulo,
+    String statusActual,
+  ) async {
+    await showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+        ),
+        title: const Text(
+          'Acción denegada',
+          style: TextStyle(
+            color: Colors.red,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Text(
+          'No puedes eliminar "$titulo" porque actualmente su estado es "$statusActual".\n\nSolo se pueden eliminar libros que estén realmente disponibles.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Entendido'),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildSafeImage(
@@ -320,7 +538,7 @@ class _AdminMaterialManagementPageState
           ),
           const SizedBox(height: 8),
           const Text(
-            'Las categorías base no se pueden borrar. Las categorías creadas sí pueden eliminarse si todos sus libros están disponibles.',
+            'Las categorías base no se pueden borrar. Las categorías creadas solo pueden eliminarse si ninguno de sus libros está reservado, en préstamo o comprometido en una solicitud activa.',
             style: TextStyle(color: Colors.black54, fontSize: 12),
           ),
           const SizedBox(height: 14),
@@ -418,67 +636,135 @@ class _AdminMaterialManagementPageState
     AdminMaterialViewModel vm,
   ) {
     final controller = TextEditingController();
+    String? mensajeError;
 
     showDialog(
       context: context,
       builder:
-          (_) => AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(18),
-            ),
-            title: const Text(
-              'Agregar categoría',
-              style: TextStyle(
-                color: unimetBlue,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            content: TextField(
-              controller: controller,
-              autofocus: true,
-              decoration: const InputDecoration(
-                hintText: 'Ej: Medicina, Arquitectura...',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancelar'),
-              ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: adminOrange,
-                  foregroundColor: Colors.white,
+          (_) => StatefulBuilder(
+            builder: (dialogContext, setDialogState) {
+              return AlertDialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
                 ),
-                onPressed: () async {
-                  try {
-                    await vm.agregarCategoria(controller.text);
-
-                    if (!context.mounted) return;
-                    Navigator.pop(context);
-
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Categoría creada correctamente'),
-                        backgroundColor: Colors.green,
+                title: const Text(
+                  'Agregar categoría',
+                  style: TextStyle(
+                    color: unimetBlue,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      controller: controller,
+                      autofocus: true,
+                      decoration: const InputDecoration(
+                        hintText: 'Ej: Medicina, Arquitectura...',
+                        border: OutlineInputBorder(),
                       ),
-                    );
-                  } catch (e) {
-                    if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          e.toString().replaceFirst('Exception: ', ''),
+                      onChanged: (_) {
+                        if (mensajeError != null) {
+                          setDialogState(() => mensajeError = null);
+                        }
+                      },
+                    ),
+                    if (mensajeError != null) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.red.shade200),
                         ),
-                        backgroundColor: Colors.red,
+                        child: Text(
+                          mensajeError!,
+                          style: TextStyle(
+                            color: Colors.red.shade700,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
-                    );
-                  }
-                },
-                child: const Text('Guardar'),
-              ),
-            ],
+                    ],
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    child: const Text('Cancelar'),
+                  ),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: adminOrange,
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: () async {
+                      final texto = controller.text.trim();
+
+                      if (texto.isEmpty) {
+                        setDialogState(() {
+                          mensajeError =
+                              'Debes escribir un nombre para crear la categoría.';
+                        });
+                        return;
+                      }
+
+                      final normalizadaNueva = _normalizarCategoriaLocal(texto);
+                      final yaExisteEnVista = vm.categorias.any(
+                        (categoria) =>
+                            _normalizarCategoriaLocal(categoria) ==
+                            normalizadaNueva,
+                      );
+
+                      if (yaExisteEnVista) {
+                        setDialogState(() {
+                          mensajeError =
+                              'Esa categoría ya existe. No se puede crear una categoría con el mismo nombre.';
+                        });
+                        return;
+                      }
+
+                      try {
+                        await vm.agregarCategoria(texto);
+
+                        if (!dialogContext.mounted) return;
+                        Navigator.pop(dialogContext);
+
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Categoría creada correctamente'),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      } catch (e) {
+                        final mensaje = e.toString().replaceFirst(
+                          'Exception: ',
+                          '',
+                        );
+
+                        setDialogState(() {
+                          if (mensaje.toLowerCase().contains(
+                            'esa categoría ya existe',
+                          )) {
+                            mensajeError =
+                                'Esa categoría ya existe. No se puede crear una categoría con el mismo nombre.';
+                          } else {
+                            mensajeError = mensaje;
+                          }
+                        });
+                      }
+                    },
+                    child: const Text('Guardar'),
+                  ),
+                ],
+              );
+            },
           ),
     );
   }
@@ -489,70 +775,146 @@ class _AdminMaterialManagementPageState
     String categoriaActual,
   ) {
     final controller = TextEditingController(text: categoriaActual);
+    String? mensajeError;
 
     showDialog(
       context: context,
       builder:
-          (_) => AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(18),
-            ),
-            title: const Text(
-              'Renombrar categoría',
-              style: TextStyle(
-                color: unimetBlue,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            content: TextField(
-              controller: controller,
-              autofocus: true,
-              decoration: const InputDecoration(
-                hintText: 'Nuevo nombre de la categoría',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancelar'),
-              ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: unimetBlue,
-                  foregroundColor: Colors.white,
+          (_) => StatefulBuilder(
+            builder: (dialogContext, setDialogState) {
+              return AlertDialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
                 ),
-                onPressed: () async {
-                  try {
-                    await vm.renombrarCategoria(
-                      categoriaActual,
-                      controller.text,
-                    );
-
-                    if (!context.mounted) return;
-                    Navigator.pop(context);
-
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Categoría renombrada correctamente'),
-                        backgroundColor: Colors.green,
+                title: const Text(
+                  'Renombrar categoría',
+                  style: TextStyle(
+                    color: unimetBlue,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      controller: controller,
+                      autofocus: true,
+                      decoration: const InputDecoration(
+                        hintText: 'Nuevo nombre de la categoría',
+                        border: OutlineInputBorder(),
                       ),
-                    );
-                  } catch (e) {
-                    if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          e.toString().replaceFirst('Exception: ', ''),
+                      onChanged: (_) {
+                        if (mensajeError != null) {
+                          setDialogState(() => mensajeError = null);
+                        }
+                      },
+                    ),
+                    if (mensajeError != null) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.red.shade200),
                         ),
-                        backgroundColor: Colors.red,
+                        child: Text(
+                          mensajeError!,
+                          style: TextStyle(
+                            color: Colors.red.shade700,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
-                    );
-                  }
-                },
-                child: const Text('Guardar cambios'),
-              ),
-            ],
+                    ],
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    child: const Text('Cancelar'),
+                  ),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: unimetBlue,
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: () async {
+                      final nuevoNombre = controller.text.trim();
+
+                      if (nuevoNombre.isEmpty) {
+                        setDialogState(() {
+                          mensajeError =
+                              'Debes escribir un nombre válido para la categoría.';
+                        });
+                        return;
+                      }
+
+                      final normalizadaActual = _normalizarCategoriaLocal(
+                        categoriaActual,
+                      );
+                      final normalizadaNueva = _normalizarCategoriaLocal(
+                        nuevoNombre,
+                      );
+
+                      final yaExisteEnVista = vm.categorias.any(
+                        (categoria) =>
+                            _normalizarCategoriaLocal(categoria) ==
+                                normalizadaNueva &&
+                            _normalizarCategoriaLocal(categoria) !=
+                                normalizadaActual,
+                      );
+
+                      if (yaExisteEnVista) {
+                        setDialogState(() {
+                          mensajeError =
+                              'Ya existe una categoría con ese nombre.';
+                        });
+                        return;
+                      }
+
+                      try {
+                        await vm.renombrarCategoria(
+                          categoriaActual,
+                          nuevoNombre,
+                        );
+
+                        if (!dialogContext.mounted) return;
+                        Navigator.pop(dialogContext);
+
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Categoría renombrada correctamente',
+                            ),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      } catch (e) {
+                        final mensaje = e.toString().replaceFirst(
+                          'Exception: ',
+                          '',
+                        );
+
+                        setDialogState(() {
+                          if (mensaje.toLowerCase().contains('ya existe')) {
+                            mensajeError =
+                                'Ya existe una categoría con ese nombre.';
+                          } else {
+                            mensajeError = mensaje;
+                          }
+                        });
+                      }
+                    },
+                    child: const Text('Guardar cambios'),
+                  ),
+                ],
+              );
+            },
           ),
     );
   }
@@ -575,7 +937,7 @@ class _AdminMaterialManagementPageState
             ),
             content: Text(
               'Se eliminará la categoría "$categoria" y todos los libros asociados.\n\n'
-              'Solo se permitirá si todos los libros de esa categoría están disponibles.',
+              'Esta acción solo se permitirá si ninguno de los libros de esa categoría está reservado, en préstamo o comprometido en una solicitud activa.',
             ),
             actions: [
               TextButton(
@@ -591,6 +953,21 @@ class _AdminMaterialManagementPageState
                   Navigator.pop(context);
 
                   try {
+                    final bloqueo = await _buscarPrimerBloqueoCategoria(categoria);
+
+                    if (bloqueo != null) {
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'No se puede eliminar la categoría "$categoria" porque contiene uno o más libros reservados, en préstamo o comprometidos en una solicitud activa.',
+                          ),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                      return;
+                    }
+
                     await vm.eliminarCategoria(categoria);
 
                     if (!mounted) return;
@@ -676,7 +1053,16 @@ class _AdminMaterialManagementPageState
                         ),
                       ),
                       const SizedBox(height: 12),
-                      _statusChip(libro['status'] ?? 'desconocido'),
+                      StreamBuilder<String>(
+                        stream: _streamStatusEfectivoMaterial(
+                          (libro['id'] ?? '').toString(),
+                        ),
+                        builder: (context, snapshot) {
+                          final statusActual = snapshot.data ??
+                              (libro['status'] ?? 'desconocido').toString();
+                          return _statusChip(statusActual);
+                        },
+                      ),
                     ],
                   ),
                 )
@@ -740,18 +1126,40 @@ class _AdminMaterialManagementPageState
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () => _confirmarEliminacion(context, vm),
-                    icon: const Icon(Icons.delete),
-                    label: const Text("Eliminar Libro"),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red.shade600,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
+                  child: StreamBuilder<String>(
+                    stream: _streamStatusEfectivoMaterial(
+                      (libro['id'] ?? '').toString(),
                     ),
+                    builder: (context, snapshot) {
+                      final statusActual = snapshot.data ??
+                          (libro['status'] ?? 'desconocido').toString();
+                      final puedeEliminar =
+                          _normalizarStatus(statusActual) == 'disponible';
+
+                      return ElevatedButton.icon(
+                        onPressed:
+                            puedeEliminar
+                                ? () => _confirmarEliminacion(context, vm)
+                                : () => _mostrarBloqueoEliminacion(
+                                      context,
+                                      (libro['title'] ?? 'Este libro').toString(),
+                                      statusActual,
+                                    ),
+                        icon: const Icon(Icons.delete),
+                        label: const Text("Eliminar Libro"),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                              puedeEliminar
+                                  ? Colors.red.shade600
+                                  : Colors.grey.shade500,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
               ],
@@ -763,11 +1171,30 @@ class _AdminMaterialManagementPageState
   }
 
   Widget _statusChip(String status) {
-    final bool esDisponible = status.toLowerCase() == 'disponible';
+    final statusNormalizado = _normalizarStatus(status);
+
+    final bool esDisponible = statusNormalizado == 'disponible';
+    final bool esReservado = [
+      'pendiente',
+      'solicitado',
+      'esperando_confirmacion',
+      'reservado',
+    ].contains(statusNormalizado);
+    final bool esPrestamo = [
+      'rentado',
+      'en_prestamo',
+      'devolucion_pendiente',
+    ].contains(statusNormalizado);
+
     final Color colorBg =
-        esDisponible ? Colors.green.shade50 : Colors.red.shade50;
+        esDisponible
+            ? Colors.green.shade50
+            : (esReservado ? Colors.amber.shade50 : Colors.red.shade50);
+
     final Color colorTxt =
-        esDisponible ? Colors.green.shade700 : Colors.red.shade700;
+        esDisponible
+            ? Colors.green.shade700
+            : (esReservado ? Colors.amber.shade800 : Colors.red.shade700);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -776,7 +1203,7 @@ class _AdminMaterialManagementPageState
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
-        status.toUpperCase(),
+        _labelStatus(statusNormalizado).replaceAll('_', ' ').toUpperCase(),
         style: TextStyle(
           color: colorTxt,
           fontWeight: FontWeight.bold,
@@ -826,7 +1253,6 @@ class _AdminMaterialManagementPageState
     final authorCtrl = TextEditingController(text: libro['author']);
     final categoryCtrl = TextEditingController(text: libro['category']);
     final subjectCtrl = TextEditingController(text: libro['subject']);
-    final statusCtrl = TextEditingController(text: libro['status']);
 
     showDialog(
       context: context,
@@ -836,7 +1262,7 @@ class _AdminMaterialManagementPageState
             borderRadius: BorderRadius.circular(20),
           ),
           title: const Text(
-            "Editar Material",
+            'Editar Material',
             style: TextStyle(
               color: unimetBlue,
               fontWeight: FontWeight.bold,
@@ -877,21 +1303,13 @@ class _AdminMaterialManagementPageState
                     border: OutlineInputBorder(),
                   ),
                 ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: statusCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Estado',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
               ],
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text("Cancelar", style: TextStyle(color: Colors.grey)),
+              child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -906,7 +1324,7 @@ class _AdminMaterialManagementPageState
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text(
-                        "El título y el autor no pueden estar vacíos",
+                        'El título y el autor no pueden estar vacíos',
                       ),
                       backgroundColor: Colors.red,
                     ),
@@ -919,7 +1337,6 @@ class _AdminMaterialManagementPageState
                   'author': authorCtrl.text.trim(),
                   'category': categoryCtrl.text.trim(),
                   'subject': subjectCtrl.text.trim(),
-                  'status': statusCtrl.text.trim(),
                 };
 
                 try {
@@ -930,21 +1347,21 @@ class _AdminMaterialManagementPageState
 
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text("Material actualizado exitosamente"),
+                      content: Text('Material actualizado exitosamente'),
                       backgroundColor: Colors.green,
                     ),
                   );
                 } catch (e) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text("Error al actualizar: $e"),
+                      content: Text('Error al actualizar: $e'),
                       backgroundColor: Colors.red,
                     ),
                   );
                 }
               },
               child: const Text(
-                "Guardar",
+                'Guardar',
                 style: TextStyle(color: Colors.white),
               ),
             ),
@@ -958,6 +1375,20 @@ class _AdminMaterialManagementPageState
     BuildContext context,
     AdminMaterialViewModel vm,
   ) async {
+    final libro = vm.materialSeleccionado;
+    if (libro == null) return;
+
+    final materialId = (libro['id'] ?? '').toString();
+    final titulo = (libro['title'] ?? 'Este libro').toString();
+    final statusActual = await _obtenerStatusEfectivoActual(materialId);
+
+    if (!context.mounted) return;
+
+    if (_normalizarStatus(statusActual) != 'disponible') {
+      await _mostrarBloqueoEliminacion(context, titulo, statusActual);
+      return;
+    }
+
     showDialog(
       context: context,
       builder:

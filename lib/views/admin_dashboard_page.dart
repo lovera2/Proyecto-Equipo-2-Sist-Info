@@ -23,6 +23,7 @@ class AdminDashboardView extends StatefulWidget {
 class _AdminDashboardViewState extends State<AdminDashboardView> {
   static const Color unimetBlue = Color(0xFF1B3A57);
   static const Color unimetOrange = Color(0xFFF28B31);
+
   bool _hasNewNotifications = true;
 
   DateTimeRange? _range;
@@ -50,10 +51,15 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
       builder: (BuildContext dialogContext) {
         final h = MediaQuery.of(dialogContext).size.height;
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           title: const Text(
             "Términos y Condiciones",
-            style: TextStyle(color: unimetBlue, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              color: unimetBlue,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           content: SizedBox(
             width: 520,
@@ -87,7 +93,10 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text("Entendido", style: TextStyle(color: unimetOrange)),
+              child: const Text(
+                "Entendido",
+                style: TextStyle(color: unimetOrange),
+              ),
             ),
           ],
         );
@@ -164,6 +173,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
         DateTime.now().subtract(const Duration(days: 30)),
       );
     }
+
     return Timestamp.fromDate(
       DateTime(r.start.year, r.start.month, r.start.day),
     );
@@ -173,8 +183,12 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
     final r = _range;
     if (r == null) return Timestamp.fromDate(DateTime.now());
 
-    final endNextDay =
-        DateTime(r.end.year, r.end.month, r.end.day).add(const Duration(days: 1));
+    final endNextDay = DateTime(
+      r.end.year,
+      r.end.month,
+      r.end.day,
+    ).add(const Duration(days: 1));
+
     return Timestamp.fromDate(endNextDay);
   }
 
@@ -191,25 +205,75 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
     if (r == null) return true;
 
     final start = DateTime(r.start.year, r.start.month, r.start.day);
-    final endNext =
-        DateTime(r.end.year, r.end.month, r.end.day).add(const Duration(days: 1));
+    final endNext = DateTime(
+      r.end.year,
+      r.end.month,
+      r.end.day,
+    ).add(const Duration(days: 1));
 
     return (dt.isAtSameMomentAs(start) || dt.isAfter(start)) &&
         dt.isBefore(endNext);
   }
 
   String _normCat(String raw) {
-    final s = raw.trim().toLowerCase();
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) return 'Otros';
+
+    final s = trimmed.toLowerCase();
     if (s == 'faces' || s == 'f.a.c.e.s') return 'Faces';
     if (s == 'ingenieria' || s == 'ingeniería') return 'Ingeniería';
     if (s == 'humanidades') return 'Humanidades';
     if (s == 'derecho') return 'Derecho';
-    return raw.trim().isEmpty ? 'Otros' : raw.trim();
+    if (s == 'otros') return 'Otros';
+
+    return trimmed[0].toUpperCase() + trimmed.substring(1);
   }
 
   bool _catPass(String cat) {
     if (_materialCategory == 'Todas') return true;
     return cat == _materialCategory;
+  }
+
+  DateTime? _readMaterialDate(Map<String, dynamic> data) {
+    return _readDateFromAny(data['createdAt']) ??
+        _readDateFromAny(data['updatedAt']) ??
+        _readDateFromAny(data['fecha_registro']);
+  }
+
+  List<String> _buildCategoryOrder({
+    required List<String> categoriesFromCollection,
+    required Set<String> categoriesFromMaterials,
+  }) {
+    final ordered = <String>[];
+    final seen = <String>{};
+
+    void addCat(String raw) {
+      final cat = _normCat(raw);
+      final key = cat.toLowerCase();
+      if (seen.contains(key)) return;
+      seen.add(key);
+      ordered.add(cat);
+    }
+
+    for (final cat in categoriesFromCollection) {
+      addCat(cat);
+    }
+
+    for (final cat in categoriesFromMaterials) {
+      addCat(cat);
+    }
+
+    if (!seen.contains('otros')) {
+      ordered.add('Otros');
+    }
+
+    ordered.sort((a, b) {
+      if (a == 'Otros' && b != 'Otros') return 1;
+      if (a != 'Otros' && b == 'Otros') return -1;
+      return a.toLowerCase().compareTo(b.toLowerCase());
+    });
+
+    return ordered;
   }
 
   Future<List<QueryDocumentSnapshot<Map<String, dynamic>>>> _safeRangeQuery(
@@ -232,6 +296,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
   int _rangeDays() {
     final r = _range;
     if (r == null) return 30;
+
     final start = DateTime(r.start.year, r.start.month, r.start.day);
     final end = DateTime(r.end.year, r.end.month, r.end.day);
     return end.difference(start).inDays + 1;
@@ -291,6 +356,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
       if (parts.length == 3) return '${parts[2]}/${parts[1]}';
       return s;
     }
+
     final p = key.split('-');
     if (p.length == 3) return '${p[2]}/${p[1]}';
     return key;
@@ -309,6 +375,14 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
 
   Future<_DashboardData> _loadDashboard() async {
     final bucketKeys = _bucketKeysInRange();
+
+    final categoriesSnapshot =
+        await FirebaseFirestore.instance.collection('categories').get();
+
+    final categoriesFromCollection = categoriesSnapshot.docs
+        .map((d) => _normCat((d.data()['name'] ?? '').toString()))
+        .where((c) => c.trim().isNotEmpty)
+        .toList();
 
     // USUARIOS
     final userDocs = await _safeRangeQuery('usuarios', 'fecha_registro');
@@ -338,21 +412,32 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
     }
 
     // MATERIALS
-    final materialDocs = await _safeRangeQuery('materials', 'createdAt');
+    final materialSnapshot =
+        await FirebaseFirestore.instance.collection('materials').get();
+    final materialDocs = materialSnapshot.docs;
 
-    final materialsTotalByCat = <String, int>{
-      'Faces': 0,
-      'Ingeniería': 0,
-      'Humanidades': 0,
-      'Derecho': 0,
-      'Otros': 0,
-    };
+    final categoriesFromMaterials = <String>{};
+    for (final d in materialDocs) {
+      final data = d.data();
+      final cat = _normCat((data['category'] ?? '').toString());
+      categoriesFromMaterials.add(cat);
+    }
+
+    final categoryOrder = _buildCategoryOrder(
+      categoriesFromCollection: categoriesFromCollection,
+      categoriesFromMaterials: categoriesFromMaterials,
+    );
+
+    final materialsTotalByCat = <String, int>{};
+    for (final cat in categoryOrder) {
+      materialsTotalByCat[cat] = 0;
+    }
 
     final materialsByBucketCat = <String, Map<String, int>>{};
 
     for (final d in materialDocs) {
       final data = d.data();
-      final dt = _readDateFromAny(data['createdAt']);
+      final dt = _readMaterialDate(data);
       if (dt == null || !_inRange(dt)) continue;
 
       final cat = _normCat((data['category'] ?? '').toString());
@@ -360,16 +445,13 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
 
       final key = _useDailyBuckets ? _keyDaily(dt) : _keyWeekly(dt);
 
-      materialsByBucketCat.putIfAbsent(
-        key,
-        () => {
-          'Faces': 0,
-          'Ingeniería': 0,
-          'Humanidades': 0,
-          'Derecho': 0,
-          'Otros': 0,
-        },
-      );
+      materialsByBucketCat.putIfAbsent(key, () {
+        final seed = <String, int>{};
+        for (final category in categoryOrder) {
+          seed[category] = 0;
+        }
+        return seed;
+      });
 
       materialsByBucketCat[key]![cat] =
           (materialsByBucketCat[key]![cat] ?? 0) + 1;
@@ -394,9 +476,10 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
     final chatsByBucket = <String, int>{};
     for (final d in chatDocs) {
       final data = d.data();
-      final dt =
-          _readDateFromAny(data['createdAt']) ?? _readDateFromAny(data['lastUpdate']);
+      final dt = _readDateFromAny(data['createdAt']) ??
+          _readDateFromAny(data['lastUpdate']);
       if (dt == null || !_inRange(dt)) continue;
+
       if (_materialCategory != 'Todas') {
         final materialId = (data['materialId'] ?? '').toString().trim();
         final chatCategory = materialCategoryById[materialId];
@@ -448,6 +531,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
       chatsByBucket: chatsSeries,
       materialsByBucketCat: materialsByBucketCat,
       useDailyBuckets: _useDailyBuckets,
+      categoryOrder: categoryOrder,
     );
   }
 
@@ -479,7 +563,8 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                         (maxW - horizontalPadding).clamp(320.0, maxW).toDouble();
                     const spacing = 16.0;
 
-                    final trendCols = innerW >= 1700 ? 3 : (innerW >= 1150 ? 2 : 1);
+                    final trendCols =
+                        innerW >= 1700 ? 3 : (innerW >= 1150 ? 2 : 1);
                     final trendTileW = trendCols == 1
                         ? innerW
                         : (innerW - spacing * (trendCols - 1)) / trendCols;
@@ -501,9 +586,8 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const SizedBox(height: 8),
-                          _buildFiltersCard(context),
+                          _buildFiltersCard(context, data.categoryOrder),
                           const SizedBox(height: 18),
-
                           Wrap(
                             spacing: 14,
                             runSpacing: 14,
@@ -528,9 +612,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                               ),
                             ],
                           ),
-
                           const SizedBox(height: 18),
-
                           Wrap(
                             spacing: spacing,
                             runSpacing: spacing,
@@ -547,7 +629,9 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                               trendTile(
                                 _sectionCard(
                                   title: "Tendencia de usuarios registrados",
-                                  subtitle: data.useDailyBuckets ? "Por día" : "Por semana",
+                                  subtitle: data.useDailyBuckets
+                                      ? "Por día"
+                                      : "Por semana",
                                   child: _buildSimpleBarInner(
                                     keys: data.bucketKeys,
                                     values: data.usersByBucket,
@@ -558,7 +642,9 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                               trendTile(
                                 _sectionCard(
                                   title: "Tendencia de préstamos / intercambios",
-                                  subtitle: data.useDailyBuckets ? "Por día" : "Por semana",
+                                  subtitle: data.useDailyBuckets
+                                      ? "Por día"
+                                      : "Por semana",
                                   child: _buildSimpleBarInner(
                                     keys: data.bucketKeys,
                                     values: data.chatsByBucket,
@@ -568,9 +654,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                               ),
                             ],
                           ),
-
                           const SizedBox(height: 16),
-
                           Wrap(
                             spacing: spacing,
                             runSpacing: spacing,
@@ -578,20 +662,26 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                               lowerTile(
                                 _sectionCard(
                                   title: "Libros por categoría (según filtros)",
-                                  subtitle: "Distribución en el rango seleccionado",
-                                  child: _buildPieInner(data.materialsByCategory),
+                                  subtitle:
+                                      "Distribución en el rango seleccionado",
+                                  child: _buildPieInner(
+                                    data.materialsByCategory,
+                                    data.categoryOrder,
+                                  ),
                                 ),
                               ),
                               lowerTile(
                                 _sectionCard(
                                   title: "Usuarios por tipo",
-                                  subtitle: "Docentes vs estudiantes en el rango seleccionado",
-                                  child: _buildUsersTypePieInner(data.usersByType),
+                                  subtitle:
+                                      "Docentes vs estudiantes en el rango seleccionado",
+                                  child: _buildUsersTypePieInner(
+                                    data.usersByType,
+                                  ),
                                 ),
                               ),
                             ],
                           ),
-
                           const SizedBox(height: 40),
                           _Footer(onTerms: () => _showTermsDialog(context)),
                           const SizedBox(height: 12),
@@ -665,7 +755,9 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                         _hasNewNotifications = false;
                       });
                       Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const ChatListPage()),
+                        MaterialPageRoute(
+                          builder: (_) => const ChatListPage(isAdmin: true),
+                        ),
                       );
                     },
                     tooltip: 'Mis chats y notificaciones',
@@ -698,7 +790,9 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                 ),
                 onPressed: () {
                   Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const ProfilePage()),
+                    MaterialPageRoute(
+                      builder: (_) => const ProfilePage(),
+                    ),
                   );
                 },
                 tooltip: 'Mi perfil',
@@ -784,10 +878,15 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
 
   Widget _buildMaterialsTrendInner(_DashboardData data) {
     final keys = data.bucketKeys;
+    final catsOrder = data.categoryOrder;
+
     if (keys.isEmpty) {
       return Text(
         'Sin datos para el rango',
-        style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.w600),
+        style: TextStyle(
+          color: Colors.grey.shade700,
+          fontWeight: FontWeight.w600,
+        ),
       );
     }
 
@@ -795,10 +894,12 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
     for (final k in keys) {
       final m = data.materialsByBucketCat[k];
       if (m == null) continue;
+
       var sum = 0;
-      for (final cat in _catsOrder) {
+      for (final cat in catsOrder) {
         sum += (m[cat] ?? 0);
       }
+
       if (sum > maxY) maxY = sum;
     }
     if (maxY == 0) maxY = 1;
@@ -806,7 +907,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _miniLegend(_catsOrder),
+        _miniLegend(catsOrder),
         const SizedBox(height: 10),
         SizedBox(
           height: 260,
@@ -825,13 +926,15 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                     reservedSize: 26,
                     getTitlesWidget: (value, meta) {
                       final i = value.toInt();
-                      if (i < 0 || i >= keys.length) return const SizedBox.shrink();
+                      if (i < 0 || i >= keys.length) {
+                        return const SizedBox.shrink();
+                      }
 
                       final m = data.materialsByBucketCat[keys[i]];
                       if (m == null) return const SizedBox.shrink();
 
                       int total = 0;
-                      for (final cat in _catsOrder) {
+                      for (final cat in catsOrder) {
                         total += (m[cat] ?? 0);
                       }
 
@@ -908,10 +1011,11 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                   getTooltipColor: (_) => unimetBlue.withOpacity(0.92),
                   getTooltipItem: (group, groupIndex, rod, rodIndex) {
                     final key = keys[group.x.toInt()];
-                    final m = data.materialsByBucketCat[key] ?? const <String, int>{};
+                    final m =
+                        data.materialsByBucketCat[key] ?? const <String, int>{};
 
                     final lines = <String>[];
-                    for (final cat in _catsOrder) {
+                    for (final cat in catsOrder) {
                       final v = m[cat] ?? 0;
                       if (v > 0) {
                         lines.add('$cat: $v');
@@ -936,10 +1040,18 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
 
                 double running = 0;
                 final stacks = <BarChartRodStackItem>[];
-                for (final cat in _catsOrder) {
+
+                for (final cat in catsOrder) {
                   final v = (m[cat] ?? 0).toDouble();
                   if (v <= 0) continue;
-                  stacks.add(BarChartRodStackItem(running, running + v, _catColor(cat)));
+
+                  stacks.add(
+                    BarChartRodStackItem(
+                      running,
+                      running + v,
+                      _catColor(cat),
+                    ),
+                  );
                   running += v;
                 }
 
@@ -971,7 +1083,10 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
     if (keys.isEmpty) {
       return Text(
         'Sin datos para el rango',
-        style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.w600),
+        style: TextStyle(
+          color: Colors.grey.shade700,
+          fontWeight: FontWeight.w600,
+        ),
       );
     }
 
@@ -999,7 +1114,9 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                 reservedSize: 26,
                 getTitlesWidget: (value, meta) {
                   final i = value.toInt();
-                  if (i < 0 || i >= keys.length) return const SizedBox.shrink();
+                  if (i < 0 || i >= keys.length) {
+                    return const SizedBox.shrink();
+                  }
 
                   final v = values[keys[i]] ?? 0;
                   if (v <= 0) return const SizedBox.shrink();
@@ -1041,7 +1158,9 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                 interval: 1,
                 getTitlesWidget: (value, meta) {
                   final i = value.toInt();
-                  if (i < 0 || i >= keys.length) return const SizedBox.shrink();
+                  if (i < 0 || i >= keys.length) {
+                    return const SizedBox.shrink();
+                  }
 
                   final step = _bottomInterval(keys.length).toInt();
                   if (step > 1 && i % step != 0 && i != keys.length - 1) {
@@ -1088,6 +1207,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
           barGroups: List.generate(keys.length, (i) {
             final k = keys[i];
             final v = (values[k] ?? 0).toDouble();
+
             return BarChartGroupData(
               x: i,
               barRods: [
@@ -1105,22 +1225,22 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
     );
   }
 
-  Widget _buildPieInner(Map<String, int> counts) {
+  Widget _buildPieInner(Map<String, int> counts, List<String> categoryOrder) {
     _lastPieCounts = counts;
 
-    final faces = counts['Faces'] ?? 0;
-    final ing = counts['Ingeniería'] ?? 0;
-    final hum = counts['Humanidades'] ?? 0;
-    final der = counts['Derecho'] ?? 0;
-    final otros = counts['Otros'] ?? 0;
-
-    final total = faces + ing + hum + der + otros;
+    int total = 0;
+    for (final cat in categoryOrder) {
+      total += counts[cat] ?? 0;
+    }
 
     if (total == 0) {
       return Center(
         child: Text(
           'No hay libros en el rango seleccionado',
-          style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w600),
+          style: TextStyle(
+            color: Colors.grey.shade600,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       );
     }
@@ -1133,12 +1253,12 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
             PieChartData(
               sectionsSpace: 4,
               centerSpaceRadius: 42,
-              sections: _buildPieSections(counts, total),
+              sections: _buildPieSections(counts, total, categoryOrder),
             ),
           ),
         ),
         const SizedBox(height: 14),
-        _buildLegend(),
+        _buildLegend(categoryOrder),
       ],
     );
   }
@@ -1265,7 +1385,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
     );
   }
 
-  Widget _buildFiltersCard(BuildContext context) {
+  Widget _buildFiltersCard(BuildContext context, List<String> categoryOrder) {
     final r = _range;
     final rangeText = (r == null)
         ? '—'
@@ -1303,7 +1423,9 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
               _chipPreset('ytd', 'Este año'),
               ActionChip(
                 label: const Text('Personalizado'),
-                backgroundColor: _preset == 'custom' ? unimetOrange : Colors.white,
+                backgroundColor: _preset == 'custom'
+                    ? unimetOrange
+                    : Colors.white,
                 side: BorderSide(color: Colors.white.withOpacity(0.65)),
                 labelStyle: TextStyle(
                   color: _preset == 'custom' ? Colors.white : unimetBlue,
@@ -1315,7 +1437,11 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.date_range, color: Colors.white70, size: 18),
+                  const Icon(
+                    Icons.date_range,
+                    color: Colors.white70,
+                    size: 18,
+                  ),
                   const SizedBox(width: 6),
                   Text(
                     rangeText,
@@ -1332,7 +1458,11 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
           const SizedBox(height: 12),
           Row(
             children: [
-              const Icon(Icons.filter_alt_outlined, color: Colors.white70, size: 18),
+              const Icon(
+                Icons.filter_alt_outlined,
+                color: Colors.white70,
+                size: 18,
+              ),
               const SizedBox(width: 8),
               const Text(
                 'Categoría de libros:',
@@ -1348,14 +1478,21 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                 dropdownColor: const Color(0xFF274B6C),
                 underline: Container(height: 0),
                 iconEnabledColor: Colors.white,
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800),
-                items: const [
-                  DropdownMenuItem(value: 'Todas', child: Text('Todas')),
-                  DropdownMenuItem(value: 'Faces', child: Text('Faces')),
-                  DropdownMenuItem(value: 'Ingeniería', child: Text('Ingeniería')),
-                  DropdownMenuItem(value: 'Humanidades', child: Text('Humanidades')),
-                  DropdownMenuItem(value: 'Derecho', child: Text('Derecho')),
-                  DropdownMenuItem(value: 'Otros', child: Text('Otros')),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                ),
+                items: [
+                  const DropdownMenuItem(
+                    value: 'Todas',
+                    child: Text('Todas'),
+                  ),
+                  ...categoryOrder.map(
+                    (cat) => DropdownMenuItem(
+                      value: cat,
+                      child: Text(cat),
+                    ),
+                  ),
                 ],
                 onChanged: (v) {
                   if (v == null) return;
@@ -1373,10 +1510,17 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                     _applyPreset('30d');
                   });
                 },
-                icon: const Icon(Icons.refresh, color: Colors.white70, size: 18),
+                icon: const Icon(
+                  Icons.refresh,
+                  color: Colors.white70,
+                  size: 18,
+                ),
                 label: const Text(
                   'Reiniciar',
-                  style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w700),
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ],
@@ -1388,6 +1532,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
 
   Widget _chipPreset(String key, String label) {
     final selected = _preset == key;
+
     return ChoiceChip(
       selected: selected,
       label: Text(label),
@@ -1455,7 +1600,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
   }
 
   Color _catColor(String cat) {
-    switch (cat) {
+    switch (_normCat(cat)) {
       case 'Humanidades':
         return Colors.redAccent;
       case 'Ingeniería':
@@ -1464,13 +1609,22 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
         return Colors.purple;
       case 'Derecho':
         return Colors.green;
-      default:
+      case 'Otros':
         return Colors.grey;
+      default:
+        final palette = <Color>[
+          Colors.teal,
+          Colors.indigo,
+          Colors.deepOrange,
+          Colors.cyan,
+          Colors.pink,
+          Colors.brown,
+          Colors.lime,
+        ];
+        final hash = _normCat(cat).codeUnits.fold<int>(0, (a, b) => a + b);
+        return palette[hash % palette.length];
     }
   }
-
-  List<String> get _catsOrder =>
-      const ['Humanidades', 'Ingeniería', 'Faces', 'Derecho', 'Otros'];
 
   Widget _cardShell({required Widget child}) {
     return Container(
@@ -1525,6 +1679,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
   List<PieChartSectionData> _buildPieSections(
     Map<String, int> counts,
     int total,
+    List<String> categoryOrder,
   ) {
     double pct(int n) => (n * 100.0) / total;
 
@@ -1543,28 +1698,22 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
     }
 
     final sections = <PieChartSectionData>[];
-    final faces = counts['Faces'] ?? 0;
-    final ing = counts['Ingeniería'] ?? 0;
-    final hum = counts['Humanidades'] ?? 0;
-    final der = counts['Derecho'] ?? 0;
-    final otros = counts['Otros'] ?? 0;
-
-    if (hum > 0) sections.add(section(hum, _catColor('Humanidades')));
-    if (ing > 0) sections.add(section(ing, _catColor('Ingeniería')));
-    if (faces > 0) sections.add(section(faces, _catColor('Faces')));
-    if (der > 0) sections.add(section(der, _catColor('Derecho')));
-    if (otros > 0) sections.add(section(otros, _catColor('Otros')));
+    for (final cat in categoryOrder) {
+      final value = counts[cat] ?? 0;
+      if (value > 0) {
+        sections.add(section(value, _catColor(cat)));
+      }
+    }
 
     return sections;
   }
 
-  Widget _buildLegend() {
-    final categories = ['Humanidades', 'Ingeniería', 'Faces', 'Derecho', 'Otros'];
+  Widget _buildLegend(List<String> categoryOrder) {
     return Wrap(
       spacing: 18,
       runSpacing: 10,
       alignment: WrapAlignment.center,
-      children: categories.map((cat) {
+      children: categoryOrder.map((cat) {
         final value = _lastPieCounts[cat] ?? 0;
         return Row(
           mainAxisSize: MainAxisSize.min,
@@ -1605,6 +1754,7 @@ class _DashboardData {
   final Map<String, int> chatsByBucket;
   final Map<String, Map<String, int>> materialsByBucketCat;
   final bool useDailyBuckets;
+  final List<String> categoryOrder;
 
   const _DashboardData({
     required this.usersCount,
@@ -1617,9 +1767,9 @@ class _DashboardData {
     required this.chatsByBucket,
     required this.materialsByBucketCat,
     required this.useDailyBuckets,
+    required this.categoryOrder,
   });
 }
-
 
 class _Footer extends StatelessWidget {
   final VoidCallback onTerms;

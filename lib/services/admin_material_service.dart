@@ -116,13 +116,22 @@ class AdminMaterialService {
       throw Exception('El nombre de la categoría no puede estar vacío.');
     }
 
-    final existing = await _firestore
-        .collection('categories')
-        .where('normalizedName', isEqualTo: normalizado)
-        .limit(1)
-        .get();
+    final snapshot = await _firestore.collection('categories').get();
 
-    if (existing.docs.isNotEmpty) {
+    final yaExiste = snapshot.docs.any((doc) {
+      final data = doc.data();
+      final nombreExistente = (data['name'] ?? '').toString();
+      final normalizadoExistente =
+          (data['normalizedName'] ?? '').toString();
+
+      if (normalizadoExistente.trim().isNotEmpty) {
+        return _normalizarTexto(normalizadoExistente) == normalizado;
+      }
+
+      return _normalizarTexto(nombreExistente) == normalizado;
+    });
+
+    if (yaExiste) {
       throw Exception('Esa categoría ya existe.');
     }
 
@@ -132,7 +141,7 @@ class AdminMaterialService {
         .set({
       'name': limpio,
       'normalizedName': normalizado,
-      'isBase': false,
+      'isBase': esCategoriaBase(limpio),
       'createdAt': FieldValue.serverTimestamp(),
     });
   }

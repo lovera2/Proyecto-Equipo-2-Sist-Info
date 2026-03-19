@@ -11,6 +11,9 @@ import 'views/start_page.dart';
 import 'views/login_page.dart';
 import 'views/home_page.dart';
 import 'views/home(admin)_page.dart';
+import 'views/admin_dashboard_page.dart';
+import 'views/admin_user_management_page.dart';
+import 'views/admin_material_management_page.dart';
 import 'views/profile_page.dart';
 import 'views/edit_profile_page.dart';
 import 'views/publish_page.dart';
@@ -29,6 +32,7 @@ import 'viewmodels/profile_viewmodel.dart';
 import 'viewmodels/home_viewmodel.dart';
 import 'viewmodels/publish_viewmodel.dart';
 import 'viewmodels/admin_material_viewmodel.dart';
+import 'viewmodels/admin_user_management_viewmodel.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -51,6 +55,7 @@ class BookLoopApp extends StatelessWidget {
         Provider<AuthService>(create: (_) => AuthService()),
         Provider<UserService>(create: (_) => UserService()),
         Provider<MaterialService>(create: (_) => MaterialService()),
+        Provider<AdminMaterialService>(create: (_) => AdminMaterialService()),
 
         // ViewModels
         ChangeNotifierProvider<AuthViewModel>(
@@ -115,6 +120,20 @@ class BookLoopApp extends StatelessWidget {
           '/login': (context) => const LoginPage(),
           '/home_page': (context) => const HomePage(),
           '/home_admin': (context) => const HomeAdminPage(),
+          '/admin_dashboard': (context) => AdminDashboardView(
+                onBack: () => Navigator.of(context).pop(),
+                onOpenMenu: () async {},
+              ),
+          '/admin_users': (context) => ChangeNotifierProvider(
+                create: (_) => AdminUserManagementViewModel(),
+                child: const AdminUserManagementPage(),
+              ),
+          '/admin_materials': (context) => ChangeNotifierProvider(
+                create: (context) => AdminMaterialViewModel(
+                  context.read<AdminMaterialService>(),
+                ),
+                child: const AdminMaterialManagementPage(),
+              ),
           '/profile': (context) => const ProfilePage(),
           '/edit_profile': (context) => const EditProfilePage(),
           '/publish': (context) => PublishPage(),

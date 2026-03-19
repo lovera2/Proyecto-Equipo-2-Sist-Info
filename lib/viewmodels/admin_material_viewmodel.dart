@@ -45,6 +45,19 @@ class AdminMaterialViewModel extends ChangeNotifier {
       _todosLosMateriales = await _service.obtenerMateriales();
       _materialesFiltrados = List.from(_todosLosMateriales);
       _categorias = await _service.obtenerCategorias();
+
+      if (_materialSeleccionado != null) {
+        Map<String, dynamic>? actualizado;
+
+        for (final material in _todosLosMateriales) {
+          if (material['id'] == _materialSeleccionado!['id']) {
+            actualizado = material;
+            break;
+          }
+        }
+
+        _materialSeleccionado = actualizado;
+      }
     } catch (e) {
       debugPrint("Error: $e");
     }
@@ -54,7 +67,17 @@ class AdminMaterialViewModel extends ChangeNotifier {
   }
 
   void seleccionarMaterial(Map<String, dynamic> material) {
-    _materialSeleccionado = material;
+    final materialId = material['id'];
+    Map<String, dynamic>? encontrado;
+
+    for (final item in _todosLosMateriales) {
+      if (item['id'] == materialId) {
+        encontrado = item;
+        break;
+      }
+    }
+
+    _materialSeleccionado = encontrado ?? Map<String, dynamic>.from(material);
     notifyListeners();
   }
 
@@ -98,10 +121,10 @@ class AdminMaterialViewModel extends ChangeNotifier {
     if (_materialSeleccionado == null) return false;
 
     try {
-      await _service.eliminarMaterial(
-        _materialSeleccionado!['id'],
-        _materialSeleccionado!['status'] ?? '',
-      );
+      final materialId = (_materialSeleccionado!['id'] ?? '').toString();
+      if (materialId.isEmpty) return false;
+
+      await _service.eliminarMaterial(materialId, 'disponible');
       await cargarMateriales();
       _materialSeleccionado = null;
       return true;

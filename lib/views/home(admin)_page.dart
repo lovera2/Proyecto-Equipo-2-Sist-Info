@@ -14,7 +14,6 @@ import 'profile_page.dart';
 import 'admin_material_management_page.dart';
 import '../viewmodels/admin_material_viewmodel.dart';
 import '../services/admin_material_service.dart';
-import 'package:provider/provider.dart';
 
 
 class HomeAdminPage extends StatefulWidget {
@@ -41,6 +40,10 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
       ),
     );
     Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+  }
+
+  Future<void> _refrescarCategorias() async {
+    await context.read<HomeViewModel>().cargarCategorias();
   }
 
   void _showTermsDialog(BuildContext context) {
@@ -134,6 +137,7 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
                         _AdminTopHeader(
                           onBack: () {},
                           onOpenDashboard: () => setState(() => _showDashboard = true),
+                          onRefreshCategorias: _refrescarCategorias,
                         ),
                         
                         Padding(
@@ -271,122 +275,249 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
   }
 
   Widget _buildCategoryFilter(HomeViewModel vm) {
-    final categories = ["TODO", "Faces", "Ingeniería", "Humanidades", "Derecho"];
+    final categories = ["TODO", ...vm.categorias];
+
+    final categoriasSinDuplicados = <String>[];
+    final categoriasNormalizadas = <String>{};
+
+    for (final categoria in categories) {
+      final normalizada = categoria
+          .trim()
+          .toLowerCase()
+          .replaceAll('á', 'a')
+          .replaceAll('é', 'e')
+          .replaceAll('í', 'i')
+          .replaceAll('ó', 'o')
+          .replaceAll('ú', 'u')
+          .replaceAll('ñ', 'n');
+
+      if (!categoriasNormalizadas.contains(normalizada)) {
+        categoriasNormalizadas.add(normalizada);
+        categoriasSinDuplicados.add(categoria);
+      }
+    }
 
     const Color brownBtn = cardBrown;
 
-    return Center(
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            ...categories.asMap().entries.map((entry) {
-              final i = entry.key;
-              final cat = entry.value;
-              final isSelected = vm.selectedCategory == cat;
+    Widget buildChip(String cat, int i) {
+      final isSelected = vm.selectedCategory == cat;
+      final bool isTodo = cat == "TODO";
+      final String label = isTodo ? "Todo" : cat;
 
-              final bool isTodo = cat == "TODO";
-              final String label = isTodo ? "Todo" : cat;
-
-              final chip = Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 7),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(28),
-                  onTap: () => vm.setCategory(cat),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 160),
-                    curve: Curves.easeOut,
-                    constraints: const BoxConstraints(minHeight: 52),
-                    padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
-                    decoration: BoxDecoration(
-                      color: isSelected ? unimetOrange : brownBtn,
-                      borderRadius: BorderRadius.circular(28),
-                      border: Border.all(
-                        color: isSelected
-                            ? Colors.transparent
-                            : Colors.black.withOpacity(0.08),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(isSelected ? 0.18 : 0.12),
-                          blurRadius: isSelected ? 10 : 8,
-                          offset: const Offset(0, 5),
-                        ),
-                      ],
+      final chip = Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 7),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 240),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(28),
+            onTap: () => vm.setCategory(cat),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 160),
+              curve: Curves.easeOut,
+              constraints: const BoxConstraints(minHeight: 52),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 12,
+              ),
+              decoration: BoxDecoration(
+                color: isSelected ? unimetBlue : brownBtn,
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(
+                  color: isSelected
+                      ? Colors.transparent
+                      : Colors.black.withOpacity(0.08),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(
+                      isSelected ? 0.18 : 0.12,
                     ),
+                    blurRadius: isSelected ? 10 : 8,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (isTodo) ...[
+                    const Icon(
+                      Icons.apps_rounded,
+                      size: 18,
+                      color: Colors.white,
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  Flexible(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final bool addSeparator = i == 0;
+
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          chip,
+          if (addSeparator)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 6),
+              height: 30,
+              width: 1.2,
+              color: Colors.white.withOpacity(0.35),
+            ),
+        ],
+      );
+    }
+
+    final chips = categoriasSinDuplicados
+        .asMap()
+        .entries
+        .map((entry) => buildChip(entry.value, entry.key))
+        .toList();
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.symmetric(horizontal: 200),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return Scrollbar(
+            thumbVisibility: categoriasSinDuplicados.length > 6,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (isTodo) ...[
-                          const Icon(Icons.apps_rounded, size: 18, color: Colors.white),
-                          const SizedBox(width: 8),
-                        ],
-                        Text(
-                          label,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 15,
-                            letterSpacing: 0.2,
-                          ),
-                        ),
-                      ],
+                      children: chips,
                     ),
                   ),
                 ),
-              );
-
-              final bool addSeparator = i == 0;
-
-              return Row(
-                children: [
-                  chip,
-                  if (addSeparator)
-                    Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 6),
-                      height: 30,
-                      width: 1.2,
-                      color: Colors.white.withOpacity(0.35),
-                    ),
-                ],
-              );
-            }),
-          ],
-        ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
 
 Widget _buildBookCard(String materialId, Map<String, dynamic> data) {
-  final String title = data['title'] ?? 'Sin título';
-  final String author = data['author'] ?? 'Autor desconocido';
-  final String materia = data['subject'] ?? '';
-  final String status = (data['status'] ?? 'disponible').toString().toLowerCase();
-  final bool isAvailable = status == 'disponible';
-  
-  final dynamic rawImage = data['imageUrl']; 
+  String _normStatus(String raw) {
+    final s = raw.toLowerCase().trim();
+    return s
+        .replaceAll('á', 'a')
+        .replaceAll('é', 'e')
+        .replaceAll('í', 'i')
+        .replaceAll('ó', 'o')
+        .replaceAll('ú', 'u')
+        .replaceAll('ñ', 'n')
+        .replaceAll('-', '_')
+        .replaceAll(' ', '_');
+  }
+
+  ({String label, Color color}) _mapStatus(String statusNorm) {
+    final bool isDisponible = statusNorm == 'disponible';
+
+    final bool isReservado = <String>{
+      'reservado',
+      'pendiente',
+      'esperando_confirmacion',
+      'solicitado',
+    }.contains(statusNorm);
+
+    final bool isPrestamo = <String>{
+      'rentado',
+      'devolucion_pendiente',
+      'en_prestamo',
+    }.contains(statusNorm);
+
+    final String label = isDisponible
+        ? 'Disponible'
+        : (isReservado
+            ? 'Reservado'
+            : (isPrestamo ? 'En préstamo' : 'No disponible'));
+
+    final Color color =
+        isDisponible ? Colors.green : (isReservado ? Colors.amber : Colors.red);
+
+    return (label: label, color: color);
+  }
+
+  Widget _statusChip(String effectiveStatusNorm) {
+    final mapped = _mapStatus(effectiveStatusNorm);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(
+        color: mapped.color,
+        borderRadius: BorderRadius.circular(999),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.18),
+            blurRadius: 6,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Text(
+        mapped.label,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
+  final String statusMaterialNorm =
+      _normStatus((data['status'] ?? 'disponible').toString());
+
+  final String title = (data['title'] ?? 'Sin título').toString();
+  final String author = (data['author'] ?? 'Autor desconocido').toString();
+  final String materia = (data['subject'] ?? '').toString();
+
+  final dynamic rawImage = data['imageUrl'];
   final String? imageBase64 = rawImage is String ? rawImage : null;
 
-  Widget imageWidget = const Center(child: Icon(Icons.book, size: 50, color: Colors.grey));
+  Widget imageWidget =
+      const Center(child: Icon(Icons.book, size: 50, color: Colors.grey));
 
   try {
     if (imageBase64 != null && imageBase64.isNotEmpty) {
-      final cleanBase64 = imageBase64.contains(',') 
-          ? imageBase64.split(',').last 
-          : imageBase64;
-          
+      final cleanBase64 =
+          imageBase64.contains(',') ? imageBase64.split(',').last : imageBase64;
+
       imageWidget = Image.memory(
         base64Decode(cleanBase64),
         fit: BoxFit.cover,
         width: double.infinity,
         errorBuilder: (context, error, stackTrace) => const Center(
-          child: Icon(Icons.broken_image, size: 50, color: Colors.grey)
+          child: Icon(Icons.broken_image, size: 50, color: Colors.grey),
         ),
       );
     }
   } catch (e) {
-    imageWidget = const Center(child: Icon(Icons.error_outline, size: 50, color: Colors.red));
+    imageWidget = const Center(
+      child: Icon(Icons.error_outline, size: 50, color: Colors.red),
+    );
   }
 
   return Container(
@@ -416,20 +547,53 @@ Widget _buildBookCard(String materialId, Map<String, dynamic> data) {
                   Positioned(
                     right: 10,
                     bottom: 10,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: isAvailable ? Colors.green : Colors.red,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        isAvailable ? "Disponible" : "No disponible",
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
+                    child: StreamBuilder<QuerySnapshot>(
+                      stream: FirebaseFirestore.instance
+                          .collection('chats')
+                          .where('materialId', isEqualTo: materialId)
+                          .limit(5)
+                          .snapshots(),
+                      builder: (context, snap) {
+                        String effective = statusMaterialNorm;
+
+                        if (snap.hasData && snap.data!.docs.isNotEmpty) {
+                          bool foundPrestamo = false;
+                          bool foundReservado = false;
+
+                          for (final d in snap.data!.docs) {
+                            final m =
+                                (d.data() as Map<String, dynamic>?) ?? {};
+                            final s = _normStatus(
+                              (m['status'] ?? '').toString(),
+                            );
+
+                            if (<String>{
+                              'rentado',
+                              'devolucion_pendiente',
+                              'en_prestamo',
+                            }.contains(s)) {
+                              foundPrestamo = true;
+                            }
+
+                            if (<String>{
+                              'reservado',
+                              'pendiente',
+                              'esperando_confirmacion',
+                              'solicitado',
+                            }.contains(s)) {
+                              foundReservado = true;
+                            }
+                          }
+
+                          if (foundPrestamo) {
+                            effective = 'rentado';
+                          } else if (foundReservado) {
+                            effective = 'reservado';
+                          }
+                        }
+
+                        return _statusChip(effective);
+                      },
                     ),
                   ),
                 ],
@@ -437,7 +601,6 @@ Widget _buildBookCard(String materialId, Map<String, dynamic> data) {
             ),
           ),
         ),
-
         Expanded(
           flex: 4,
           child: Padding(
@@ -468,6 +631,19 @@ Widget _buildBookCard(String materialId, Map<String, dynamic> data) {
                     color: Colors.black87,
                   ),
                 ),
+                if (materia.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    materia,
+                    maxLines: 1,
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.black54,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -498,8 +674,13 @@ Widget _buildBookCard(String materialId, Map<String, dynamic> data) {
 class _AdminTopHeader extends StatelessWidget {
   final VoidCallback onBack;
   final VoidCallback onOpenDashboard;
+  final Future<void> Function() onRefreshCategorias;
 
-  const _AdminTopHeader({required this.onBack, required this.onOpenDashboard});
+  const _AdminTopHeader({
+    required this.onBack,
+    required this.onOpenDashboard,
+    required this.onRefreshCategorias,
+  });
 
   Future<void> _handleLogout(BuildContext context) async {
     await FirebaseAuth.instance.signOut();
@@ -508,76 +689,79 @@ class _AdminTopHeader extends StatelessWidget {
   }
 
   Future<void> _mostrarMenuAdmin(BuildContext context) async {
-  final value = await showMenu<String>(
-    context: context,
-    position: const RelativeRect.fromLTRB(1000, 90, 20, 0),
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(15),
-    ),
-    items: const [
-      PopupMenuItem(
-        value: 'dashboard',
-        child: Row(
-          children: [
-            Icon(Icons.dashboard, color: Color(0xFF1B3A57), size: 20),
-            SizedBox(width: 12),
-            Text('Dashboard'),
-          ],
-        ),
+    final value = await showMenu<String>(
+      context: context,
+      position: const RelativeRect.fromLTRB(1000, 90, 20, 0),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
       ),
-      PopupMenuItem(
-        value: 'perfiles',
-        child: Row(
-          children: [
-            Icon(Icons.people, color: Color(0xFF1B3A57), size: 20),
-            SizedBox(width: 12),
-            Text('Gestión de Usuarios'),
-          ],
+      items: const [
+        PopupMenuItem(
+          value: 'dashboard',
+          child: Row(
+            children: [
+              Icon(Icons.dashboard, color: Color(0xFF1B3A57), size: 20),
+              SizedBox(width: 12),
+              Text('Dashboard'),
+            ],
+          ),
         ),
-      ),
-      PopupMenuItem(
-        value: 'materiales',
-        child: Row(
-          children: [
-            Icon(Icons.book, color: Color(0xFF1B3A57), size: 20),
-            SizedBox(width: 12),
-            Text('Gestión de Material'),
-          ],
+        PopupMenuItem(
+          value: 'perfiles',
+          child: Row(
+            children: [
+              Icon(Icons.people, color: Color(0xFF1B3A57), size: 20),
+              SizedBox(width: 12),
+              Text('Gestión de Usuarios'),
+            ],
+          ),
         ),
-      ),
-    ],
-  );
-
-  if (!context.mounted || value == null) return;
-
-  if (value == 'dashboard') {
-    onOpenDashboard();
-    return;
-  } 
-  else if (value == 'perfiles') {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ChangeNotifierProvider(
-          create: (_) => AdminUserManagementViewModel(),
-          child: const AdminUserManagementPage(),
+        PopupMenuItem(
+          value: 'materiales',
+          child: Row(
+            children: [
+              Icon(Icons.book, color: Color(0xFF1B3A57), size: 20),
+              SizedBox(width: 12),
+              Text('Gestión de Material'),
+            ],
+          ),
         ),
-      ),
+      ],
     );
-  }
-  else if (value == 'materiales') {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ChangeNotifierProvider(
-          create: (_) => AdminMaterialViewModel(AdminMaterialService()),
-          child: const AdminMaterialManagementPage(),
-        ),
-      ),
-    );
-  }
-}
 
+    if (!context.mounted || value == null) return;
+
+    if (value == 'dashboard') {
+      onOpenDashboard();
+      return;
+    } else if (value == 'perfiles') {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ChangeNotifierProvider(
+            create: (_) => AdminUserManagementViewModel(),
+            child: const AdminUserManagementPage(),
+          ),
+        ),
+      );
+      if (context.mounted) {
+        await onRefreshCategorias();
+      }
+    } else if (value == 'materiales') {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ChangeNotifierProvider(
+            create: (_) => AdminMaterialViewModel(AdminMaterialService()),
+            child: const AdminMaterialManagementPage(),
+          ),
+        ),
+      );
+      if (context.mounted) {
+        await onRefreshCategorias();
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

@@ -13,6 +13,12 @@ import '../viewmodels/profile_viewmodel.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import 'edit_profile_page.dart';
 import 'package:bookloop_unimet/views/chat_list_page.dart';
+import 'admin_dashboard_page.dart';
+import 'admin_user_management_page.dart';
+import 'admin_material_management_page.dart';
+import '../viewmodels/admin_user_management_viewmodel.dart';
+import '../viewmodels/admin_material_viewmodel.dart';
+import '../services/admin_material_service.dart';
 import 'favorites_list_page.dart';
 import 'material_detail_page.dart';
 
@@ -62,6 +68,81 @@ class _ProfilePageState extends State<ProfilePage> {
         (context.read<ProfileViewModel>().email ?? '').toLowerCase().trim();
     final route = email.startsWith('admin') ? '/home_admin' : '/home_page';
     Navigator.of(context).pushNamedAndRemoveUntil(route, (r) => false);
+  }
+
+  Future<void> _mostrarMenuAdmin(BuildContext context) async {
+    final value = await showMenu<String>(
+      context: context,
+      position: const RelativeRect.fromLTRB(1000, 90, 20, 0),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+      ),
+      items: const [
+        PopupMenuItem(
+          value: 'dashboard',
+          child: Row(
+            children: [
+              Icon(Icons.dashboard, color: Color(0xFF1B3A57), size: 20),
+              SizedBox(width: 12),
+              Text('Dashboard'),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'perfiles',
+          child: Row(
+            children: [
+              Icon(Icons.people, color: Color(0xFF1B3A57), size: 20),
+              SizedBox(width: 12),
+              Text('Gestión de Usuarios'),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'materiales',
+          child: Row(
+            children: [
+              Icon(Icons.book, color: Color(0xFF1B3A57), size: 20),
+              SizedBox(width: 12),
+              Text('Gestión de Material'),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    if (!context.mounted || value == null) return;
+
+    if (value == 'dashboard') {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const _AdminDashboardShellFromProfile(),
+        ),
+      );
+      return;
+    } else if (value == 'perfiles') {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ChangeNotifierProvider(
+            create: (_) => AdminUserManagementViewModel(),
+            child: const AdminUserManagementPage(),
+          ),
+        ),
+      );
+      return;
+    } else if (value == 'materiales') {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ChangeNotifierProvider(
+            create: (_) => AdminMaterialViewModel(AdminMaterialService()),
+            child: const AdminMaterialManagementPage(),
+          ),
+        ),
+      );
+    }
   }
 
   Future<void> _handleLogout(BuildContext context) async {
@@ -133,21 +214,28 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<ProfileViewModel>();
+    final String emailActual =
+        ((vm.email ?? FirebaseAuth.instance.currentUser?.email) ?? '')
+            .toLowerCase()
+            .trim();
+    final bool effectiveIsAdmin = emailActual.startsWith('admin');
     final isWide = MediaQuery.of(context).size.width > 900;
 
     return Scaffold(
       body: Stack(
         children: [
           Container(
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [unimetBlue, Color(0xFF2C5E8C)],
+                colors: effectiveIsAdmin
+                    ? const [unimetOrange, Color(0xFFD67628)]
+                    : const [unimetBlue, Color(0xFF2C5E8C)],
               ),
             ),
           ),
-          const _BackgroundBlobs(),
+          _BackgroundBlobs(isAdmin: effectiveIsAdmin),
           SafeArea(
             child: Column(
               children: [
@@ -159,12 +247,16 @@ class _ProfilePageState extends State<ProfilePage> {
                     setState(() => _hasNewNotifications = false);
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const ChatListPage()),
+                      MaterialPageRoute(
+                        builder: (_) => ChatListPage(isAdmin: effectiveIsAdmin),
+                      ),
                     );
                   },
                   onCreate: () => Navigator.pushNamed(context, '/publish'),
                   onLogout: () => _handleLogout(context),
                   hasNewNotifications: _hasNewNotifications,
+                  isAdmin: effectiveIsAdmin,
+                  onAdminMenu: () => _mostrarMenuAdmin(context),
                 ),
                 Expanded(
                   child: Align(
@@ -201,6 +293,8 @@ class _ProfileHeader extends StatelessWidget {
   final VoidCallback onCreate;
   final VoidCallback onLogout;
   final bool hasNewNotifications;
+  final bool isAdmin;
+  final VoidCallback onAdminMenu;
 
   static const Color unimetOrange = Color(0xFFF28B31);
 
@@ -212,6 +306,8 @@ class _ProfileHeader extends StatelessWidget {
     required this.onCreate,
     required this.onLogout,
     required this.hasNewNotifications,
+    required this.isAdmin,
+    required this.onAdminMenu,
   });
 
   @override
@@ -291,6 +387,16 @@ class _ProfileHeader extends StatelessWidget {
                 onPressed: () {},
                 tooltip: 'Ya estás en Perfil',
               ),
+              if (isAdmin)
+                IconButton(
+                  icon: const Icon(
+                    Icons.settings_suggest,
+                    color: Colors.white,
+                    size: 28,
+                  ),
+                  onPressed: onAdminMenu,
+                  tooltip: 'Mostrar menú',
+                ),
               PopupMenuButton<String>(
                             
                             icon: const Icon(Icons.more_vert, color: Colors.white, size: 28), 
@@ -744,6 +850,20 @@ class _MyBooksRow extends StatelessWidget {
     required this.username,
   });
 
+  String _normalizarStatus(String raw) {
+    return raw
+        .toLowerCase()
+        .trim()
+        .replaceAll('á', 'a')
+        .replaceAll('é', 'e')
+        .replaceAll('í', 'i')
+        .replaceAll('ó', 'o')
+        .replaceAll('ú', 'u')
+        .replaceAll('ñ', 'n')
+        .replaceAll('-', '_')
+        .replaceAll(' ', '_');
+  }
+
   bool _isMine(Map<String, dynamic> data) {
     final u = (uid ?? '').trim();
     if (u.isEmpty) return false;
@@ -813,6 +933,21 @@ class _MyBooksRow extends StatelessWidget {
     try {
       final cleanBookId = bookId.trim();
       bool isLoanActive = false;
+      bool materialNoDisponible = false;
+
+      final materialSnapshot = await FirebaseFirestore.instance
+          .collection('materials')
+          .doc(cleanBookId)
+          .get();
+
+      if (materialSnapshot.exists) {
+        final materialData = materialSnapshot.data() as Map<String, dynamic>;
+        final materialStatus = _normalizarStatus(
+          (materialData['status'] ?? 'disponible').toString(),
+        );
+
+        materialNoDisponible = materialStatus != 'disponible';
+      }
 
       //Buscamos directamente el material exacto en los chats 
       final chatsSnapshot = await FirebaseFirestore.instance
@@ -821,10 +956,19 @@ class _MyBooksRow extends StatelessWidget {
           .get();
 
       for (var doc in chatsSnapshot.docs) {
-        final status = (doc.data()['status'] ?? '').toString().toLowerCase().trim();
-        
-        // Comprobamos la lista de estados ocupados
-        if (['pendiente', 'solicitado', 'esperando_confirmacion', 'rentado', 'devolucion_pendiente'].contains(status)) {
+        final status = _normalizarStatus(
+          (doc.data()['status'] ?? '').toString(),
+        );
+
+        if ([
+          'pendiente',
+          'solicitado',
+          'esperando_confirmacion',
+          'reservado',
+          'rentado',
+          'en_prestamo',
+          'devolucion_pendiente',
+        ].contains(status)) {
           isLoanActive = true;
           break;
         }
@@ -833,7 +977,7 @@ class _MyBooksRow extends StatelessWidget {
       //Quitamos el círculo de carga porque ya verificamos
       if (context.mounted) Navigator.pop(context);
 
-      if (isLoanActive) {
+      if (isLoanActive || materialNoDisponible) {
         // MOSTRAR BLOQUEO Y ABORTAR ELIMINACIÓN
         if (context.mounted) {
           showDialog(
@@ -847,7 +991,7 @@ class _MyBooksRow extends StatelessWidget {
                   Text('Acción denegada', style: TextStyle(color: Color(0xFF1B3A57), fontSize: 18, fontWeight: FontWeight.bold)),
                 ],
               ),
-              content: Text('No puedes eliminar "$bookTitle" porque actualmente se encuentra en un proceso de reserva o préstamo activo.\n\nDebes rechazar la solicitud o concluir el préstamo antes de eliminar el material.'),
+              content: Text('No puedes eliminar "$bookTitle" porque actualmente tiene una transacción activa o el material no se encuentra disponible.\n\nDebes rechazar la solicitud, cerrar la reserva o concluir el préstamo antes de eliminar el material.'),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(ctx),
@@ -1605,28 +1749,79 @@ class _LoanCardStream extends StatelessWidget {
 }
 
 class _BackgroundBlobs extends StatelessWidget {
-  const _BackgroundBlobs();
+  final bool isAdmin;
+  const _BackgroundBlobs({this.isAdmin = false});
 
   @override
   Widget build(BuildContext context) {
     return CustomPaint(
-      painter: _BlobPainter(),
+      painter: _BlobPainter(isAdmin: isAdmin),
       child: const SizedBox.expand(),
     );
   }
 }
 
 class _BlobPainter extends CustomPainter {
+  final bool isAdmin;
+  _BlobPainter({this.isAdmin = false});
+
   @override
   void paint(Canvas canvas, Size size) {
-    final p1 = Paint()..color = Colors.white.withAlpha(13);
-    canvas.drawCircle(Offset(size.width * 0.1, size.height * 0.2), 100, p1);
-    canvas.drawCircle(Offset(size.width * 0.9, size.height * 0.5), 150, p1);
-    canvas.drawCircle(Offset(size.width * 0.4, size.height * 0.8), 120, p1);
+    final p1 = Paint()..color = Colors.white.withOpacity(isAdmin ? 0.05 : 0.06);
+    final p2 = Paint()..color = Colors.white.withOpacity(isAdmin ? 0.03 : 0.035);
+
+    if (isAdmin) {
+      canvas.drawCircle(Offset(size.width * 0.15, size.height * 0.18), 170, p1);
+      canvas.drawCircle(Offset(size.width * 0.85, size.height * 0.72), 220, p1);
+      canvas.drawCircle(Offset(size.width * 0.52, size.height * 0.10), 130, p2);
+    } else {
+      canvas.drawCircle(Offset(size.width * 0.1, size.height * 0.2), 100, p1);
+      canvas.drawCircle(Offset(size.width * 0.9, size.height * 0.5), 150, p1);
+      canvas.drawCircle(Offset(size.width * 0.4, size.height * 0.8), 120, p1);
+    }
   }
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+
+class _AdminDashboardShellFromProfile extends StatelessWidget {
+  const _AdminDashboardShellFromProfile();
+
+  static const Color unimetOrange = Color(0xFFF28B31);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [unimetOrange, Color(0xFFD67628)],
+              ),
+            ),
+          ),
+          const _BackgroundBlobs(isAdmin: true),
+          SafeArea(
+            child: Column(
+              children: [
+                Expanded(
+                  child: AdminDashboardView(
+                    onBack: () => Navigator.pop(context),
+                    onOpenMenu: () async {},
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _Footer extends StatelessWidget {

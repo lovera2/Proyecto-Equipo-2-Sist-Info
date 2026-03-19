@@ -5,9 +5,99 @@ import 'package:provider/provider.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import 'individual_chat_page.dart';
 import 'donation_screen.dart';
+import 'admin_dashboard_page.dart';
+import 'admin_user_management_page.dart';
+import 'admin_material_management_page.dart';
+import '../viewmodels/admin_user_management_viewmodel.dart';
+import '../viewmodels/admin_material_viewmodel.dart';
+import '../services/admin_material_service.dart';
 
 class ChatListPage extends StatelessWidget {
-  const ChatListPage({super.key});
+  final bool isAdmin;
+
+  const ChatListPage({super.key, this.isAdmin = false});
+
+  void _goHome(BuildContext context) {
+    final email =
+        (FirebaseAuth.instance.currentUser?.email ?? '').toLowerCase().trim();
+    final route = email.startsWith('admin') ? '/home_admin' : '/home_page';
+    Navigator.of(context).pushNamedAndRemoveUntil(route, (r) => false);
+  }
+
+  Future<void> _mostrarMenuAdmin(BuildContext context) async {
+    final value = await showMenu<String>(
+      context: context,
+      position: const RelativeRect.fromLTRB(1000, 90, 20, 0),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+      ),
+      items: const [
+        PopupMenuItem(
+          value: 'dashboard',
+          child: Row(
+            children: [
+              Icon(Icons.dashboard, color: Color(0xFF1B3A57), size: 20),
+              SizedBox(width: 12),
+              Text('Dashboard'),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'perfiles',
+          child: Row(
+            children: [
+              Icon(Icons.people, color: Color(0xFF1B3A57), size: 20),
+              SizedBox(width: 12),
+              Text('Gestión de Usuarios'),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'materiales',
+          child: Row(
+            children: [
+              Icon(Icons.book, color: Color(0xFF1B3A57), size: 20),
+              SizedBox(width: 12),
+              Text('Gestión de Material'),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    if (!context.mounted || value == null) return;
+
+    if (value == 'dashboard') {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const _AdminDashboardShellFromChat(),
+        ),
+      );
+      return;
+    } else if (value == 'perfiles') {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ChangeNotifierProvider(
+            create: (_) => AdminUserManagementViewModel(),
+            child: const AdminUserManagementPage(),
+          ),
+        ),
+      );
+      return;
+    } else if (value == 'materiales') {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ChangeNotifierProvider(
+            create: (_) => AdminMaterialViewModel(AdminMaterialService()),
+            child: const AdminMaterialManagementPage(),
+          ),
+        ),
+      );
+    }
+  }
 
   // aqui se obtiene el nombre del otro usuario y título del libro para guardarlo
   // cuando el chat no trae esos campos ya desde antes
@@ -141,6 +231,14 @@ class ChatListPage extends StatelessWidget {
       Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
     }
 
+    // REMOVED: email/admin logic for home navigation
+    // final String currentEmail =
+    //     (FirebaseAuth.instance.currentUser?.email ?? '').toLowerCase().trim();
+    // final bool effectiveIsAdmin =
+    //     isAdmin ||
+    //     currentEmail.startsWith('admin') ||
+    //     (currentEmail.contains('@unimet.edu.ve') && currentEmail.contains('admin'));
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       child: Row(
@@ -183,11 +281,7 @@ class ChatListPage extends StatelessWidget {
               IconButton(
                 icon: const Icon(Icons.home_outlined, color: Colors.white, size: 28),
                 tooltip: 'Inicio',
-                onPressed: () => Navigator.pushNamedAndRemoveUntil(
-                  context,
-                  '/home_page',
-                  (route) => false,
-                ),
+                onPressed: () => _goHome(context),
               ),
 
               // Notificaciones / Mensajes (ya estás aquí)
@@ -213,6 +307,15 @@ class ChatListPage extends StatelessWidget {
                 tooltip: 'Perfil',
                 onPressed: () => Navigator.pushNamed(context, '/profile'),
               ),
+              if ((FirebaseAuth.instance.currentUser?.email ?? '')
+                  .toLowerCase()
+                  .trim()
+                  .startsWith('admin'))
+                IconButton(
+                  icon: const Icon(Icons.settings_suggest, color: Colors.white, size: 28),
+                  tooltip: 'Mostrar menú',
+                  onPressed: () => _mostrarMenuAdmin(context),
+                ),
 
               // Menú (cerrar sesión)
               PopupMenuButton<String>(
@@ -279,25 +382,33 @@ class ChatListPage extends StatelessWidget {
 
     const Color unimetBlue = Color(0xFF1B3A57);
     const Color unimetOrange = Color(0xFFF28B31);
+    final email =
+        (FirebaseAuth.instance.currentUser?.email ?? '').toLowerCase().trim();
+    final bool effectiveIsAdmin = email.startsWith('admin');
 
     return Scaffold(
       body: Stack(
         children: [
           Container(
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFF0F2A3F),
-                  unimetBlue,
-                  Color(0xFF2C5E8C),
-                ],
-                stops: [0.0, 0.55, 1.0],
+                begin: effectiveIsAdmin ? Alignment.topCenter : Alignment.topLeft,
+                end: effectiveIsAdmin ? Alignment.bottomCenter : Alignment.bottomRight,
+                colors: effectiveIsAdmin
+                    ? const [
+                        Color(0xFFF28B31),
+                        Color(0xFFD67628),
+                      ]
+                    : const [
+                        Color(0xFF0F2A3F),
+                        unimetBlue,
+                        Color(0xFF2C5E8C),
+                      ],
+                stops: effectiveIsAdmin ? null : const [0.0, 0.55, 1.0],
               ),
             ),
           ),
-          const _BackgroundBlobs(),
+          _BackgroundBlobs(isAdmin: effectiveIsAdmin),
 
           SafeArea(
             child: Column(
@@ -501,28 +612,76 @@ class _Footer extends StatelessWidget {
 }
 
 class _BackgroundBlobs extends StatelessWidget {
-  const _BackgroundBlobs();
+  final bool isAdmin;
+  const _BackgroundBlobs({this.isAdmin = false});
 
   @override
   Widget build(BuildContext context) {
     return CustomPaint(
-      painter: _BlobPainter(),
+      painter: _BlobPainter(isAdmin: isAdmin),
       child: const SizedBox.expand(),
     );
   }
 }
 
 class _BlobPainter extends CustomPainter {
+  final bool isAdmin;
+  _BlobPainter({this.isAdmin = false});
+
   @override
   void paint(Canvas canvas, Size size) {
-    final p1 = Paint()..color = Colors.white.withOpacity(0.06);
-    canvas.drawCircle(Offset(size.width * 0.15, size.height * 0.30), 180, p1);
-    canvas.drawCircle(Offset(size.width * 0.85, size.height * 0.70), 220, p1);
+    final p1 = Paint()..color = Colors.white.withOpacity(isAdmin ? 0.05 : 0.06);
+    final p2 = Paint()..color = Colors.white.withOpacity(isAdmin ? 0.03 : 0.035);
 
-    final p2 = Paint()..color = Colors.white.withOpacity(0.035);
-    canvas.drawCircle(Offset(size.width * 0.5, size.height * 0.5), 50, p2);
+    if (isAdmin) {
+      canvas.drawCircle(Offset(size.width * 0.15, size.height * 0.18), 170, p1);
+      canvas.drawCircle(Offset(size.width * 0.85, size.height * 0.72), 220, p1);
+      canvas.drawCircle(Offset(size.width * 0.52, size.height * 0.10), 130, p2);
+    } else {
+      canvas.drawCircle(Offset(size.width * 0.15, size.height * 0.30), 180, p1);
+      canvas.drawCircle(Offset(size.width * 0.85, size.height * 0.70), 220, p1);
+      canvas.drawCircle(Offset(size.width * 0.5, size.height * 0.5), 50, p2);
+    }
   }
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _AdminDashboardShellFromChat extends StatelessWidget {
+  const _AdminDashboardShellFromChat();
+
+  static const Color unimetOrange = Color(0xFFF28B31);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [unimetOrange, Color(0xFFD67628)],
+              ),
+            ),
+          ),
+          const _BackgroundBlobs(isAdmin: true),
+          SafeArea(
+            child: Column(
+              children: [
+                Expanded(
+                  child: AdminDashboardView(
+                    onBack: () => Navigator.pop(context),
+                    onOpenMenu: () async {},
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

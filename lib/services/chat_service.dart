@@ -90,18 +90,40 @@ class ChatService {
 
   //Actualizar estado del préstamo
   Future<void> updateLoanStatus(
-      String chatId,
-      String materialId,
-      String newStatus,
-      ) async {
+    String chatId,
+    String materialId,
+    String newStatus,
+  ) async {
     await _firestore.collection('chats').doc(chatId).update({
       'status': newStatus,
       'lastUpdate': FieldValue.serverTimestamp(),
     });
 
     if (materialId.isNotEmpty) {
+      String materialStatus;
+
+      switch (newStatus.trim().toLowerCase()) {
+        case 'rechazado':
+        case 'cancelado':
+        case 'cerrado':
+          materialStatus = 'disponible';
+          break;
+        case 'pendiente':
+        case 'reservado':
+        case 'esperando_confirmacion':
+          materialStatus = 'reservado';
+          break;
+        case 'rentado':
+        case 'en_prestamo':
+        case 'devolucion_pendiente':
+          materialStatus = newStatus;
+          break;
+        default:
+          materialStatus = 'disponible';
+      }
+
       await _firestore.collection('materials').doc(materialId).update({
-        'status': newStatus,
+        'status': materialStatus,
       });
     }
   }

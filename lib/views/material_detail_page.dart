@@ -68,53 +68,185 @@ class MaterialDetailPage extends StatelessWidget {
             SizedBox(height: 8),
             Text("Sin imagen", style: TextStyle(color: Colors.grey, fontSize: 11)),
           ],
-          
         ),
       ),
     );
   }
 
-  Future<void> _confirmDelete(BuildContext context, String bookId, String bookTitle) async {
+  String _normalizarStatus(String raw) {
+    return raw
+        .toLowerCase()
+        .trim()
+        .replaceAll('á', 'a')
+        .replaceAll('é', 'e')
+        .replaceAll('í', 'i')
+        .replaceAll('ó', 'o')
+        .replaceAll('ú', 'u')
+        .replaceAll('ñ', 'n')
+        .replaceAll('-', '_')
+        .replaceAll(' ', '_');
+  }
+
+  bool _esStatusTerminalChat(String statusNormalizado) {
+    return [
+      'rechazado',
+      'cancelado',
+      'cerrado',
+      'finalizado',
+      'completado',
+      'devuelto',
+    ].contains(statusNormalizado);
+  }
+
+  Future<void> _confirmDelete(
+    BuildContext context,
+    String bookId,
+    String bookTitle,
+  ) async {
     final bool? confirm = await showDialog<bool>(
       context: context,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-          title: const Text('Eliminar publicación', style: TextStyle(color: Color(0xFF1B3A57))),
-          content: Text('¿Estás seguro de que deseas eliminar "$bookTitle"? Esta acción no se puede deshacer.'),
+          title: const Text(
+            'Eliminar publicación',
+            style: TextStyle(color: Color(0xFF1B3A57)),
+          ),
+          content: Text(
+            '¿Estás seguro de que deseas eliminar "$bookTitle"? Esta acción no se puede deshacer.',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+              child: const Text(
+                'Cancelar',
+                style: TextStyle(color: Colors.grey),
+              ),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
               onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('Eliminar', style: TextStyle(color: Colors.white)),
+              child: const Text(
+                'Eliminar',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         );
       },
     );
 
-    if (confirm == true) {
-      try {
-        await FirebaseFirestore.instance.collection('materials').doc(bookId).delete();
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Publicación eliminada correctamente'), backgroundColor: Colors.green, behavior: SnackBarBehavior.floating),
-          );
-          Navigator.pop(context); // Regresa a la pantalla anterior
+    if (confirm != true) return;
+
+    try {
+      final cleanBookId = bookId.trim();
+      bool isLoanActive = false;
+      bool materialNoDisponible = false;
+
+      final materialSnapshot = await FirebaseFirestore.instance
+          .collection('materials')
+          .doc(cleanBookId)
+          .get();
+
+      if (materialSnapshot.exists) {
+        final materialData = materialSnapshot.data() as Map<String, dynamic>;
+        final materialStatus = _normalizarStatus(
+          (materialData['status'] ?? 'disponible').toString(),
+        );
+
+        materialNoDisponible =
+            materialStatus.isEmpty || materialStatus != 'disponible';
+      }
+
+      final chatsSnapshot = await FirebaseFirestore.instance
+          .collection('chats')
+          .where('materialId', isEqualTo: cleanBookId)
+          .get();
+
+      for (var doc in chatsSnapshot.docs) {
+        final status = _normalizarStatus(
+          (doc.data()['status'] ?? '').toString(),
+        );
+
+        if (!_esStatusTerminalChat(status)) {
+          isLoanActive = true;
+          break;
         }
-      } catch (e) {
+      }
+
+      if (isLoanActive || materialNoDisponible) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error al eliminar: $e'), backgroundColor: Colors.red, behavior: SnackBarBehavior.floating),
+          showDialog(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15),
+              ),
+              title: const Row(
+                children: [
+                  Icon(
+                    Icons.warning_amber_rounded,
+                    color: Colors.orange,
+                    size: 28,
+                  ),
+                  SizedBox(width: 10),
+                  Text(
+                    'Acción denegada',
+                    style: TextStyle(
+                      color: Color(0xFF1B3A57),
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              content: Text(
+                'No puedes eliminar "$bookTitle" porque actualmente tiene una transacción activa o el material no se encuentra disponible.\n\nDebes rechazar la solicitud, cerrar la reserva o concluir el préstamo antes de eliminar el material.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text(
+                    'Entendido',
+                    style: TextStyle(
+                      color: Color(0xFFF28B31),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           );
         }
+        return;
+      }
+
+      await FirebaseFirestore.instance.collection('materials').doc(bookId).delete();
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Publicación eliminada correctamente'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al eliminar: $e'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     }
   }
@@ -373,11 +505,7 @@ class MaterialDetailPage extends StatelessWidget {
                                       description: desc,
                                       availabilityLabel: availabilityLabel,
                                       availabilityColor: availabilityColor,
-                                      isAdmin: effectiveIsAdmin,
                                       isReserved: isReserved,
-                                      onEdit: () {
-                                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Editar material: Próximamente.')));
-                                      },
                                       onReservedInfo: showReservedInfo,
                                     );
                                   },
@@ -647,9 +775,7 @@ class _DetailsCard extends StatelessWidget {
   final String title, category, ownerName, subject, author, description;
   final String availabilityLabel;
   final Color availabilityColor;
-  final bool isAdmin;
   final bool isReserved;
-  final VoidCallback onEdit;
   final VoidCallback onReservedInfo;
 
   const _DetailsCard({
@@ -661,21 +787,17 @@ class _DetailsCard extends StatelessWidget {
     required this.description,
     required this.availabilityLabel,
     required this.availabilityColor,
-    required this.isAdmin,
     required this.isReserved,
-    required this.onEdit,
     required this.onReservedInfo,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(right: 4),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+    return Padding(
+      padding: const EdgeInsets.only(right: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
               const Text('Detalles del material', style: TextStyle(color: Color(0xFF1B3A57), fontSize: 28, fontWeight: FontWeight.w900)),
               const SizedBox(height: 14),
               _InfoLine(label: 'Título', value: title),
@@ -737,23 +859,8 @@ class _DetailsCard extends StatelessWidget {
                   ],
                 ),
               ),
-            ],
-          ),
-        ),
-        if (isAdmin)
-          Positioned(
-            top: 0, right: 0,
-            child: SizedBox(
-              height: 42,
-              child: ElevatedButton.icon(
-                onPressed: onEdit,
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1B3A57), foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), padding: const EdgeInsets.symmetric(horizontal: 14), elevation: 0),
-                icon: const Icon(Icons.edit, size: 18),
-                label: const Text('Editar', style: TextStyle(fontWeight: FontWeight.w800)),
-              ),
-            ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 }

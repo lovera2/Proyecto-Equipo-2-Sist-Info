@@ -392,89 +392,146 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildCategoryFilter(HomeViewModel vm) {
-    final categories = ["TODO", "Faces", "Ingeniería", "Humanidades", "Derecho"];
+    final categories = ["TODO", ...vm.categorias];
+
+    final categoriasSinDuplicados = <String>[];
+    final categoriasNormalizadas = <String>{};
+
+    for (final categoria in categories) {
+      final normalizada = categoria
+          .trim()
+          .toLowerCase()
+          .replaceAll('á', 'a')
+          .replaceAll('é', 'e')
+          .replaceAll('í', 'i')
+          .replaceAll('ó', 'o')
+          .replaceAll('ú', 'u')
+          .replaceAll('ñ', 'n');
+
+      if (!categoriasNormalizadas.contains(normalizada)) {
+        categoriasNormalizadas.add(normalizada);
+        categoriasSinDuplicados.add(categoria);
+      }
+    }
 
     const Color brownBtn = cardBrown;
 
-    return Center(
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            ...categories.asMap().entries.map((entry) {
-              final i = entry.key;
-              final cat = entry.value;
-              final isSelected = vm.selectedCategory == cat;
+    Widget buildChip(String cat, int i) {
+      final isSelected = vm.selectedCategory == cat;
+      final bool isTodo = cat == "TODO";
+      final String label = isTodo ? "Todo" : cat;
 
-              final bool isTodo = cat == "TODO";
-              final String label = isTodo ? "Todo" : cat;
-
-              final chip = Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 7),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(28),
-                  onTap: () => vm.setCategory(cat),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 160),
-                    curve: Curves.easeOut,
-                    constraints: const BoxConstraints(minHeight: 52),
-                    padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
-                    decoration: BoxDecoration(
-                      color: isSelected ? unimetOrange : brownBtn,
-                      borderRadius: BorderRadius.circular(28),
-                      border: Border.all(
-                        color: isSelected
-                            ? Colors.transparent
-                            : Colors.black.withOpacity(0.08),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(isSelected ? 0.18 : 0.12),
-                          blurRadius: isSelected ? 10 : 8,
-                          offset: const Offset(0, 5),
-                        ),
-                      ],
+      final chip = Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 7),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 240),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(28),
+            onTap: () => vm.setCategory(cat),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 160),
+              curve: Curves.easeOut,
+              constraints: const BoxConstraints(minHeight: 52),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 12,
+              ),
+              decoration: BoxDecoration(
+                color: isSelected ? unimetOrange : brownBtn,
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(
+                  color: isSelected
+                      ? Colors.transparent
+                      : Colors.black.withOpacity(0.08),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(
+                      isSelected ? 0.18 : 0.12,
                     ),
+                    blurRadius: isSelected ? 10 : 8,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (isTodo) ...[
+                    const Icon(
+                      Icons.apps_rounded,
+                      size: 18,
+                      color: Colors.white,
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  Flexible(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final bool addSeparator = i == 0;
+
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          chip,
+          if (addSeparator)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 6),
+              height: 30,
+              width: 1.2,
+              color: Colors.white.withOpacity(0.35),
+            ),
+        ],
+      );
+    }
+
+    final chips = categoriasSinDuplicados
+        .asMap()
+        .entries
+        .map((entry) => buildChip(entry.value, entry.key))
+        .toList();
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.symmetric(horizontal: 200),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return Scrollbar(
+            thumbVisibility: categoriasSinDuplicados.length > 6,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (isTodo) ...[
-                          const Icon(Icons.apps_rounded, size: 18, color: Colors.white),
-                          const SizedBox(width: 8),
-                        ],
-                        Text(
-                          label,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 15,
-                            letterSpacing: 0.2,
-                          ),
-                        ),
-                      ],
+                      children: chips,
                     ),
                   ),
                 ),
-              );
-
-              final bool addSeparator = i == 0;
-
-              return Row(
-                children: [
-                  chip,
-                  if (addSeparator)
-                    Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 6),
-                      height: 30,
-                      width: 1.2,
-                      color: Colors.white.withOpacity(0.35),
-                    ),
-                ],
-              );
-            }),
-          ],
-        ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
