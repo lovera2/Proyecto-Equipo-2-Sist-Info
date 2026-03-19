@@ -110,3 +110,5 @@ class AdminMaterialViewModel extends ChangeNotifier {
     }
   }
 }
+
+// Este ViewModel se encarga de manejar la lógica de administración de materiales, incluyendo la carga, filtrado, selección y eliminación de materiales, así como la gestión de categorías. Utiliza el AdminMaterialService para interactuar con la base de datos y mantener el estado actualizado.

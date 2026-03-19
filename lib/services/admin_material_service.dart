@@ -250,3 +250,5 @@ class AdminMaterialService {
     await batch.commit();
   }
 }
+
+//  AdminMaterialService es una clase que proporciona métodos para administrar materiales y categorías en la base de datos de Firestore. Incluye funcionalidades para obtener, actualizar y eliminar materiales, así como para gestionar categorías, asegurando la integridad de los datos y aplicando reglas específicas para categorías base y materiales en diferentes estados.

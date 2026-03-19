@@ -114,3 +114,5 @@ class PublishViewModel extends ChangeNotifier {
     notifyListeners();
   }
 }
+
+// PublishViewModel es una clase que maneja la lógica de publicación de materiales en la plataforma. Permite a los usuarios seleccionar una imagen, ingresar detalles del material y publicar el material en la base de datos. También gestiona el estado de carga y los mensajes de error, asegurando una experiencia de usuario fluida y clara durante el proceso de publicación.

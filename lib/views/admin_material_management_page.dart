@@ -1264,3 +1264,5 @@ class _BlobPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
+
+// El AdminMaterialManagementPage es una pantalla de administración que permite a los administradores gestionar los materiales disponibles en la plataforma. Incluye funcionalidades para visualizar, editar, eliminar materiales y gestionar categorías, con una interfaz intuitiva y moderna adaptada a las necesidades de los administradores.

@@ -101,3 +101,5 @@ class MaterialService {
     });
   }
 }
+
+//  MaterialService es una clase que proporciona métodos para interactuar con la colección de materiales y categorías en Firestore. Incluye funcionalidades para agregar materiales, obtener materiales por categoría y obtener un stream de categorías, asegurando que las categorías predeterminadas estén siempre presentes en la base de datos.

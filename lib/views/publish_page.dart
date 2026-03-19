@@ -667,3 +667,5 @@ class _BlobPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
+
+// PublishPage es una pantalla que permite a los usuarios publicar nuevos materiales en la plataforma. Incluye un formulario para ingresar detalles del material, subir una imagen de portada y seleccionar una categoría. La interfaz es moderna y adaptada a diferentes tamaños de pantalla, con un diseño atractivo y fácil de usar. El ViewModel asociado maneja la lógica de publicación, incluyendo validaciones, interacción con el servicio de materiales y gestión del estado de carga y errores.
