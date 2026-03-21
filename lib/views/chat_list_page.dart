@@ -221,147 +221,118 @@ class ChatListPage extends StatelessWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           backgroundColor: unimetOrange,
-          content: Text(
-            '👋 Sesión cerrada. ¡Vuelve pronto!',
-            style: TextStyle(color: Colors.white),
-          ),
+          content: Text('👋 Sesión cerrada. ¡Vuelve pronto!', style: TextStyle(color: Colors.white)),
         ),
       );
 
       Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
     }
 
-    // REMOVED: email/admin logic for home navigation
-    // final String currentEmail =
-    //     (FirebaseAuth.instance.currentUser?.email ?? '').toLowerCase().trim();
-    // final bool effectiveIsAdmin =
-    //     isAdmin ||
-    //     currentEmail.startsWith('admin') ||
-    //     (currentEmail.contains('@unimet.edu.ve') && currentEmail.contains('admin'));
+    final String email = (FirebaseAuth.instance.currentUser?.email ?? '').toLowerCase().trim();
+    final bool isAdmin = email.startsWith('admin');
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Logo y título (igual al Home)
-          Row(
+          // Logo y título
+          const Row(
             children: [
-              const Icon(Icons.menu_book, color: Colors.white, size: 30),
-              const SizedBox(width: 12),
-              const Text(
+              Icon(Icons.menu_book, color: Colors.white, size: 24),
+              SizedBox(width: 8),
+              Text(
                 'BookLoop',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
               ),
             ],
           ),
 
-          // Acciones (igual al Home)
-          Row(
+          // Acciones con WRAP para que no se desborde
+          Wrap(
+            spacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               // Publicar (naranja)
               Container(
-                decoration: BoxDecoration(
-                  color: unimetOrange,
-                  borderRadius: BorderRadius.circular(14),
-                ),
+                width: 32, height: 32,
+                decoration: BoxDecoration(color: unimetOrange, borderRadius: BorderRadius.circular(8)),
                 child: IconButton(
+                  padding: EdgeInsets.zero,
                   onPressed: () => Navigator.pushNamed(context, '/publish'),
-                  icon: const Icon(Icons.add, color: Colors.white),
-                  tooltip: 'Publicar material',
+                  icon: const Icon(Icons.add, color: Colors.white, size: 18),
                 ),
               ),
-              const SizedBox(width: 10),
-
+              
               // Inicio
-              IconButton(
-                icon: const Icon(Icons.home_outlined, color: Colors.white, size: 28),
-                tooltip: 'Inicio',
-                onPressed: () => _goHome(context),
+              Container(
+                width: 32, height: 32,
+                decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
+                child: IconButton(
+                  padding: EdgeInsets.zero,
+                  icon: const Icon(Icons.home_outlined, color: Colors.white, size: 18),
+                  onPressed: () => _goHome(context),
+                ),
               ),
 
               // Notificaciones / Mensajes (ya estás aquí)
-              IconButton(
-                icon: const Icon(Icons.notifications_none_outlined, color: Colors.white, size: 28),
-                tooltip: 'Mensajes',
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      backgroundColor: unimetBlue,
-                      content: Text(
-                        '📩 Ya estás en Mensajes.',
-                        style: TextStyle(color: Colors.white),
+              Container(
+                width: 32, height: 32,
+                decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
+                child: IconButton(
+                  padding: EdgeInsets.zero,
+                  icon: const Icon(Icons.notifications_none_outlined, color: Colors.white, size: 18),
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        backgroundColor: unimetBlue,
+                        content: Text('📩 Ya estás en Mensajes.', style: TextStyle(color: Colors.white)),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
 
               // Perfil
-              IconButton(
-                icon: const Icon(Icons.person_outline, color: Colors.white, size: 28),
-                tooltip: 'Perfil',
-                onPressed: () => Navigator.pushNamed(context, '/profile'),
+              Container(
+                width: 32, height: 32,
+                decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
+                child: IconButton(
+                  padding: EdgeInsets.zero,
+                  icon: const Icon(Icons.person_outline, color: Colors.white, size: 18),
+                  onPressed: () => Navigator.pushNamed(context, '/profile'),
+                ),
               ),
-              if ((FirebaseAuth.instance.currentUser?.email ?? '')
-                  .toLowerCase()
-                  .trim()
-                  .startsWith('admin'))
-                IconButton(
-                  icon: const Icon(Icons.settings_suggest, color: Colors.white, size: 28),
-                  tooltip: 'Mostrar menú',
-                  onPressed: () => _mostrarMenuAdmin(context),
+
+              // Admin Menu (Si es admin)
+              if (isAdmin)
+                Container(
+                  width: 32, height: 32,
+                  decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
+                  child: IconButton(
+                    padding: EdgeInsets.zero,
+                    icon: const Icon(Icons.settings_suggest, color: Colors.white, size: 18),
+                    onPressed: () => _mostrarMenuAdmin(context),
+                  ),
                 ),
 
               // Menú (cerrar sesión)
               PopupMenuButton<String>(
-                            
-                            icon: const Icon(Icons.more_vert, color: Colors.white, size: 28), 
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                            onSelected: (value) async {
-                              if (value == 'donate') {
-                                
-                                Navigator.push(
-                                  context, 
-                                  MaterialPageRoute(builder: (_) => const DonationScreen())
-                                );
-                              } else if (value == 'logout') {
-                                await FirebaseAuth.instance.signOut();
-                                if (context.mounted) {
-                  
-                                  Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false); 
-                                }
-                              }
-                            },
-                            itemBuilder: (context) => [
-                              // donaciones
-                              const PopupMenuItem(
-                                value: 'donate',
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.volunteer_activism, color: Color(0xFFF28B31)), 
-                                    SizedBox(width: 10),
-                                    Text('Realizar donación'),
-                                  ],
-                                ),
-                              ),
-                              // cerrar sesion
-                              const PopupMenuItem(
-                                value: 'logout',
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.logout, color: Color(0xFF1B3A57)), 
-                                    SizedBox(width: 10),
-                                    Text('Cerrar sesión'),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
+                icon: const Icon(Icons.more_vert, color: Colors.white, size: 24),
+                padding: EdgeInsets.zero,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                onSelected: (value) async {
+                  if (value == 'donate') {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const DonationScreen()));
+                  } else if (value == 'logout') {
+                    await handleLogout();
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(value: 'donate', child: Row(children: [Icon(Icons.volunteer_activism, color: Color(0xFFF28B31)), SizedBox(width: 10), Text('Realizar donación')])),
+                  const PopupMenuItem(value: 'logout', child: Row(children: [Icon(Icons.logout, color: Color(0xFF1B3A57)), SizedBox(width: 10), Text('Cerrar sesión')])),
+                ],
+              ),
             ],
           ),
         ],
@@ -372,6 +343,9 @@ class ChatListPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+    // Detectamos el ancho de la pantalla
+    final screenWidth = MediaQuery.of(context).size.width;
+    final bool isWide = screenWidth > 800; 
 
     // si no hay usuario autenticado, no hacemos consultas
     if (currentUserId.trim().isEmpty) {
@@ -389,6 +363,7 @@ class ChatListPage extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
+          // Fondo degradado
           Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -418,7 +393,8 @@ class ChatListPage extends StatelessWidget {
                 Expanded(
                   child: Container(
                     width: double.infinity,
-                    margin: const EdgeInsets.fromLTRB(200, 0, 200, 16),
+                    // MAGIA RESPONSIVA: 200 en PC, 15 en Celular
+                    margin: EdgeInsets.fromLTRB(isWide ? 200 : 15, 0, isWide ? 200 : 15, 16),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(30),
@@ -427,9 +403,10 @@ class ChatListPage extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const SizedBox(height: 28),
-                        const Padding(
-                          padding: EdgeInsets.only(left: 40, bottom: 14),
-                          child: Text(
+                        Padding(
+                          // Ajustamos el padding del título también
+                          padding: EdgeInsets.only(left: isWide ? 40 : 20, bottom: 14),
+                          child: const Text(
                             'Mis Mensajes',
                             style: TextStyle(
                               fontSize: 22,
@@ -439,9 +416,8 @@ class ChatListPage extends StatelessWidget {
                           ),
                         ),
 
-                   Expanded(
+                        Expanded(
                           child: StreamBuilder<QuerySnapshot>(
-                            // Mantenemos la consulta, pero nos aseguramos de que el campo sea exacto
                             stream: FirebaseFirestore.instance
                                 .collection('chats')
                                 .where('participants', arrayContains: currentUserId)
@@ -464,12 +440,9 @@ class ChatListPage extends StatelessWidget {
                                 final data = doc.data() as Map<String, dynamic>;
                                 final List participants = data['participants'] ?? [];
                                 
-                                // DOBLE BLINDAJE: Si yo no estoy en la lista de participantes, este chat no es para mí
                                 if (!participants.contains(currentUserId)) continue;
 
                                 final String mId = (data['materialId'] ?? '').toString();
-                                // Generamos una llave única para evitar que el mismo libro/persona aparezca dos veces
-                                // Si el chat es del mismo material y las mismas personas, es un duplicado
                                 final String chatKey = "${mId}_${participants.join('_')}";
 
                                 if (seenKeys.contains(chatKey)) continue;
@@ -517,13 +490,13 @@ class ChatListPage extends StatelessWidget {
                                     builder: (context, extraSnap) {
                                       final extra = extraSnap.data ?? {'otherName': 'Usuario', 'bookTitle': 'Libro', 'avatarEmoji': ''};
                                       
-                                      // Lógica de visualización (Punto 3 adelantado para que se vea genial)
                                       final bool isOwner = chatData['ownerId'] == currentUserId;
                                       final String displayName = extra['otherName'] ?? 'Usuario';
                                       final String bookTitle = extra['bookTitle'] ?? 'Consultar detalles';
 
                                       return Card(
-                                        margin: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                                        // Ajustamos el margen de la tarjeta
+                                        margin: EdgeInsets.symmetric(horizontal: isWide ? 18 : 12, vertical: 8),
                                         elevation: 3,
                                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                                         child: ListTile(

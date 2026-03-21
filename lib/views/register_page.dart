@@ -187,7 +187,7 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  // UI helper (View): tarjeta reutilizable por rol
+  
   Widget _buildRoleCard(
     String title,
     IconData icon,
@@ -196,53 +196,84 @@ class _RegisterPageState extends State<RegisterPage> {
     String hintCorreo,
   ) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)],
+        borderRadius: BorderRadius.circular(25),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          )
+        ],
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 60, color: unimetBlue),
-          const SizedBox(height: 10),
+          // Icono con fondo sutil
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: unimetBlue.withOpacity(0.05),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 45, color: unimetBlue),
+          ),
+          const SizedBox(height: 12),
           Text(
             title,
             style: const TextStyle(
-              fontSize: 18,
+              fontSize: 20,
               fontWeight: FontWeight.bold,
               color: unimetBlue,
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 25),
+          
+          // Campo de Correo
           TextField(
             controller: eCont,
             keyboardType: TextInputType.emailAddress,
             decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.email_outlined, size: 20),
               hintText: hintCorreo,
               labelText: "Correo Institucional",
+              labelStyle: const TextStyle(fontSize: 14),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 15),
+          
+          // Campo de Contraseña
           TextField(
             controller: pCont,
             obscureText: true,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.lock_outline, size: 20),
               hintText: "Mínimo 6 caracteres",
               labelText: "Contraseña",
+              labelStyle: const TextStyle(fontSize: 14),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             ),
           ),
-          const SizedBox(height: 25),
+          const SizedBox(height: 30),
+          
+          // Botón de Acción
           ElevatedButton(
             onPressed: () => _validarYPasarAlPago(eCont, pCont, title),
             style: ElevatedButton.styleFrom(
               backgroundColor: unimetOrange,
-              minimumSize: const Size(double.infinity, 45),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              foregroundColor: Colors.white,
+              minimumSize: const Size(double.infinity, 50),
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
             ),
             child: const Text(
-              "Crear cuenta",
-              style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+              "Continuar al pago",
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
             ),
           ),
         ],

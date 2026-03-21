@@ -90,33 +90,28 @@ class _HomePageState extends State<HomePage> {
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
     final homeVM = context.watch<HomeViewModel>();
-    // Calculamos la altura de la pantalla para el ajuste visual
-    final screenHeight = MediaQuery.of(context).size.height;
+    final size = MediaQuery.of(context).size;
+    final bool isWide = size.width > 900; // Detecta si es Web o Móvil
 
     return Scaffold(
       body: Stack(
         children: [
-          // Fondo 
+          // Fondo degradado
           Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFF0F2A3F),
-                  unimetBlue,
-                  Color(0xFF2C5E8C),
-                ],
+                colors: [Color(0xFF0F2A3F), unimetBlue, Color(0xFF2C5E8C)],
                 stops: [0.0, 0.55, 1.0],
               ),
             ),
           ),
-          // Blobs de fondo (decoración)
           const _BackgroundBlobs(),
           
-          // Contenido Principal con Scroll
           SafeArea(
             child: SingleChildScrollView(
               child: Column(
@@ -124,25 +119,21 @@ class _HomePageState extends State<HomePage> {
                   _buildHeader(context),
                   
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                    child: Column(
-                      children: [
-                        _buildSearchBar(homeVM),
-                        const SizedBox(height: 25), 
-                      ],
-                    ),
+                    padding: EdgeInsets.symmetric(horizontal: isWide ? 200 : 20, vertical: 10),
+                    child: _buildSearchBar(homeVM),
                   ),
 
-                  _buildCategoryFilter(homeVM),
+                  // Filtro de categorías responsivo
+                  _buildCategoryFilter(homeVM, isWide),
                   
                   const SizedBox(height: 15),
 
-                  // SECCIÓN BLANCA (LIBROS)
+                  // SECCIÓN BLANCA (LIBROS) con margen adaptativo
                   Container(
                     width: double.infinity,
-                    margin: const EdgeInsets.symmetric(horizontal: 200), 
+                    margin: EdgeInsets.symmetric(horizontal: isWide ? 200 : 15), 
                     constraints: BoxConstraints(
-                      minHeight: screenHeight * 0.65, 
+                      minHeight: size.height * 0.65, 
                     ),
                     decoration: BoxDecoration(
                       color: Colors.white,
@@ -154,13 +145,13 @@ class _HomePageState extends State<HomePage> {
                         const SizedBox(height: 30),
                         
                         Padding(
-                          padding: const EdgeInsets.only(left: 40, bottom: 20),
-                          child: Text(
+                          padding: EdgeInsets.only(left: isWide ? 40 : 20, bottom: 20),
+                          child: const Text(
                             "Material Reciente", 
                             style: TextStyle(
                               fontSize: 22, 
                               fontWeight: FontWeight.bold, 
-                              color: unimetBlue
+                              color: unimetBlue,
                             ),
                           ),
                         ),
@@ -187,23 +178,23 @@ class _HomePageState extends State<HomePage> {
                             return GridView.builder(
                               shrinkWrap: true,
                               physics: const NeverScrollableScrollPhysics(),
-                              padding: const EdgeInsets.only(left: 40, right: 40, bottom: 40),
-                              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                              padding: EdgeInsets.symmetric(horizontal: isWide ? 40 : 15, vertical: 10),
+                              gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
                                 maxCrossAxisExtent: 280,
                                 childAspectRatio: 0.56,
-                                crossAxisSpacing: 28,
-                                mainAxisSpacing: 28,
+                                crossAxisSpacing: isWide ? 28 : 15,
+                                mainAxisSpacing: isWide ? 28 : 15,
                               ),
                               itemCount: docs.length,
                               itemBuilder: (context, index) {
                                 final doc = docs[index];
                                 final data = doc.data() as Map<String, dynamic>;
-                                // Usamos InkWell dentro de un Material para mejor respuesta visual
+                                
                                 return Material(
                                   color: Colors.transparent,
                                   child: InkWell(
+                                    borderRadius: BorderRadius.circular(16),
                                     onTap: () {
-                                      print("¡Clic detectado en el libro: ${data['title']}!");
                                       Navigator.push(
                                         context,
                                         MaterialPageRoute(
@@ -238,136 +229,83 @@ class _HomePageState extends State<HomePage> {
   //MÉTODOS AUXILIARES 
 
   Widget _buildHeader(BuildContext context) {
+    final String currentUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Logo y Título
-          Row(
+          // Izquierda: Logo
+          const Row(
             children: [
-              const Icon(Icons.menu_book, color: Colors.white, size: 30),
-              const SizedBox(width: 12),
-              const Text(
+              Icon(Icons.menu_book, color: Colors.white, size: 24),
+              SizedBox(width: 8),
+              Text(
                 "BookLoop",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
               ),
             ],
           ),
-          // Botones de acción
-          Row(
+          // Derecha: Acciones en Wrap
+          Wrap(
+            spacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              // para publicar 
               Container(
-                decoration: BoxDecoration(
-                  color: unimetOrange,
-                  borderRadius: BorderRadius.circular(14),
-                ),
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(color: unimetOrange, borderRadius: BorderRadius.circular(8)),
                 child: IconButton(
+                  padding: EdgeInsets.zero,
+                  icon: const Icon(Icons.add, color: Colors.white, size: 18),
                   onPressed: () => Navigator.pushNamed(context, '/publish'),
-                  icon: const Icon(Icons.add, color: Colors.white),
-                  tooltip: 'Publicar material',
                 ),
               ),
-              const SizedBox(width: 10),
-              
-              // aparicion de un punto rojo en notificaciones 
-              Stack(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.notifications_none_outlined, color: Colors.white, size: 28),
-                    onPressed: () {
+              _headerCircleBtn(Icons.home_outlined, () {}), // Ya estamos en home
+              StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance.collection('chats').where('users', arrayContains: currentUid).snapshots(),
+                builder: (context, snapshot) {
+                  bool hasActivity = snapshot.hasData && snapshot.data!.docs.isNotEmpty;
+                  return Badge(
+                    isLabelVisible: hasActivity,
+                    backgroundColor: Colors.redAccent,
+                    child: _headerCircleBtn(Icons.notifications_none_outlined, () {
                       setState(() {
                         _hasNewNotifications = false;
                       });
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const ChatListPage()),
-                      );
-                    },
-                    tooltip: 'Mis chats y notificaciones',
-                  ),
-                  if (_hasNewNotifications)
-                    Positioned(
-                      right: 8,
-                      top: 8,
-                      child: Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: unimetBlue, width: 1.5),
-                        ),
-                        constraints: const BoxConstraints(
-                          minWidth: 12,
-                          minHeight: 12,
-                        ),
-                      ),
-                    ),
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => const ChatListPage()));
+                    }),
+                  );
+                },
+              ),
+              _headerCircleBtn(Icons.person_outline, () => Navigator.pushNamed(context, '/profile')),
+              
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert, color: Colors.white, size: 24),
+                padding: EdgeInsets.zero,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                onSelected: (value) {
+                  if (value == 'donate') Navigator.push(context, MaterialPageRoute(builder: (_) => const DonationScreen()));
+                  if (value == 'logout') _handleLogout(context);
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(value: 'donate', child: Text("Donar")),
+                  const PopupMenuItem(value: 'logout', child: Text("Cerrar sesión")),
                 ],
               ),
-              
-              const SizedBox(width: 5),
-
-              // Botón Perfil
-              IconButton(
-                icon: const Icon(Icons.person_outline, color: Colors.white, size: 28),
-                onPressed: () => Navigator.pushNamed(context, '/profile'),
-              ),
-              
-              // Menú de opciones 
-              
-                          PopupMenuButton<String>(
-                            
-                            icon: const Icon(Icons.more_vert, color: Colors.white, size: 28), 
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                            onSelected: (value) async {
-                              if (value == 'donate') {
-                                
-                                Navigator.push(
-                                  context, 
-                                  MaterialPageRoute(builder: (_) => const DonationScreen())
-                                );
-                              } else if (value == 'logout') {
-                                await FirebaseAuth.instance.signOut();
-                                if (context.mounted) {
-                        
-                                  Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false); 
-                                }
-                              }
-                            },
-                            itemBuilder: (context) => [
-                              const PopupMenuItem(
-                                value: 'donate',
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.volunteer_activism, color: Color(0xFFF28B31)), 
-                                    SizedBox(width: 10),
-                                    Text('Realizar donación'),
-                                  ],
-                                ),
-                              ),
-
-                              const PopupMenuItem(
-                                value: 'logout',
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.logout, color: Color(0xFF1B3A57)), 
-                                    SizedBox(width: 10),
-                                    Text('Cerrar sesión'),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
             ],
           ),
         ],
       ),
+    );
+  }
+
+  Widget _headerCircleBtn(IconData icon, VoidCallback tap) {
+    return Container(
+      width: 32, height: 32,
+      decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
+      child: IconButton(padding: EdgeInsets.zero, icon: Icon(icon, color: Colors.white, size: 18), onPressed: tap),
     );
   }
 
@@ -391,7 +329,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildCategoryFilter(HomeViewModel vm) {
+  Widget _buildCategoryFilter(HomeViewModel vm, bool isWide) {
     final categories = ["TODO", ...vm.categorias];
 
     final categoriasSinDuplicados = <String>[];
@@ -422,7 +360,7 @@ class _HomePageState extends State<HomePage> {
       final String label = isTodo ? "Todo" : cat;
 
       final chip = Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 7),
+        padding: const EdgeInsets.symmetric(horizontal: 5), // Menos separación entre botones
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 240),
           child: InkWell(
@@ -431,26 +369,19 @@ class _HomePageState extends State<HomePage> {
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 160),
               curve: Curves.easeOut,
-              constraints: const BoxConstraints(minHeight: 52),
-              padding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 12,
-              ),
+              constraints: const BoxConstraints(minHeight: 38), // Altura reducida (antes 52)
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), // Padding más pequeño
               decoration: BoxDecoration(
                 color: isSelected ? unimetOrange : brownBtn,
                 borderRadius: BorderRadius.circular(28),
                 border: Border.all(
-                  color: isSelected
-                      ? Colors.transparent
-                      : Colors.black.withOpacity(0.08),
+                  color: isSelected ? Colors.transparent : Colors.black.withOpacity(0.08),
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(
-                      isSelected ? 0.18 : 0.12,
-                    ),
-                    blurRadius: isSelected ? 10 : 8,
-                    offset: const Offset(0, 5),
+                    color: Colors.black.withOpacity(isSelected ? 0.18 : 0.12),
+                    blurRadius: isSelected ? 8 : 6,
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),
@@ -458,12 +389,8 @@ class _HomePageState extends State<HomePage> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (isTodo) ...[
-                    const Icon(
-                      Icons.apps_rounded,
-                      size: 18,
-                      color: Colors.white,
-                    ),
-                    const SizedBox(width: 8),
+                    const Icon(Icons.apps_rounded, size: 16, color: Colors.white), // Icono más pequeño
+                    const SizedBox(width: 6),
                   ],
                   Flexible(
                     child: Text(
@@ -473,7 +400,7 @@ class _HomePageState extends State<HomePage> {
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w800,
-                        fontSize: 15,
+                        fontSize: 13, // Letra más pequeña (antes 15)
                         letterSpacing: 0.2,
                       ),
                     ),
@@ -493,8 +420,8 @@ class _HomePageState extends State<HomePage> {
           chip,
           if (addSeparator)
             Container(
-              margin: const EdgeInsets.symmetric(horizontal: 6),
-              height: 30,
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              height: 20, // Línea separadora más pequeña
               width: 1.2,
               color: Colors.white.withOpacity(0.35),
             ),
@@ -510,7 +437,7 @@ class _HomePageState extends State<HomePage> {
 
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.symmetric(horizontal: 200),
+      margin: EdgeInsets.symmetric(horizontal: isWide ? 200 : 10),
       child: LayoutBuilder(
         builder: (context, constraints) {
           return Scrollbar(
@@ -591,14 +518,12 @@ class _HomePageState extends State<HomePage> {
     ({String label, Color color}) _mapStatus(String statusNorm) {
       final bool isDisponible = statusNorm == 'disponible';
 
-      // Reservado: antes de concretar el préstamo
       final bool isReservado = <String>{
         'reservado',
         'pendiente',
         'esperando_confirmacion',
       }.contains(statusNorm);
 
-      // En préstamo: préstamo activo o esperando devolución
       final bool isPrestamo = <String>{
         'rentado',
         'devolucion_pendiente',
@@ -611,7 +536,6 @@ class _HomePageState extends State<HomePage> {
               ? 'Reservado'
               : (isPrestamo ? 'En préstamo' : 'No disponible'));
 
-      // Colores RF-03
       final Color color = isDisponible ? Colors.green : (isReservado ? Colors.amber : Colors.red);
 
       return (label: label, color: color);
@@ -643,9 +567,7 @@ class _HomePageState extends State<HomePage> {
       );
     }
 
-    // Status base (lo que dice el material)
     final String statusMaterialNorm = _normStatus((data['status'] ?? 'disponible').toString());
-
     final String titulo = (data['title'] ?? '').toString();
     final String autor = (data['author'] ?? '').toString();
     final String materia = (data['subject'] ?? '').toString();
@@ -664,7 +586,7 @@ class _HomePageState extends State<HomePage> {
       ),
       child: Column(
         children: [
-          // Portada (rectangular, tipo libro)
+          // Portada y Chip de estado
           Expanded(
             flex: 8,
             child: Padding(
@@ -674,16 +596,11 @@ class _HomePageState extends State<HomePage> {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    // Imagen ocupa todo el espacio disponible sin forzar aspectRatio extra.
                     _buildImage(data['imageUrl']),
-
                     Positioned(
                       right: 10,
                       bottom: 10,
                       child: StreamBuilder<QuerySnapshot>(
-                        // Buscamos si hay un chat asociado al material.
-                        // Si existe y su status es relevante, sobre-escribe el status del material.
-                        // Esto evita que en Home se vea verde cuando ya está reservado/en préstamo.
                         stream: FirebaseFirestore.instance
                             .collection('chats')
                             .where('materialId', isEqualTo: materialId)
@@ -693,8 +610,6 @@ class _HomePageState extends State<HomePage> {
                           String effective = statusMaterialNorm;
 
                           if (snap.hasData && snap.data!.docs.isNotEmpty) {
-                            // Elegimos el status más "fuerte" encontrado en chats.
-                            // Prioridad: en préstamo > reservado > disponible
                             bool foundPrestamo = false;
                             bool foundReservado = false;
 
@@ -727,54 +642,47 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
 
-          // Texto + chip (sin overflows)
+          // Texto + chip (Ajustado para no dar Overflow)
           Expanded(
             flex: 5,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
+              padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
               child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Bloque de título y autor ocupa el espacio disponible y mantiene el chip abajo.
-                  Expanded(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          titulo,
-                          maxLines: 2,
-                          textAlign: TextAlign.center,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 18,
-                            color: Colors.black87,
-                            height: 1.15,
-                          ),
+                  Column(
+                    children: [
+                      Text(
+                        titulo,
+                        maxLines: 2,
+                        textAlign: TextAlign.center,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 14, // Tamaño ajustado
+                          color: Colors.black87,
+                          height: 1.1,
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          autor.isEmpty ? '—' : autor,
-                          maxLines: 2,
-                          textAlign: TextAlign.center,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontStyle: FontStyle.italic,
-                            color: Colors.black87,
-                            height: 1.15,
-                          ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        autor.isEmpty ? '—' : autor,
+                        maxLines: 1, // Una sola línea para ahorrar espacio
+                        textAlign: TextAlign.center,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12, // Tamaño ajustado
+                          fontStyle: FontStyle.italic,
+                          color: Colors.black87,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-
-                  const SizedBox(height: 10),
-
-                  // Chip de materia siempre alineado abajo
+                  // Chip de materia
                   ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 220),
+                    constraints: const BoxConstraints(maxWidth: double.infinity),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.65),
                         borderRadius: BorderRadius.circular(999),
@@ -782,14 +690,13 @@ class _HomePageState extends State<HomePage> {
                       ),
                       child: Text(
                         materia.isEmpty ? '—' : materia,
-                        maxLines: 2,
+                        maxLines: 1,
                         textAlign: TextAlign.center,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          fontSize: 12,
+                          fontSize: 10, // Tamaño ajustado
                           fontWeight: FontWeight.w700,
                           color: Colors.black87,
-                          height: 1.1,
                         ),
                       ),
                     ),
@@ -801,6 +708,7 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
     );
+  }
   }
 
   Widget _buildImage(String? url) {
@@ -876,7 +784,7 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
-} 
+
 
 
 class _Footer extends StatelessWidget {

@@ -7,6 +7,7 @@ import 'individual_chat_page.dart';
 import 'chat_list_page.dart'; 
 import '../services/user_service.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
+import 'donation_screen.dart';
 
 class MaterialDetailPage extends StatelessWidget {
   final String materialId;
@@ -68,185 +69,53 @@ class MaterialDetailPage extends StatelessWidget {
             SizedBox(height: 8),
             Text("Sin imagen", style: TextStyle(color: Colors.grey, fontSize: 11)),
           ],
+          
         ),
       ),
     );
   }
 
-  String _normalizarStatus(String raw) {
-    return raw
-        .toLowerCase()
-        .trim()
-        .replaceAll('á', 'a')
-        .replaceAll('é', 'e')
-        .replaceAll('í', 'i')
-        .replaceAll('ó', 'o')
-        .replaceAll('ú', 'u')
-        .replaceAll('ñ', 'n')
-        .replaceAll('-', '_')
-        .replaceAll(' ', '_');
-  }
-
-  bool _esStatusTerminalChat(String statusNormalizado) {
-    return [
-      'rechazado',
-      'cancelado',
-      'cerrado',
-      'finalizado',
-      'completado',
-      'devuelto',
-    ].contains(statusNormalizado);
-  }
-
-  Future<void> _confirmDelete(
-    BuildContext context,
-    String bookId,
-    String bookTitle,
-  ) async {
+  Future<void> _confirmDelete(BuildContext context, String bookId, String bookTitle) async {
     final bool? confirm = await showDialog<bool>(
       context: context,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-          title: const Text(
-            'Eliminar publicación',
-            style: TextStyle(color: Color(0xFF1B3A57)),
-          ),
-          content: Text(
-            '¿Estás seguro de que deseas eliminar "$bookTitle"? Esta acción no se puede deshacer.',
-          ),
+          title: const Text('Eliminar publicación', style: TextStyle(color: Color(0xFF1B3A57))),
+          content: Text('¿Estás seguro de que deseas eliminar "$bookTitle"? Esta acción no se puede deshacer.'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text(
-                'Cancelar',
-                style: TextStyle(color: Colors.grey),
-              ),
+              child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
               onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text(
-                'Eliminar',
-                style: TextStyle(color: Colors.white),
-              ),
+              child: const Text('Eliminar', style: TextStyle(color: Colors.white)),
             ),
           ],
         );
       },
     );
 
-    if (confirm != true) return;
-
-    try {
-      final cleanBookId = bookId.trim();
-      bool isLoanActive = false;
-      bool materialNoDisponible = false;
-
-      final materialSnapshot = await FirebaseFirestore.instance
-          .collection('materials')
-          .doc(cleanBookId)
-          .get();
-
-      if (materialSnapshot.exists) {
-        final materialData = materialSnapshot.data() as Map<String, dynamic>;
-        final materialStatus = _normalizarStatus(
-          (materialData['status'] ?? 'disponible').toString(),
-        );
-
-        materialNoDisponible =
-            materialStatus.isEmpty || materialStatus != 'disponible';
-      }
-
-      final chatsSnapshot = await FirebaseFirestore.instance
-          .collection('chats')
-          .where('materialId', isEqualTo: cleanBookId)
-          .get();
-
-      for (var doc in chatsSnapshot.docs) {
-        final status = _normalizarStatus(
-          (doc.data()['status'] ?? '').toString(),
-        );
-
-        if (!_esStatusTerminalChat(status)) {
-          isLoanActive = true;
-          break;
-        }
-      }
-
-      if (isLoanActive || materialNoDisponible) {
+    if (confirm == true) {
+      try {
+        await FirebaseFirestore.instance.collection('materials').doc(bookId).delete();
         if (context.mounted) {
-          showDialog(
-            context: context,
-            builder: (ctx) => AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15),
-              ),
-              title: const Row(
-                children: [
-                  Icon(
-                    Icons.warning_amber_rounded,
-                    color: Colors.orange,
-                    size: 28,
-                  ),
-                  SizedBox(width: 10),
-                  Text(
-                    'Acción denegada',
-                    style: TextStyle(
-                      color: Color(0xFF1B3A57),
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              content: Text(
-                'No puedes eliminar "$bookTitle" porque actualmente tiene una transacción activa o el material no se encuentra disponible.\n\nDebes rechazar la solicitud, cerrar la reserva o concluir el préstamo antes de eliminar el material.',
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text(
-                    'Entendido',
-                    style: TextStyle(
-                      color: Color(0xFFF28B31),
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Publicación eliminada correctamente'), backgroundColor: Colors.green, behavior: SnackBarBehavior.floating),
+          );
+          Navigator.pop(context); // Regresa a la pantalla anterior
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error al eliminar: $e'), backgroundColor: Colors.red, behavior: SnackBarBehavior.floating),
           );
         }
-        return;
-      }
-
-      await FirebaseFirestore.instance.collection('materials').doc(bookId).delete();
-
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Publicación eliminada correctamente'),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        Navigator.pop(context);
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al eliminar: $e'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
       }
     }
   }
@@ -505,7 +374,11 @@ class MaterialDetailPage extends StatelessWidget {
                                       description: desc,
                                       availabilityLabel: availabilityLabel,
                                       availabilityColor: availabilityColor,
+                                      isAdmin: effectiveIsAdmin,
                                       isReserved: isReserved,
+                                      onEdit: () {
+                                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Editar material: Próximamente.')));
+                                      },
                                       onReservedInfo: showReservedInfo,
                                     );
                                   },
@@ -529,25 +402,28 @@ class MaterialDetailPage extends StatelessWidget {
                                     if (!isWide) ...[const SizedBox(height: 16), cover],
                                     const SizedBox(height: 18),
                                     Divider(color: Colors.black.withOpacity(0.08)),
-                                    const SizedBox(height: 14),
+                                    const SizedBox(height: 12),
+                                    
+                                    // BOTONES PARA MÓVIL
                                     Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                                       children: [
+                                        // BOTÓN 1: Solicitar / Eliminar 
                                         if (!isOwner && !effectiveIsAdmin)
-                                          ElevatedButton.icon(
-                                            style: ElevatedButton.styleFrom(
-                                              backgroundColor: isAvailable
-                                                  ? (effectiveIsAdmin ? unimetBlue : unimetOrange)
-                                                  : (isReserved ? const Color(0xFFF2C27A) : Colors.grey.shade500),
-                                              foregroundColor: Colors.white,
-                                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                                              elevation: 0,
-                                            ),
-                                            onPressed: isAvailable ? () async {
+                                          Expanded(
+                                            flex: 11, 
+                                            child: ElevatedButton(
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: isAvailable
+                                                    ? (effectiveIsAdmin ? unimetBlue : unimetOrange)
+                                                    : (isReserved ? const Color(0xFFF2C27A) : Colors.grey.shade500),
+                                                foregroundColor: Colors.white,
+                                                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                                elevation: 0,
+                                              ),
+                                              onPressed: isAvailable ? () async {
                                                   if (user == null) return;
 
-                                                  // 1. Verificar créditos antes de permitir el chat
                                                   final userDoc = await FirebaseFirestore.instance.collection('usuarios').doc(currentUid).get();
                                                   int exchanges = userDoc.data()?['free_exchanges'] ?? 0;
 
@@ -561,10 +437,9 @@ class MaterialDetailPage extends StatelessWidget {
                                                         ),
                                                       );
                                                     }
-                                                    return; // Bloqueamos la acción
+                                                    return; 
                                                   }
 
-                                                  // 2. Si tiene créditos, procedemos a crear el chat
                                                   final chatService = ChatService();
                                                   final String chatId = await chatService.getOrCreateChat(currentUid, ownerUid, materialId);
                                                   final Map<String, dynamic> dataConId = Map.from(materialData);
@@ -580,83 +455,109 @@ class MaterialDetailPage extends StatelessWidget {
                                                     ));
                                                   }
                                                 } : null,
-                                            icon: const Icon(Icons.chat_bubble_outline),
-                                            label: Text(
-                                              isAvailable
-                                                  ? 'Solicitar préstamo'
-                                                  : (isReserved ? 'Reservado' : 'En préstamo'),
-                                              style: const TextStyle(fontWeight: FontWeight.w700),
+                                              child: Row(
+                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                children: [
+                                                  const Icon(Icons.chat_bubble_outline, size: 18),
+                                                  const SizedBox(width: 6),
+                                                  Flexible(
+                                                    child: Text(
+                                                      isAvailable ? 'Solicitar préstamo' : (isReserved ? 'Reservado' : 'En préstamo'),
+                                                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                                                      maxLines: 1,
+                                                      overflow: TextOverflow.ellipsis,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
                                             ),
                                           )
                                         else if (isOwner)
-                                          TextButton.icon(
-                                            onPressed: () => _confirmDelete(context, materialId, title),
-                                            icon: const Icon(Icons.delete_outline, color: Colors.red, size: 26),
-                                            label: const Text('Eliminar', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                                          Expanded(
+                                            flex: 11,
+                                            child: TextButton.icon(
+                                              onPressed: () => _confirmDelete(context, materialId, title),
+                                              icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                                              label: const Text('Eliminar', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 13)),
+                                            ),
                                           )
                                         else
-                                          const SizedBox(width: 1),
+                                          const SizedBox.shrink(),
                                         
-                                        StreamBuilder<bool>(
-                                          // el ID del usuario actual y el ID del libro
-                                          stream: currentUid.isNotEmpty 
-                                              ? UserService().isFavoriteStream(uid: currentUid, bookId: materialId) 
-                                              : Stream.value(false),
-                                          builder: (context, snapshot) {
-                                            final bool isFav = snapshot.data ?? false; // Es favorito en la DB?
-                                            
-                                            return TextButton.icon(
-                                              onPressed: () async {
-                                                if (currentUid.isEmpty) {
-                                                  ScaffoldMessenger.of(context).showSnackBar(
-                                                    const SnackBar(content: Text('Debes iniciar sesión para guardar favoritos')),
-                                                  );
-                                                  return;
-                                                }
-
-                                                final userService = UserService();
-                                                // Guardamos el messenger y el título antes del await
-                                                final messenger = ScaffoldMessenger.of(context);
-                                                final String bookTitle = (materialData['title'] ?? 'este libro').toString();
-
-                                                if (isFav) {
-                                                  // Si ya era favorito, lo quitamos
-                                                  await userService.removeFavorite(uid: currentUid, bookId: materialId);
-                                                  messenger.showSnackBar(
-                                                    SnackBar(
-                                                      content: Text('Has quitado "$bookTitle" de tus favoritos 💔'),
-                                                      backgroundColor: Colors.grey[700],
-                                                      duration: const Duration(seconds: 2),
-                                                      behavior: SnackBarBehavior.floating,
-                                                    ),
-                                                  );
-                                                } else {
-                                                  // Si no era, lo añadimos
-                                                  await userService.addFavorite(uid: currentUid, bookId: materialId);
-                                                  messenger.showSnackBar(
-                                                    SnackBar(
-                                                      content: Text('Has agregado "$bookTitle" a tus favoritos ❤️'),
-                                                      backgroundColor: const Color(0xFFF28B31), // Naranja Unimet
-                                                      duration: const Duration(seconds: 2),
-                                                      behavior: SnackBarBehavior.floating,
-                                                    ),
-                                                  );
-                                                }
-                                              },
-                                              icon: Icon(
-                                                isFav ? Icons.favorite : Icons.favorite_border,
-                                                color: isFav ? Colors.red : Colors.grey,
-                                                size: 26,
-                                              ),
-                                              label: Text(
-                                                isFav ? 'En favoritos' : 'Añadir a favoritos',
-                                                style: TextStyle(
-                                                  color: isFav ? Colors.red : Colors.grey, 
-                                                  fontWeight: FontWeight.bold
+                                        const SizedBox(width: 6),
+                                        
+                                        // BOTÓN 2: Favoritos (Texto más corto y directo)
+                                        Expanded(
+                                          flex: 9, 
+                                          child: StreamBuilder<bool>(
+                                            stream: currentUid.isNotEmpty 
+                                                ? UserService().isFavoriteStream(uid: currentUid, bookId: materialId) 
+                                                : Stream.value(false),
+                                            builder: (context, snapshot) {
+                                              final bool isFav = snapshot.data ?? false; 
+                                              
+                                              return TextButton(
+                                                style: TextButton.styleFrom(
+                                                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
                                                 ),
-                                              ),
-                                            );
-                                          },
+                                                onPressed: () async {
+                                                  if (currentUid.isEmpty) {
+                                                    ScaffoldMessenger.of(context).showSnackBar(
+                                                      const SnackBar(content: Text('Debes iniciar sesión')),
+                                                    );
+                                                    return;
+                                                  }
+
+                                                  final userService = UserService();
+                                                  final messenger = ScaffoldMessenger.of(context);
+                                                  final String bookTitle = (materialData['title'] ?? 'este libro').toString();
+
+                                                  if (isFav) {
+                                                    await userService.removeFavorite(uid: currentUid, bookId: materialId);
+                                                    messenger.showSnackBar(
+                                                      SnackBar(
+                                                        content: Text('Eliminado de favoritos 💔'),
+                                                        backgroundColor: Colors.grey[700],
+                                                        duration: const Duration(seconds: 2),
+                                                      ),
+                                                    );
+                                                  } else {
+                                                    await userService.addFavorite(uid: currentUid, bookId: materialId);
+                                                    messenger.showSnackBar(
+                                                      SnackBar(
+                                                        content: Text('Guardado en favoritos ❤️'),
+                                                        backgroundColor: const Color(0xFFF28B31), 
+                                                        duration: const Duration(seconds: 2),
+                                                      ),
+                                                    );
+                                                  }
+                                                },
+                                                child: Row(
+                                                  mainAxisAlignment: MainAxisAlignment.center,
+                                                  children: [
+                                                    Icon(
+                                                      isFav ? Icons.favorite : Icons.favorite_border,
+                                                      color: isFav ? Colors.red : Colors.grey,
+                                                      size: 20,
+                                                    ),
+                                                    const SizedBox(width: 6),
+                                                    Flexible(
+                                                      child: Text(
+                                                        isFav ? 'Guardado' : 'Favoritos', 
+                                                        style: TextStyle(
+                                                          color: isFav ? Colors.red : Colors.grey, 
+                                                          fontWeight: FontWeight.bold,
+                                                          fontSize: 13,
+                                                        ),
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow.ellipsis,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              );
+                                            },
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -693,28 +594,68 @@ class _TopBar extends StatelessWidget {
     final String currentUid = FirebaseAuth.instance.currentUser?.uid ?? '';
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              IconButton(icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white), onPressed: onBack),
-              const SizedBox(width: 6),
-              const Icon(Icons.menu_book, color: Colors.white, size: 28),
-              const SizedBox(width: 10),
-              Text(isAdmin ? 'BookLoop ADMIN' : 'BookLoop', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800)),
-            ],
+          // IZQUIERDA: Flecha de retroceso y Logo
+          Expanded(
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+                  padding: EdgeInsets.zero,
+                  visualDensity: VisualDensity.compact,
+                  constraints: const BoxConstraints(),
+                  onPressed: () {
+                    if (Navigator.canPop(context)) {
+                      onBack();
+                    } else {
+                      final route = isAdmin ? '/home_admin' : '/home_page';
+                      Navigator.pushReplacementNamed(context, route);
+                    }
+                  },
+                ),
+                const SizedBox(width: 4),
+                const Icon(Icons.menu_book, color: Colors.white, size: 22),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    isAdmin ? 'BookLoop ADMIN' : 'BookLoop',
+                    style: const TextStyle(
+                      color: Colors.white, 
+                      fontSize: 18, 
+                      fontWeight: FontWeight.bold, 
+                      letterSpacing: -0.5
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.clip,
+                  ),
+                ),
+              ],
+            ),
           ),
-          Row(
+          
+          // DERECHA: Botones agrupados en Wrap
+          Wrap(
+            spacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Container(
-                decoration: BoxDecoration(color: isAdmin ? const Color(0xFF1B3A57) : const Color(0xFFF28B31), borderRadius: BorderRadius.circular(14)),
-                child: IconButton(onPressed: onPublish, icon: const Icon(Icons.add, color: Colors.white)),
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: isAdmin ? const Color(0xFF1B3A57) : const Color(0xFFF28B31), 
+                  borderRadius: BorderRadius.circular(8)
+                ),
+                child: IconButton(
+                  padding: EdgeInsets.zero,
+                  visualDensity: VisualDensity.compact,
+                  onPressed: onPublish, 
+                  icon: const Icon(Icons.add, color: Colors.white, size: 18)
+                ),
               ),
-              const SizedBox(width: 10),
-              IconButton(icon: const Icon(Icons.home_outlined, color: Colors.white, size: 28), onPressed: onHome),
-              
+              _headerCircleBtn(Icons.home_outlined, onHome),
               
               StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
@@ -722,31 +663,58 @@ class _TopBar extends StatelessWidget {
                     .where('users', arrayContains: currentUid)
                     .snapshots(),
                 builder: (context, snapshot) {
-                  // Lógica simple: si hay algún chat donde el usuario participe, mostramos el punto
                   bool hasActivity = snapshot.hasData && snapshot.data!.docs.isNotEmpty;
                   return Badge(
                     isLabelVisible: hasActivity,
                     backgroundColor: Colors.redAccent,
-                    child: IconButton(
-                      icon: const Icon(Icons.notifications_none_outlined, color: Colors.white, size: 28),
-                      onPressed: onNotifications,
-                    ),
+                    child: _headerCircleBtn(Icons.notifications_none_outlined, onNotifications),
                   );
                 },
               ),
               
-              IconButton(icon: const Icon(Icons.person_outline, color: Colors.white, size: 28), onPressed: onProfile),
+              _headerCircleBtn(Icons.person_outline, onProfile),
+              
               PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert, color: Colors.white, size: 28),
+                icon: const Icon(Icons.more_vert, color: Colors.white, size: 24),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                onSelected: (value) { if (value == 'logout') onMenuLogout(); },
+                onSelected: (value) async {
+                  if (value == 'donate') {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const DonationScreen()));
+                  } else if (value == 'logout') {
+                    onMenuLogout();
+                  }
+                },
                 itemBuilder: (context) => [
-                  const PopupMenuItem(value: 'logout', child: Row(children: [Icon(Icons.logout, color: Color(0xFF1B3A57)), SizedBox(width: 10), Text('Cerrar sesión')])),
+                  const PopupMenuItem(
+                    value: 'donate',
+                    child: Row(children: [Icon(Icons.volunteer_activism, color: Color(0xFFF28B31)), SizedBox(width: 10), Text('Realizar donación')]),
+                  ),
+                  const PopupMenuItem(
+                    value: 'logout',
+                    child: Row(children: [Icon(Icons.logout, color: Color(0xFF1B3A57)), SizedBox(width: 10), Text('Cerrar sesión')]),
+                  ),
                 ],
               ),
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  // Función auxiliar para los botones circulares
+  Widget _headerCircleBtn(IconData icon, VoidCallback tap) {
+    return Container(
+      width: 32,
+      height: 32,
+      decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
+      child: IconButton(
+        padding: EdgeInsets.zero, 
+        visualDensity: VisualDensity.compact,
+        icon: Icon(icon, color: Colors.white, size: 18), 
+        onPressed: tap
       ),
     );
   }
@@ -775,7 +743,9 @@ class _DetailsCard extends StatelessWidget {
   final String title, category, ownerName, subject, author, description;
   final String availabilityLabel;
   final Color availabilityColor;
+  final bool isAdmin;
   final bool isReserved;
+  final VoidCallback onEdit;
   final VoidCallback onReservedInfo;
 
   const _DetailsCard({
@@ -787,17 +757,21 @@ class _DetailsCard extends StatelessWidget {
     required this.description,
     required this.availabilityLabel,
     required this.availabilityColor,
+    required this.isAdmin,
     required this.isReserved,
+    required this.onEdit,
     required this.onReservedInfo,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+    return Stack(
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(right: 4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               const Text('Detalles del material', style: TextStyle(color: Color(0xFF1B3A57), fontSize: 28, fontWeight: FontWeight.w900)),
               const SizedBox(height: 14),
               _InfoLine(label: 'Título', value: title),
@@ -859,8 +833,23 @@ class _DetailsCard extends StatelessWidget {
                   ],
                 ),
               ),
-        ],
-      ),
+            ],
+          ),
+        ),
+        if (isAdmin)
+          Positioned(
+            top: 0, right: 0,
+            child: SizedBox(
+              height: 42,
+              child: ElevatedButton.icon(
+                onPressed: onEdit,
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1B3A57), foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), padding: const EdgeInsets.symmetric(horizontal: 14), elevation: 0),
+                icon: const Icon(Icons.edit, size: 18),
+                label: const Text('Editar', style: TextStyle(fontWeight: FontWeight.w800)),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

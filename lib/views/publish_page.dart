@@ -8,6 +8,7 @@ import 'package:bookloop_unimet/views/chat_list_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'donation_screen.dart';
 import '../services/material_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class PublishPage extends StatefulWidget {
   final bool isUserAdmin;
@@ -63,9 +64,93 @@ class _PublishPageState extends State<PublishPage> {
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
     final viewModel = context.watch<PublishViewModel>();
     final size = MediaQuery.of(context).size;
+    final bool isWide = size.width > 800; // Detección de pantalla responsiva
+
+    // 1. Fragmento para la imagen
+    final Widget selectorImagen = Column(
+      children: [
+        GestureDetector(
+          onTap: viewModel.pickImage,
+          child: Container(
+            height: isWide ? (kIsWeb ? 500 : 280) : 220,
+            width: isWide ? (kIsWeb ? 350 : 190) : 150,
+            decoration: BoxDecoration(
+              color: Colors.grey[200],
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(color: Colors.grey[300]!),
+              boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
+            ),
+            child: viewModel.selectedImage == null
+                ? Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.add_photo_alternate_outlined, size: isWide ? (kIsWeb ? 80 : 50) : 40, color: Colors.grey[400]),
+                      const SizedBox(height: 10),
+                      const Text("Subir Portada", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w500)),
+                    ],
+                  )
+                : ClipRRect(
+                    borderRadius: BorderRadius.circular(15),
+                    child: kIsWeb
+                        ? Image.network(viewModel.selectedImage!.path, fit: BoxFit.cover, width: double.infinity, height: double.infinity)
+                        : Image.file(File(viewModel.selectedImage!.path), fit: BoxFit.cover, width: double.infinity, height: double.infinity),
+                  ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        const Text("Portada del Material", style: TextStyle(fontSize: 12, color: Colors.grey)),
+      ],
+    );
+
+    // 2. Fragmento para los campos
+    final Widget camposFormulario = Column(
+      children: [
+        _buildUnimetField("Título...", _titleController),
+        _buildUnimetField("Autor...", _authorController),
+        StreamBuilder<List<String>>(
+          stream: context.read<MaterialService>().getCategoriesStream(),
+          builder: (context, snapshot) {
+            final categories = snapshot.data ?? MaterialService.defaultCategories;
+
+            if (_selectedCategory != null && !categories.contains(_selectedCategory)) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) setState(() => _selectedCategory = null);
+              });
+            }
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+              decoration: BoxDecoration(
+                color: const Color(0xFF8DA4B9).withOpacity(0.5),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: _selectedCategory,
+                  hint: const Text("Selecciona una Categoría...", style: TextStyle(color: Colors.white70)),
+                  dropdownColor: const Color(0xFF1B3A57),
+                  icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+                  isExpanded: true,
+                  style: const TextStyle(color: Colors.white, fontSize: 16),
+                  borderRadius: BorderRadius.circular(15),
+                  items: categories.map((String category) {
+                    return DropdownMenuItem<String>(value: category, child: Text(category));
+                  }).toList(),
+                  onChanged: (String? newValue) => setState(() => _selectedCategory = newValue),
+                ),
+              ),
+            );
+          },
+        ),
+        _buildUnimetField("Asignatura...", _subjectController),
+        _buildUnimetField("Descripción corta...", _descController, maxLines: 3),
+      ],
+    );
 
     return Scaffold(
       body: Stack(
@@ -87,320 +172,66 @@ class _PublishPageState extends State<PublishPage> {
                 Expanded(
                   child: Center(
                     child: SizedBox(
-                      width: size.width > 850 ? 850 : size.width * 0.95,
+                      width: isWide ? 850 : size.width * 0.95,
                       child: RawScrollbar(
                         controller: _myScrollController,
                         thumbColor: Colors.grey,
                         radius: const Radius.circular(20),
                         thickness: 6,
                         thumbVisibility: false,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 5,
-                          vertical: 20,
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 20),
                         child: SingleChildScrollView(
                           controller: _myScrollController,
                           padding: const EdgeInsets.symmetric(vertical: 10),
                           child: Container(
-                            padding: const EdgeInsets.all(30),
+                            padding: EdgeInsets.all(isWide ? 30 : 20),
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(25),
-                              boxShadow: const [
-                                BoxShadow(
-                                  color: Colors.black26,
-                                  blurRadius: 15,
-                                  offset: Offset(0, 8),
-                                )
-                              ],
+                              boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 15, offset: Offset(0, 8))],
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const Text(
                                   "Publicar Material",
-                                  style: TextStyle(
-                                    fontSize: 26,
-                                    fontWeight: FontWeight.bold,
-                                    color: unimetBlue,
-                                  ),
+                                  style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: unimetBlue),
                                 ),
                                 const SizedBox(height: 25),
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Expanded(
-                                      flex: 1,
-                                      child: Column(
+                                
+                                // responsivo
+                                isWide
+                                    ? Row(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          GestureDetector(
-                                            onTap: viewModel.pickImage,
-                                            child: Container(
-                                              height: kIsWeb ? 500 : 280,
-                                              width: kIsWeb ? 350 : 190,
-                                              decoration: BoxDecoration(
-                                                color: Colors.grey[200],
-                                                borderRadius:
-                                                    BorderRadius.circular(15),
-                                                border: Border.all(
-                                                  color: Colors.grey[300]!,
-                                                ),
-                                                boxShadow: const [
-                                                  BoxShadow(
-                                                    color: Colors.black12,
-                                                    blurRadius: 4,
-                                                    offset: Offset(0, 2),
-                                                  )
-                                                ],
-                                              ),
-                                              child:
-                                                  viewModel.selectedImage ==
-                                                          null
-                                                      ? Column(
-                                                        mainAxisAlignment:
-                                                            MainAxisAlignment
-                                                                .center,
-                                                        children: [
-                                                          Icon(
-                                                            Icons
-                                                                .add_photo_alternate_outlined,
-                                                            size:
-                                                                kIsWeb
-                                                                    ? 80
-                                                                    : 50,
-                                                            color:
-                                                                Colors
-                                                                    .grey[400],
-                                                          ),
-                                                          const SizedBox(
-                                                            height: 10,
-                                                          ),
-                                                          const Text(
-                                                            "Subir Portada",
-                                                            style: TextStyle(
-                                                              color: Colors.grey,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .w500,
-                                                            ),
-                                                          ),
-                                                        ],
-                                                      )
-                                                      : ClipRRect(
-                                                        borderRadius:
-                                                            BorderRadius.circular(
-                                                              15,
-                                                            ),
-                                                        child:
-                                                            kIsWeb
-                                                                ? Image.network(
-                                                                  viewModel
-                                                                      .selectedImage!
-                                                                      .path,
-                                                                  fit:
-                                                                      BoxFit
-                                                                          .cover,
-                                                                  width: 350,
-                                                                  height: 500,
-                                                                )
-                                                                : Image.file(
-                                                                  File(
-                                                                    viewModel
-                                                                        .selectedImage!
-                                                                        .path,
-                                                                  ),
-                                                                  fit:
-                                                                      BoxFit
-                                                                          .cover,
-                                                                  width: 190,
-                                                                  height: 280,
-                                                                ),
-                                                      ),
-                                            ),
-                                          ),
-                                          const SizedBox(height: 10),
-                                          const Text(
-                                            "Portada del Material",
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              color: Colors.grey,
-                                            ),
-                                          ),
+                                          Expanded(flex: 1, child: selectorImagen),
+                                          const SizedBox(width: 30),
+                                          Expanded(flex: 2, child: camposFormulario),
+                                        ],
+                                      )
+                                    : Column(
+                                        children: [
+                                          Center(child: selectorImagen),
+                                          const SizedBox(height: 25),
+                                          camposFormulario,
                                         ],
                                       ),
-                                    ),
-                                    const SizedBox(width: 30),
-                                    Expanded(
-                                      flex: 1,
-                                      child: Column(
-                                        children: [
-                                          _buildUnimetField(
-                                            "Título...",
-                                            _titleController,
-                                          ),
-                                          _buildUnimetField(
-                                            "Autor...",
-                                            _authorController,
-                                          ),
-                                          StreamBuilder<List<String>>(
-                                            stream:
-                                                context
-                                                    .read<MaterialService>()
-                                                    .getCategoriesStream(),
-                                            builder: (context, snapshot) {
-                                              final categories =
-                                                  snapshot.data ??
-                                                  MaterialService
-                                                      .defaultCategories;
-
-                                              if (_selectedCategory != null &&
-                                                  !categories.contains(
-                                                    _selectedCategory,
-                                                  )) {
-                                                WidgetsBinding.instance
-                                                    .addPostFrameCallback((_) {
-                                                      if (mounted) {
-                                                        setState(() {
-                                                          _selectedCategory =
-                                                              null;
-                                                        });
-                                                      }
-                                                    });
-                                              }
-
-                                              return Container(
-                                                margin: const EdgeInsets.only(
-                                                  bottom: 12,
-                                                ),
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      horizontal: 15,
-                                                      vertical: 5,
-                                                    ),
-                                                decoration: BoxDecoration(
-                                                  color: const Color(
-                                                    0xFF8DA4B9,
-                                                  ).withOpacity(0.5),
-                                                  borderRadius:
-                                                      BorderRadius.circular(10),
-                                                ),
-                                                child:
-                                                    DropdownButtonHideUnderline(
-                                                      child:
-                                                          DropdownButton<String>(
-                                                            value:
-                                                                _selectedCategory,
-                                                            hint: const Text(
-                                                              "Selecciona una Categoría...",
-                                                              style: TextStyle(
-                                                                color:
-                                                                    Colors
-                                                                        .white70,
-                                                              ),
-                                                            ),
-                                                            dropdownColor:
-                                                                const Color(
-                                                                  0xFF1B3A57,
-                                                                ),
-                                                            icon: const Icon(
-                                                              Icons
-                                                                  .arrow_drop_down,
-                                                              color:
-                                                                  Colors.white,
-                                                            ),
-                                                            isExpanded: true,
-                                                            style:
-                                                                const TextStyle(
-                                                                  color:
-                                                                      Colors
-                                                                          .white,
-                                                                  fontSize: 16,
-                                                                ),
-                                                            borderRadius:
-                                                                BorderRadius.circular(
-                                                                  15,
-                                                                ),
-                                                            items:
-                                                                categories.map((
-                                                                  String
-                                                                  category,
-                                                                ) {
-                                                                  return DropdownMenuItem<
-                                                                    String
-                                                                  >(
-                                                                    value:
-                                                                        category,
-                                                                    child: Text(
-                                                                      category,
-                                                                    ),
-                                                                  );
-                                                                }).toList(),
-                                                            onChanged: (
-                                                              String? newValue,
-                                                            ) {
-                                                              setState(() {
-                                                                _selectedCategory =
-                                                                    newValue;
-                                                              });
-                                                            },
-                                                          ),
-                                                    ),
-                                              );
-                                            },
-                                          ),
-                                          _buildUnimetField(
-                                            "Asignatura...",
-                                            _subjectController,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 15),
-                                _buildUnimetField(
-                                  "Descripción corta...",
-                                  _descController,
-                                  maxLines: 3,
-                                ),
+                                      
                                 const SizedBox(height: 25),
                                 Align(
                                   alignment: Alignment.centerRight,
                                   child: SizedBox(
-                                    width: 180,
+                                    width: isWide ? 180 : double.infinity,
                                     height: 50,
                                     child: ElevatedButton(
-                                      onPressed:
-                                          viewModel.isLoading
-                                              ? null
-                                              : _handlePublish,
+                                      onPressed: viewModel.isLoading ? null : _handlePublish,
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: themeColor,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
-                                        ),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                       ),
-                                      child:
-                                          viewModel.isLoading
-                                              ? const SizedBox(
-                                                width: 20,
-                                                height: 20,
-                                                child:
-                                                    CircularProgressIndicator(
-                                                      color: Colors.white,
-                                                      strokeWidth: 2,
-                                                    ),
-                                              )
-                                              : const Text(
-                                                "Publicar",
-                                                style: TextStyle(
-                                                  color: Colors.white,
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 16,
-                                                ),
-                                              ),
+                                      child: viewModel.isLoading
+                                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                          : const Text("Publicar", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
                                     ),
                                   ),
                                 ),
@@ -421,149 +252,115 @@ class _PublishPageState extends State<PublishPage> {
   }
 
   Widget _buildHeader(BuildContext context) {
+    final String currentUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              IconButton(
-                icon: const Icon(
-                  Icons.arrow_back_ios_new,
-                  color: Colors.white,
-                  size: 24,
+          Expanded(
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+                  padding: EdgeInsets.zero,
+                  visualDensity: VisualDensity.compact,
+                  constraints: const BoxConstraints(),
+                  onPressed: () {
+                    context.read<PublishViewModel>().clearData();
+                    Navigator.pop(context);
+                  },
                 ),
-                onPressed: () {
-                  context.read<PublishViewModel>().clearData();
-                  Navigator.pop(context);
-                },
-              ),
-              const SizedBox(width: 5),
-              const Icon(Icons.menu_book, color: Colors.white, size: 30),
-              const SizedBox(width: 12),
-              const Text(
-                "BookLoop",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
+                const SizedBox(width: 4),
+                const Icon(Icons.menu_book, color: Colors.white, size: 22),
+                const SizedBox(width: 4),
+                const Flexible(
+                  child: Text(
+                    "BookLoop",
+                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: -0.5),
+                    maxLines: 1,
+                    overflow: TextOverflow.clip,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-          Row(
+          
+          Wrap(
+            spacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Container(
-                decoration: BoxDecoration(
-                  color: unimetOrange,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: IconButton(
-                  icon: const Icon(Icons.add, color: Colors.white),
-                  tooltip: 'Ya estás aquí',
-                  onPressed: null,
-                ),
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(color: unimetOrange, borderRadius: BorderRadius.circular(8)),
+                child: const Icon(Icons.add, color: Colors.white, size: 18),
               ),
-              const SizedBox(width: 10),
-              IconButton(
-                icon: const Icon(
-                  Icons.home_outlined,
-                  color: Colors.white,
-                  size: 28,
-                ),
-                tooltip: 'Inicio',
-                onPressed: () {
-                  Navigator.pushNamedAndRemoveUntil(
-                    context,
-                    '/home_page',
-                    (route) => false,
+              _headerCircleBtn(Icons.home_outlined, () {
+                Navigator.pushNamedAndRemoveUntil(context, '/home_page', (route) => false);
+              }),
+              StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance.collection('chats').where('users', arrayContains: currentUid).snapshots(),
+                builder: (context, snapshot) {
+                  bool hasActivity = snapshot.hasData && snapshot.data!.docs.isNotEmpty;
+                  return Badge(
+                    isLabelVisible: hasActivity,
+                    backgroundColor: Colors.redAccent,
+                    child: _headerCircleBtn(Icons.notifications_none_outlined, () {
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => const ChatListPage()));
+                    }),
                   );
                 },
               ),
-              const SizedBox(width: 10),
-              IconButton(
-                icon: const Icon(
-                  Icons.notifications_none_outlined,
-                  color: Colors.white,
-                  size: 28,
-                ),
-                tooltip: 'Mis chats y notificaciones',
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const ChatListPage(),
-                    ),
-                  );
-                },
-              ),
-              IconButton(
-                icon: const Icon(
-                  Icons.person_outline,
-                  color: Colors.white,
-                  size: 28,
-                ),
-                tooltip: 'Perfil',
-                onPressed: () {
-                  Navigator.pushNamed(context, '/profile');
-                },
-              ),
-              PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert, color: Colors.white, size: 28),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                onSelected: (value) async {
-                  if (value == 'donate') {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const DonationScreen(),
-                      ),
-                    );
-                  } else if (value == 'logout') {
-                    await FirebaseAuth.instance.signOut();
-                    if (context.mounted) {
-                      Navigator.pushNamedAndRemoveUntil(
-                        context,
-                        '/',
-                        (route) => false,
-                      );
-                    }
-                  }
-                },
-                itemBuilder:
-                    (context) => [
-                      const PopupMenuItem(
-                        value: 'donate',
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.volunteer_activism,
-                              color: Color(0xFFF28B31),
-                            ),
-                            SizedBox(width: 10),
-                            Text('Realizar donación'),
-                          ],
-                        ),
-                      ),
-                      const PopupMenuItem(
-                        value: 'logout',
-                        child: Row(
-                          children: [
-                            Icon(Icons.logout, color: Color(0xFF1B3A57)),
-                            SizedBox(width: 10),
-                            Text('Cerrar sesión'),
-                          ],
-                        ),
-                      ),
-                    ],
-              ),
+              _headerCircleBtn(Icons.person_outline, () {
+                Navigator.pushNamed(context, '/profile');
+              }),
+              _buildPopupMenu(context),
             ],
           ),
         ],
       ),
+    );
+  }
+
+  Widget _headerCircleBtn(IconData icon, VoidCallback tap) {
+    return Container(
+      width: 32,
+      height: 32,
+      decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
+      child: IconButton(
+        padding: EdgeInsets.zero, 
+        visualDensity: VisualDensity.compact,
+        icon: Icon(icon, color: Colors.white, size: 18), 
+        onPressed: tap
+      ),
+    );
+  }
+
+  Widget _buildPopupMenu(BuildContext context) {
+    return PopupMenuButton<String>(
+      icon: const Icon(Icons.more_vert, color: Colors.white, size: 24),
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      onSelected: (value) async {
+        if (value == 'donate') {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const DonationScreen()));
+        } else if (value == 'logout') {
+          await _handleLogout(context);
+        }
+      },
+      itemBuilder: (context) => [
+        const PopupMenuItem(
+          value: 'donate',
+          child: Row(children: [Icon(Icons.volunteer_activism, color: Color(0xFFF28B31)), SizedBox(width: 10), Text('Realizar donación')]),
+        ),
+        const PopupMenuItem(
+          value: 'logout',
+          child: Row(children: [Icon(Icons.logout, color: Color(0xFF1B3A57)), SizedBox(width: 10), Text('Cerrar sesión')]),
+        ),
+      ],
     );
   }
 

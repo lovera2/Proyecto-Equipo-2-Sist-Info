@@ -98,9 +98,14 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
   }
 
  @override
+  @override
   Widget build(BuildContext context) {
     final homeVM = context.watch<HomeViewModel>();
     final double screenHeight = MediaQuery.of(context).size.height;
+    final double screenWidth = MediaQuery.of(context).size.width;
+    
+    // 1. DEFINIMOS SI ES PC O CELULAR (Esto evita el error)
+    final bool isWide = screenWidth > 850; 
 
     return Scaffold(
       body: Stack(
@@ -124,8 +129,7 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
                       Expanded(
                         child: AdminDashboardView(
                           onBack: () => setState(() => _showDashboard = false),
-                          onOpenMenu: () async {
-                          },
+                          onOpenMenu: () async {},
                         ),
                       ),
                       _Footer(onTerms: () => _showTermsDialog(context)),
@@ -142,20 +146,23 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
                         
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                          child: Column(
-                            children: [
-                              _buildSearchBar(homeVM), 
-                              const SizedBox(height: 25), 
-                            ],
+                          child: Center(
+                            child: SizedBox(
+                              // En PC mide 600, en celular ocupa todo el ancho
+                              width: isWide ? 600 : double.infinity,
+                              child: _buildSearchBar(homeVM),
+                            ),
                           ),
                         ),
 
-                        _buildCategoryFilter(homeVM),
+                        // 2. LLAMAMOS AL FILTRO (Asegúrate de que la función acepte isWide)
+                        _buildCategoryFilter(homeVM, isWide), 
                         const SizedBox(height: 15),
 
                         Container(
                           width: double.infinity,
-                          margin: const EdgeInsets.symmetric(horizontal: 200),
+                          // 3. MARGEN DINÁMICO: Si es PC 200, si es Celular 15
+                          margin: EdgeInsets.symmetric(horizontal: isWide ? 200 : 15),
                           constraints: BoxConstraints(minHeight: screenHeight * 0.65),
                           decoration: BoxDecoration(
                             color: Colors.white,
@@ -165,9 +172,9 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const SizedBox(height: 30),
-                              const Padding(
-                                padding: EdgeInsets.only(left: 40, bottom: 20),
-                                child: Text(
+                              Padding(
+                                padding: EdgeInsets.only(left: isWide ? 40 : 20, bottom: 20),
+                                child: const Text(
                                   "Material Reciente", 
                                   style: TextStyle(
                                     fontSize: 22, 
@@ -177,70 +184,65 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
                                 ),
                               ),
 
-                        StreamBuilder<List<QueryDocumentSnapshot>>(
-                          stream: homeVM.filteredMaterialsStream,
-                          builder: (context, snapshot) {
-                            if (snapshot.connectionState == ConnectionState.waiting) {
-                              return const Padding(
-                                padding: EdgeInsets.all(50.0),
-                                child: Center(child: CircularProgressIndicator(color: unimetOrange)),
-                              );
-                            }
-                            
-                            if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                              return Padding(
-                                padding: const EdgeInsets.all(50.0),
-                                child: _buildEmptyState(),
-                              );
-                            }
+                              StreamBuilder<List<QueryDocumentSnapshot>>(
+                                stream: homeVM.filteredMaterialsStream,
+                                builder: (context, snapshot) {
+                                  if (snapshot.connectionState == ConnectionState.waiting) {
+                                    return const Center(child: Padding(
+                                      padding: EdgeInsets.all(50.0),
+                                      child: CircularProgressIndicator(color: unimetOrange),
+                                    ));
+                                  }
+                                  
+                                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                                    return _buildEmptyState();
+                                  }
 
-                            final docs = snapshot.data!;
+                                  final docs = snapshot.data!;
 
-                            return GridView.builder(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              padding: const EdgeInsets.only(left: 40, right: 40, bottom: 40),
-                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 4,
-                                childAspectRatio: 0.60,
-                                crossAxisSpacing: 40,
-                                mainAxisSpacing: 40,  
-                              ),
-                              itemCount: docs.length,
-                              itemBuilder: (context, index) {
-                                final doc = docs[index];
-                                final data = doc.data() as Map<String, dynamic>;
-                                return Material(
-                                  color: Colors.transparent,
-                                  child: InkWell(
-                                    onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) => MaterialDetailPage(
-                                            materialId: doc.id,
-                                            materialData: data,
-                                          ),
-                                        ),
+                                  return GridView.builder(
+                                    shrinkWrap: true,
+                                    physics: const NeverScrollableScrollPhysics(),
+                                    // Padding que se ajusta al dispositivo
+                                    padding: EdgeInsets.symmetric(horizontal: isWide ? 40 : 15, vertical: 20),
+                                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: isWide ? 4 : 2,
+                                      
+                                      childAspectRatio: isWide ? 0.65 : 0.48, 
+                                      crossAxisSpacing: isWide ? 40 : 15,
+                                      mainAxisSpacing: isWide ? 40 : 15,  
+                                    ),
+                                    itemCount: docs.length,
+                                    itemBuilder: (context, index) {
+                                      final doc = docs[index];
+                                      final data = doc.data() as Map<String, dynamic>;
+                                      return InkWell(
+                                        onTap: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) => MaterialDetailPage(
+                                                materialId: doc.id,
+                                                materialData: data,
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                        child: _buildBookCard(doc.id, data),
                                       );
                                     },
-                                    child: _buildBookCard(doc.id, data),
-                                  ),
-                                );
-                              },
-                            );
-                          },
-                       ), 
+                                  );
+                                },
+                              ), 
+                            ],
+                          ),
+                        ),
+                        
+                        _Footer(onTerms: () => _showTermsDialog(context)),
                       ],
                     ),
                   ),
-                  
-                  _Footer(onTerms: () => _showTermsDialog(context)),
-                ],
-              ),
-            ),
           ),
-
         ],
       ),
     );
@@ -274,9 +276,10 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
     );
   }
 
-  Widget _buildCategoryFilter(HomeViewModel vm) {
+  
+  Widget _buildCategoryFilter(HomeViewModel vm, bool isWide) {
+    // 1. Lógica para limpiar categorías y quitar duplicados
     final categories = ["TODO", ...vm.categorias];
-
     final categoriasSinDuplicados = <String>[];
     final categoriasNormalizadas = <String>{};
 
@@ -297,84 +300,48 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
       }
     }
 
-    const Color brownBtn = cardBrown;
-
-    Widget buildChip(String cat, int i) {
-      final isSelected = vm.selectedCategory == cat;
-      final bool isTodo = cat == "TODO";
-      final String label = isTodo ? "Todo" : cat;
-
-      final chip = Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 7),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 240),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(28),
-            onTap: () => vm.setCategory(cat),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 160),
-              curve: Curves.easeOut,
-              constraints: const BoxConstraints(minHeight: 52),
-              padding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 12,
-              ),
-              decoration: BoxDecoration(
-                color: isSelected ? unimetBlue : brownBtn,
-                borderRadius: BorderRadius.circular(28),
-                border: Border.all(
-                  color: isSelected
-                      ? Colors.transparent
-                      : Colors.black.withOpacity(0.08),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(
-                      isSelected ? 0.18 : 0.12,
-                    ),
-                    blurRadius: isSelected ? 10 : 8,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (isTodo) ...[
-                    const Icon(
-                      Icons.apps_rounded,
-                      size: 18,
-                      color: Colors.white,
-                    ),
-                    const SizedBox(width: 8),
-                  ],
-                  Flexible(
-                    child: Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 15,
-                        letterSpacing: 0.2,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-
-      final bool addSeparator = i == 0;
+    // 2. Creamos la lista de widgets (chips)
+    final chips = categoriasSinDuplicados.asMap().entries.map((entry) {
+      final String cat = entry.value;
+      final int i = entry.key;
+      final bool isSelected = vm.selectedCategory == cat;
+      final String label = cat == "TODO" ? "Todo" : cat;
 
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          chip,
-          if (addSeparator)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 7),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(28),
+              onTap: () => vm.setCategory(cat),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 160),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                decoration: BoxDecoration(
+                  color: isSelected ? unimetBlue : cardBrown,
+                  borderRadius: BorderRadius.circular(28),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.12),
+                      blurRadius: 8,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          // Separador visual después del primer botón ("Todo")
+          if (i == 0)
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 6),
               height: 30,
@@ -383,38 +350,18 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
             ),
         ],
       );
-    }
+    }).toList();
 
-    final chips = categoriasSinDuplicados
-        .asMap()
-        .entries
-        .map((entry) => buildChip(entry.value, entry.key))
-        .toList();
-
+    // 3. El retorno con el margen responsivo
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.symmetric(horizontal: 200),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          return Scrollbar(
-            thumbVisibility: categoriasSinDuplicados.length > 6,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minWidth: constraints.maxWidth),
-                child: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: chips,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          );
-        },
+      // Aquí usamos el isWide que pasamos por parámetro
+      margin: EdgeInsets.symmetric(horizontal: isWide ? 200 : 15), 
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: chips, // <--- Ahora 'chips' sí existe
+        ),
       ),
     );
   }
@@ -487,124 +434,52 @@ Widget _buildBookCard(String materialId, Map<String, dynamic> data) {
     );
   }
 
-  final String statusMaterialNorm =
-      _normStatus((data['status'] ?? 'disponible').toString());
-
+  final String statusMaterialNorm = _normStatus((data['status'] ?? 'disponible').toString());
   final String title = (data['title'] ?? 'Sin título').toString();
   final String author = (data['author'] ?? 'Autor desconocido').toString();
   final String materia = (data['subject'] ?? '').toString();
-
   final dynamic rawImage = data['imageUrl'];
   final String? imageBase64 = rawImage is String ? rawImage : null;
 
-  Widget imageWidget =
-      const Center(child: Icon(Icons.book, size: 50, color: Colors.grey));
-
+  Widget imageWidget = const Center(child: Icon(Icons.book, size: 50, color: Colors.grey));
   try {
     if (imageBase64 != null && imageBase64.isNotEmpty) {
-      final cleanBase64 =
-          imageBase64.contains(',') ? imageBase64.split(',').last : imageBase64;
-
-      imageWidget = Image.memory(
-        base64Decode(cleanBase64),
-        fit: BoxFit.cover,
-        width: double.infinity,
-        errorBuilder: (context, error, stackTrace) => const Center(
-          child: Icon(Icons.broken_image, size: 50, color: Colors.grey),
-        ),
-      );
+      final cleanBase64 = imageBase64.contains(',') ? imageBase64.split(',').last : imageBase64;
+      imageWidget = Image.memory(base64Decode(cleanBase64), fit: BoxFit.cover, width: double.infinity);
     }
-  } catch (e) {
-    imageWidget = const Center(
-      child: Icon(Icons.error_outline, size: 50, color: Colors.red),
-    );
-  }
+  } catch (e) { imageWidget = const Icon(Icons.broken_image); }
 
   return Container(
     decoration: BoxDecoration(
       color: cardBrown,
       borderRadius: BorderRadius.circular(16),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withOpacity(0.14),
-          blurRadius: 8,
-          offset: const Offset(0, 6),
-        ),
-      ],
+      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.14), blurRadius: 8, offset: const Offset(0, 4))],
     ),
     child: Column(
       children: [
+        // IMAGEN: Bajamos el flex de 9 a 7 para dar espacio abajo
         Expanded(
-          flex: 9,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(10, 10, 10, 6),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  imageWidget,
-                  Positioned(
-                    right: 10,
-                    bottom: 10,
-                    child: StreamBuilder<QuerySnapshot>(
-                      stream: FirebaseFirestore.instance
-                          .collection('chats')
-                          .where('materialId', isEqualTo: materialId)
-                          .limit(5)
-                          .snapshots(),
-                      builder: (context, snap) {
-                        String effective = statusMaterialNorm;
-
-                        if (snap.hasData && snap.data!.docs.isNotEmpty) {
-                          bool foundPrestamo = false;
-                          bool foundReservado = false;
-
-                          for (final d in snap.data!.docs) {
-                            final m =
-                                (d.data() as Map<String, dynamic>?) ?? {};
-                            final s = _normStatus(
-                              (m['status'] ?? '').toString(),
-                            );
-
-                            if (<String>{
-                              'rentado',
-                              'devolucion_pendiente',
-                              'en_prestamo',
-                            }.contains(s)) {
-                              foundPrestamo = true;
-                            }
-
-                            if (<String>{
-                              'reservado',
-                              'pendiente',
-                              'esperando_confirmacion',
-                              'solicitado',
-                            }.contains(s)) {
-                              foundReservado = true;
-                            }
-                          }
-
-                          if (foundPrestamo) {
-                            effective = 'rentado';
-                          } else if (foundReservado) {
-                            effective = 'reservado';
-                          }
-                        }
-
-                        return _statusChip(effective);
-                      },
-                    ),
-                  ),
-                ],
-              ),
+          flex: 7, 
+          child: ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                imageWidget,
+                Positioned(
+                  right: 5, bottom: 5,
+                  child: _statusChip(statusMaterialNorm), // Simplificado para ahorrar espacio
+                ),
+              ],
             ),
           ),
         ),
+        
+        // TEXTO: Subimos el flex de 4 a 5 para que respire
         Expanded(
-          flex: 4,
+          flex: 5,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
+            padding: const EdgeInsets.all(8.0), // Padding más pequeño y uniforme
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -614,34 +489,30 @@ Widget _buildBookCard(String materialId, Map<String, dynamic> data) {
                   textAlign: TextAlign.center,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14, // Bajamos de 16 a 14
                     color: Colors.black87,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
                   author,
                   maxLines: 1,
                   textAlign: TextAlign.center,
-                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 13,
+                    fontSize: 12, // Bajamos de 13 a 12
                     fontStyle: FontStyle.italic,
-                    color: Colors.black87,
+                    color: Colors.black54,
                   ),
                 ),
                 if (materia.isNotEmpty) ...[
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 2),
                   Text(
                     materia,
                     maxLines: 1,
                     textAlign: TextAlign.center,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Colors.black54,
-                    ),
+                    style: const TextStyle(fontSize: 11, color: Colors.blueGrey),
                   ),
                 ],
               ],
@@ -682,50 +553,23 @@ class _AdminTopHeader extends StatelessWidget {
     required this.onRefreshCategorias,
   });
 
+  // Función para cerrar sesión
   Future<void> _handleLogout(BuildContext context) async {
     await FirebaseAuth.instance.signOut();
     if (!context.mounted) return;
     Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
   }
 
+  // Función para el menú
   Future<void> _mostrarMenuAdmin(BuildContext context) async {
     final value = await showMenu<String>(
       context: context,
-      position: const RelativeRect.fromLTRB(1000, 90, 20, 0),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(15),
-      ),
+      position: const RelativeRect.fromLTRB(1000, 80, 0, 0),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       items: const [
-        PopupMenuItem(
-          value: 'dashboard',
-          child: Row(
-            children: [
-              Icon(Icons.dashboard, color: Color(0xFF1B3A57), size: 20),
-              SizedBox(width: 12),
-              Text('Dashboard'),
-            ],
-          ),
-        ),
-        PopupMenuItem(
-          value: 'perfiles',
-          child: Row(
-            children: [
-              Icon(Icons.people, color: Color(0xFF1B3A57), size: 20),
-              SizedBox(width: 12),
-              Text('Gestión de Usuarios'),
-            ],
-          ),
-        ),
-        PopupMenuItem(
-          value: 'materiales',
-          child: Row(
-            children: [
-              Icon(Icons.book, color: Color(0xFF1B3A57), size: 20),
-              SizedBox(width: 12),
-              Text('Gestión de Material'),
-            ],
-          ),
-        ),
+        PopupMenuItem(value: 'dashboard', child: Text('Dashboard')),
+        PopupMenuItem(value: 'perfiles', child: Text('Gestión de Usuarios')),
+        PopupMenuItem(value: 'materiales', child: Text('Gestión de Material')),
       ],
     );
 
@@ -733,9 +577,9 @@ class _AdminTopHeader extends StatelessWidget {
 
     if (value == 'dashboard') {
       onOpenDashboard();
-      return;
     } else if (value == 'perfiles') {
-      await Navigator.push(
+      
+      Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => ChangeNotifierProvider(
@@ -744,11 +588,9 @@ class _AdminTopHeader extends StatelessWidget {
           ),
         ),
       );
-      if (context.mounted) {
-        await onRefreshCategorias();
-      }
     } else if (value == 'materiales') {
-      await Navigator.push(
+      
+      Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => ChangeNotifierProvider(
@@ -757,124 +599,53 @@ class _AdminTopHeader extends StatelessWidget {
           ),
         ),
       );
-      if (context.mounted) {
-        await onRefreshCategorias();
-      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final bool isWide = MediaQuery.of(context).size.width > 750;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Row(
             children: [
-              IconButton(
-                onPressed: onBack,
-                icon: const Icon(
-                  Icons.arrow_back,
-                  color: Colors.white,
-                  size: 30,
-                ),
-                tooltip: 'Volver',
-              ),
-              const SizedBox(width: 4),
-              const Icon(Icons.menu_book, color: Colors.white, size: 30),
-              const SizedBox(width: 12),
-              const Text(
-                'BookLoop ADMIN',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              IconButton(onPressed: onBack, icon: const Icon(Icons.arrow_back, color: Colors.white)),
+              const Icon(Icons.menu_book, color: Colors.white),
+              if (isWide) const Text(' BookLoop ADMIN', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ],
           ),
-          Row(
+          Wrap(
+            spacing: 5,
             children: [
-              Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1B3A57),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: IconButton(
-                  onPressed: () => Navigator.pushNamed(context, '/publish'),
-                  icon: const Icon(Icons.add, color: Colors.white),
-                  tooltip: 'Publicar material',
-                ),
-              ),
-              const SizedBox(width: 10),
-              IconButton(
-                icon: const Icon(
-                  Icons.notifications_none_outlined,
-                  color: Colors.white,
-                  size: 28,
-                ),
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const ChatListPage()),
-                  );
-                },
-                tooltip: 'Mis chats y notificaciones',
-              ),
-              const SizedBox(width: 5),
-              IconButton(
-                icon: const Icon(
-                  Icons.person_outline,
-                  color: Colors.white,
-                  size: 28,
-                ),
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const ProfilePage()),
-                  );
-                },
-                tooltip: 'Mi perfil',
-              ),
-              IconButton(
-                icon: const Icon(
-                  Icons.settings_suggest,
-                  color: Colors.white,
-                  size: 28,
-                ),
-                onPressed: () => _mostrarMenuAdmin(context),
-                tooltip: 'Mostrar menú',
-              ),
+              _circleBtn(context, Icons.add, const Color(0xFF1B3A57), () => Navigator.pushNamed(context, '/publish')),
+              _circleBtn(context, Icons.notifications_none, null, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatListPage()))),
+              _circleBtn(context, Icons.person_outline, null, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfilePage()))),
+              _circleBtn(context, Icons.settings_suggest, null, () => _mostrarMenuAdmin(context)),
+              
               PopupMenuButton<String>(
-                icon: const Icon(
-                  Icons.more_vert,
-                  color: Colors.white,
-                  size: 28,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                onSelected: (value) {
-                  if (value == 'logout') {
-                    _handleLogout(context);
-                  }
-                },
-                itemBuilder: (context) => const [
-                  PopupMenuItem(
-                    value: 'logout',
-                    child: Row(
-                      children: [
-                        Icon(Icons.logout, color: Color(0xFF1B3A57)),
-                        SizedBox(width: 10),
-                        Text('Cerrar sesión'),
-                      ],
-                    ),
-                  ),
-                ],
+                icon: const Icon(Icons.more_vert, color: Colors.white),
+                onSelected: (v) => v == 'logout' ? _handleLogout(context) : null,
+                itemBuilder: (ctx) => [const PopupMenuItem(value: 'logout', child: Text('Salir'))],
               ),
             ],
           ),
         ],
       ),
+    );
+  }
+
+  Widget _circleBtn(BuildContext context, IconData icon, Color? bg, VoidCallback onTap) {
+    return Container(
+      width: 36, height: 36,
+      decoration: BoxDecoration(
+        color: bg ?? Colors.white.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: IconButton(padding: EdgeInsets.zero, icon: Icon(icon, color: Colors.white, size: 20), onPressed: onTap),
     );
   }
 }

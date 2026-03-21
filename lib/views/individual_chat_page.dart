@@ -92,109 +92,45 @@ class _IndividualChatPageState extends State<IndividualChatPage> {
     return Scaffold(
 
       appBar: AppBar(
-
         backgroundColor: unimetBlue,
         iconTheme: const IconThemeData(color: Colors.white),
-        centerTitle: true,
-
+    
+        centerTitle: false, 
+        elevation: 0,
         title: StreamBuilder<DocumentSnapshot>(
           stream: FirebaseFirestore.instance
               .collection('chats')
               .doc(widget.chatId)
               .snapshots(),
           builder: (context, chatSnap) {
-            final String titleFromLocal = libroTituloLocal;
-            String titleFromChat = '';
+            String resolvedTitle = libroTituloLocal;
             String materialIdFromChat = '';
 
             if (chatSnap.hasData && chatSnap.data != null && chatSnap.data!.exists) {
               final data = chatSnap.data!.data() as Map<String, dynamic>;
-              titleFromChat = (data['materialTitle'] ?? data['bookTitle'] ?? '').toString().trim();
+              final String titleFromChat = (data['materialTitle'] ?? data['bookTitle'] ?? '').toString().trim();
               materialIdFromChat = (data['materialId'] ?? '').toString().trim();
+              if (resolvedTitle.isEmpty) resolvedTitle = titleFromChat;
             }
 
-            final String resolvedTitle =
-                (titleFromLocal.isNotEmpty ? titleFromLocal : titleFromChat);
-
+            
             if (resolvedTitle.isEmpty && materialIdFromChat.isNotEmpty) {
               return FutureBuilder<DocumentSnapshot>(
-                future: FirebaseFirestore.instance
-                    .collection('materials')
-                    .doc(materialIdFromChat)
-                    .get(),
+                future: FirebaseFirestore.instance.collection('materials').doc(materialIdFromChat).get(),
                 builder: (context, matSnap) {
-                  String fetchedTitle = '';
-                  if (matSnap.hasData && matSnap.data != null && matSnap.data!.exists) {
+                  String fetchedTitle = 'Libro';
+                  if (matSnap.hasData && matSnap.data?.exists == true) {
                     final md = matSnap.data!.data() as Map<String, dynamic>;
-                    fetchedTitle = (md['title'] ?? '').toString().trim();
+                    fetchedTitle = (md['title'] ?? 'Libro').toString().trim();
                   }
-
-                  final String finalTitle =
-                      fetchedTitle.isNotEmpty ? fetchedTitle : 'Libro';
-
-                  return SizedBox(
-                    width: double.infinity,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Text(
-                          widget.receiverName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          "Libro: $finalTitle",
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.white70,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
+                  return _buildCenteredHeader(widget.receiverName, fetchedTitle);
                 },
               );
             }
 
-            return SizedBox(
-              width: double.infinity,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Text(
-                    widget.receiverName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    "Libro: ${resolvedTitle.isNotEmpty ? resolvedTitle : 'Libro'}",
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.white70,
-                    ),
-                  ),
-                ],
-              ),
+            return _buildCenteredHeader(
+              widget.receiverName, 
+              resolvedTitle.isNotEmpty ? resolvedTitle : 'Libro'
             );
           },
         ),
@@ -633,6 +569,44 @@ Widget _buildLoanStatusBar(Color accentColor) {
             height: 1.25,
           ),
         ),
+      ),
+    );
+  }
+  
+Widget _buildCenteredHeader(String name, String book) {
+    return Container(
+      width: double.infinity,
+      // 48 es el ancho estándar del botón de retroceso en Flutter
+      margin: const EdgeInsets.only(right: 48), 
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text(
+            name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 1),
+          Text(
+            "Libro: $book",
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w400,
+              color: Colors.white.withOpacity(0.85),
+            ),
+          ),
+        ],
       ),
     );
   }

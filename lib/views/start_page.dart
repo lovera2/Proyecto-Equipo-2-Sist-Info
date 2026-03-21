@@ -310,64 +310,92 @@ class _TopBar extends StatelessWidget {
     final isWide = MediaQuery.of(context).size.width >= 900;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-      child: Row(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      
+      child: Wrap(
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 10,
+        runSpacing: 10, // Espacio vertical si los botones saltan a la línea de abajo
         children: [
-          const Icon(Icons.menu_book, color: Colors.white, size: 30),
-          const SizedBox(width: 12),
-          const Text(
-            'BookLoop',
-            style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800),
+          //LOGO Y TEXTO
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              Icon(Icons.menu_book, color: Colors.white, size: 26),
+              SizedBox(width: 8),
+              Text(
+                'BookLoop',
+                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800),
+              ),
+            ],
           ),
-          const Spacer(),
-          if (isWide) ...[
-            _NavLink(
-              '¿Qué es?',
-              onTap: () => onShowInfo(
-                "¿Qué es BookLoop?",
-                "BookLoop es una plataforma exclusiva para la comunidad UNIMET donde estudiantes y docentes pueden "
-                "publicar, solicitar y coordinar intercambios de material académico con un flujo claro y trazable.",
-              ),
+          
+          // 
+          if (isWide) 
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _NavLink(
+                  '¿Qué es?',
+                  onTap: () => onShowInfo(
+                    "¿Qué es BookLoop?",
+                    "BookLoop es una plataforma exclusiva para la comunidad UNIMET donde estudiantes y docentes pueden "
+                    "publicar, solicitar y coordinar intercambios de material académico con un flujo claro y trazable.",
+                  ),
+                ),
+                _NavLink(
+                  'Misión',
+                  onTap: () => onShowInfo(
+                    "Misión",
+                    "Facilitar el acceso a material académico dentro de la UNIMET con una plataforma simple, confiable "
+                    "y segura, promoviendo la reutilización organizada.",
+                  ),
+                ),
+                _NavLink(
+                  'Visión',
+                  onTap: () => onShowInfo(
+                    "Visión",
+                    "Convertirnos en el punto de referencia dentro de la UNIMET para el intercambio académico, reduciendo "
+                    "la dependencia de canales informales y la incertidumbre al conseguir material.",
+                  ),
+                ),
+              ],
             ),
-            _NavLink(
-              'Misión',
-              onTap: () => onShowInfo(
-                "Misión",
-                "Facilitar el acceso a material académico dentro de la UNIMET con una plataforma simple, confiable "
-                "y segura, promoviendo la reutilización organizada.",
-              ),
-            ),
-            _NavLink(
-              'Visión',
-              onTap: () => onShowInfo(
-                "Visión",
-                "Convertirnos en el punto de referencia dentro de la UNIMET para el intercambio académico, reduciendo "
-                "la dependencia de canales informales y la incertidumbre al conseguir material.",
-              ),
-            ),
-            const SizedBox(width: 12),
-          ],
-          if (!isLoggedIn) ...[
-            OutlinedButton(
-              onPressed: onRegister,
-              style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.white54)),
-              child: const Text('Crear cuenta', style: TextStyle(color: Colors.white)),
-            ),
-            const SizedBox(width: 10),
-            ElevatedButton(
-              onPressed: onLogin,
-              style: ElevatedButton.styleFrom(backgroundColor: StartPage.unimetOrange),
-              child: const Text('Iniciar sesión', style: TextStyle(color: Colors.white)),
-            ),
-          ] else ...[
-            Text(email, style: const TextStyle(color: Colors.white70, fontSize: 12)),
-            const SizedBox(width: 10),
-            IconButton(
-              icon: const Icon(Icons.logout, color: Colors.white70),
-              tooltip: 'Cerrar sesión',
-              onPressed: onLogout,
-            ),
-          ],
+
+          // BOTONES DE SESIÓN
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (!isLoggedIn) ...[
+                OutlinedButton(
+                  onPressed: onRegister,
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Colors.white54),
+                    padding: const EdgeInsets.symmetric(horizontal: 12), // Botones más ajustados
+                  ),
+                  child: const Text('Crear cuenta', style: TextStyle(color: Colors.white, fontSize: 13)),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: onLogin,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: StartPage.unimetOrange,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                  ),
+                  child: const Text('Iniciar sesión', style: TextStyle(color: Colors.white, fontSize: 13)),
+                ),
+              ] else ...[
+                Text(email, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                const SizedBox(width: 10),
+                IconButton(
+                  icon: const Icon(Icons.logout, color: Colors.white70),
+                  tooltip: 'Cerrar sesión',
+                  onPressed: onLogout,
+                ),
+              ],
+            ],
+          ),
         ],
       ),
     );
@@ -576,8 +604,11 @@ class _HowItWorksRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (isWide) {
+    final bool effectivelyWide = MediaQuery.of(context).size.width > 800;
+
+    if (effectivelyWide) {
       return const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
             child: _GlassCard(
@@ -606,20 +637,21 @@ class _HowItWorksRow extends StatelessWidget {
       );
     }
 
-    return const Column(
-      children: [
+    // Diseño para CELULAR
+    return Column(
+      children: const [
         _GlassCard(
           emoji: "📌",
           title: "Publica o busca",
           subtitle: "Encuentra guías, libros y material por carrera o materia.",
         ),
-        SizedBox(height: 12),
+        SizedBox(height: 16),
         _GlassCard(
           emoji: "🤝",
           title: "Solicita y coordina",
           subtitle: "Todo queda más claro: disponibilidad y pasos del intercambio.",
         ),
-        SizedBox(height: 12),
+        SizedBox(height: 16),
         _GlassCard(
           emoji: "✅",
           title: "Cierra y deja feedback",
@@ -699,54 +731,101 @@ class _FinalCTA extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Detectamos si la pantalla es estrecha (celular)
+    final isMobile = MediaQuery.of(context).size.width < 700;
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(22), 
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.08),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: Colors.white10),
       ),
-      child: Row(
-        children: [
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "¿Te sumas al piloto?",
-                  style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900),
+      child: isMobile 
+        ? Column( // DISEÑO PARA CELULAR
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "¿Te sumas al piloto?",
+                style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                "Crea tu cuenta UNIMET y empieza a moverte con material que sí aparece y sí se entrega.",
+                style: TextStyle(color: Colors.white70, height: 1.4, fontSize: 15),
+              ),
+              const SizedBox(height: 24),
+           
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: onLogin,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: StartPage.unimetOrange,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text("Entrar", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: onRegister,
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.white54),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text("Registro", style: TextStyle(color: Colors.white)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          )
+        : Row( // DISEÑO PARA PC
+            children: [
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "¿Te sumas al piloto?",
+                      style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900),
+                    ),
+                    SizedBox(height: 6),
+                    Text(
+                      "Crea tu cuenta UNIMET y empieza a moverte con material que sí aparece y sí se entrega.",
+                      style: TextStyle(color: Colors.white70, height: 1.3),
+                    ),
+                  ],
                 ),
-                SizedBox(height: 6),
-                Text(
-                  "Crea tu cuenta UNIMET y empieza a moverte con material que sí aparece y sí se entrega.",
-                  style: TextStyle(color: Colors.white70, height: 1.3),
+              ),
+              const SizedBox(width: 24),
+              ElevatedButton(
+                onPressed: onLogin,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: StartPage.unimetOrange,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-              ],
-            ),
+                child: const Text("Iniciar sesión", style: TextStyle(color: Colors.white)),
+              ),
+              const SizedBox(width: 12),
+              OutlinedButton(
+                onPressed: onRegister,
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Colors.white54),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text("Crear cuenta", style: TextStyle(color: Colors.white)),
+              ),
+            ],
           ),
-          const SizedBox(width: 14),
-          ElevatedButton(
-            onPressed: onLogin,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: StartPage.unimetOrange,
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            child: const Text("Iniciar sesión", style: TextStyle(color: Colors.white)),
-          ),
-          const SizedBox(width: 10),
-          OutlinedButton(
-            onPressed: onRegister,
-            style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: Colors.white54),
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            child: const Text("Crear cuenta", style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -761,24 +840,34 @@ class _GlassCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(18),
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.white10),
       ),
-      child: Row(
+      child: Row( 
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(emoji, style: const TextStyle(fontSize: 26)),
-          const SizedBox(width: 12),
+          Text(emoji, style: const TextStyle(fontSize: 32)), 
+          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
-                const SizedBox(height: 6),
-                Text(subtitle, style: const TextStyle(color: Colors.white70, height: 1.25)),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: const TextStyle(color: Colors.white70, fontSize: 14, height: 1.3),
+                ),
               ],
             ),
           ),

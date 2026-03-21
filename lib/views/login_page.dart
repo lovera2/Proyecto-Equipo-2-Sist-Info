@@ -76,8 +76,10 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     final authVM = context.watch<AuthViewModel>();
-    final bool isWide = MediaQuery.of(context).size.width >= 900;
+    final double screenWidth = MediaQuery.of(context).size.width;
+    final bool isWide = screenWidth >= 900;
 
+    // PANEL IZQUIERDO 
     final Widget leftPane = Container(
       color: unimetBlue,
       child: Stack(
@@ -88,46 +90,43 @@ class _LoginPageState extends State<LoginPage> {
             child: _backButton(color: Colors.white),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 56),
+            padding: EdgeInsets.symmetric(horizontal: isWide ? 56 : 24),
             child: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text(
+                  Text(
                     "¡Bienvenido\nde nuevo!",
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 48,
+                      fontSize: isWide ? 48 : 32, 
                       fontWeight: FontWeight.w900,
                       height: 1.05,
                     ),
                   ),
-                  const SizedBox(height: 18),
-                  Text(
-                    "Acceso exclusivo para la comunidad UNIMET.\nInicia sesión y sigue tu intercambio académico.",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.85),
-                      fontSize: 16,
-                      height: 1.5,
+                  const SizedBox(height: 12),
+                  if (isWide) ...[ 
+                    Text(
+                      "Acceso exclusivo para la comunidad UNIMET.\nInicia sesión y sigue tu intercambio académico.",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.85),
+                        fontSize: 16,
+                        height: 1.5,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 26),
-                  const _BenefitRow(
-                    icon: Icons.verified_user_outlined,
-                    text: "Perfiles verificados (correo institucional).",
-                  ),
-                  const SizedBox(height: 10),
-                  const _BenefitRow(
-                    icon: Icons.swap_horiz_rounded,
-                    text: "Intercambio y trazabilidad del material.",
-                  ),
-                  const SizedBox(height: 10),
-                  const _BenefitRow(
-                    icon: Icons.volunteer_activism_outlined,
-                    text: "Apoya la reutilización y el acceso equitativo.",
-                  ),
+                    const SizedBox(height: 26),
+                    const _BenefitRow(
+                      icon: Icons.verified_user_outlined,
+                      text: "Perfiles verificados (correo institucional).",
+                    ),
+                    const SizedBox(height: 10),
+                    const _BenefitRow(
+                      icon: Icons.swap_horiz_rounded,
+                      text: "Intercambio y trazabilidad del material.",
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -136,41 +135,40 @@ class _LoginPageState extends State<LoginPage> {
       ),
     );
 
+    // PANEL DERECHO 
     final Widget rightPane = Container(
       color: Colors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 28),
+      padding: EdgeInsets.symmetric(
+        horizontal: isWide ? 50 : 24, // Menos espacio a los lados en móvil
+        vertical: 28,
+      ),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 520),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min, 
             children: [
               Image.asset(
                 'assets/images/bookloop_logo.png',
-                height: 160,
+                height: isWide ? 160 : 100, // Logo más pequeño en móvil
                 errorBuilder: (context, error, stackTrace) =>
-                    const Icon(Icons.menu_book, size: 90, color: unimetBlue),
+                    const Icon(Icons.menu_book, size: 70, color: unimetBlue),
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 12),
               const Text(
                 "Inicio de sesión",
                 style: TextStyle(
-                  fontSize: 28,
+                  fontSize: 24,
                   color: unimetOrange,
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              const SizedBox(height: 26),
-
+              const SizedBox(height: 20),
               const Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
                   "Correo UNIMET",
-                  style: TextStyle(
-                    color: unimetBlue,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                  ),
+                  style: TextStyle(color: unimetBlue, fontWeight: FontWeight.bold, fontSize: 13),
                 ),
               ),
               const SizedBox(height: 8),
@@ -182,7 +180,6 @@ class _LoginPageState extends State<LoginPage> {
                   prefixIcon: const Icon(Icons.email_outlined),
                   filled: true,
                   fillColor: unimetBlue.withOpacity(0.06),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
@@ -190,16 +187,11 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
               const SizedBox(height: 16),
-
               const Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
                   "Contraseña",
-                  style: TextStyle(
-                    color: unimetBlue,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                  ),
+                  style: TextStyle(color: unimetBlue, fontWeight: FontWeight.bold, fontSize: 13),
                 ),
               ),
               const SizedBox(height: 8),
@@ -211,16 +203,13 @@ class _LoginPageState extends State<LoginPage> {
                   prefixIcon: const Icon(Icons.lock_outline),
                   filled: true,
                   fillColor: unimetBlue.withOpacity(0.06),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
                   ),
                 ),
               ),
-
-              const SizedBox(height: 22),
-
+              const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
                 height: 52,
@@ -232,18 +221,11 @@ class _LoginPageState extends State<LoginPage> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   child: authVM.isLoading
-                      ? const SizedBox(
-                          height: 22,
-                          width: 22,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        )
+                      ? const CircularProgressIndicator(color: Colors.white)
                       : const Text("ENTRAR", style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ),
-
-              const SizedBox(height: 18),
-              const Divider(height: 24),
-
+              const SizedBox(height: 14),
               TextButton(
                 onPressed: () {
                   Navigator.push(
@@ -252,7 +234,7 @@ class _LoginPageState extends State<LoginPage> {
                   );
                 },
                 child: const Text(
-                  "Crear una cuenta",
+                  "¿No tienes cuenta? Regístrate aquí",
                   style: TextStyle(color: unimetBlue, fontWeight: FontWeight.bold),
                 ),
               ),
@@ -261,6 +243,7 @@ class _LoginPageState extends State<LoginPage> {
         ),
       ),
     );
+
 
     if (isWide) {
       return Scaffold(
@@ -273,18 +256,18 @@ class _LoginPageState extends State<LoginPage> {
       );
     }
 
+    // DISEÑO MÓVIL
     return Scaffold(
+      backgroundColor: Colors.white,
       body: SingleChildScrollView(
         child: Column(
           children: [
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Padding(
-                padding: const EdgeInsets.only(top: 12, left: 12),
-                child: _backButton(color: unimetBlue),
-              ),
+            
+            SizedBox(
+              height: 200, 
+              width: double.infinity, 
+              child: leftPane
             ),
-            SizedBox(height: 260, child: leftPane),
             rightPane,
           ],
         ),
@@ -304,17 +287,12 @@ class _BenefitRow extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(icon, color: Colors.white.withOpacity(0.9), size: 22),
+        Icon(icon, color: Colors.white.withOpacity(0.9), size: 20),
         const SizedBox(width: 10),
         Flexible(
           child: Text(
             text,
-            textAlign: TextAlign.left,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.85),
-              fontSize: 14,
-              height: 1.3,
-            ),
+            style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 13),
           ),
         ),
       ],

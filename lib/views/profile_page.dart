@@ -64,8 +64,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   void _goHome(BuildContext context) {
-    final email =
-        (context.read<ProfileViewModel>().email ?? '').toLowerCase().trim();
+    final email = (context.read<ProfileViewModel>().email ?? '').toLowerCase().trim();
     final route = email.startsWith('admin') ? '/home_admin' : '/home_page';
     Navigator.of(context).pushNamedAndRemoveUntil(route, (r) => false);
   }
@@ -82,7 +81,7 @@ class _ProfilePageState extends State<ProfilePage> {
           value: 'dashboard',
           child: Row(
             children: [
-              Icon(Icons.dashboard, color: Color(0xFF1B3A57), size: 20),
+              Icon(Icons.dashboard, color: unimetBlue, size: 20),
               SizedBox(width: 12),
               Text('Dashboard'),
             ],
@@ -92,7 +91,7 @@ class _ProfilePageState extends State<ProfilePage> {
           value: 'perfiles',
           child: Row(
             children: [
-              Icon(Icons.people, color: Color(0xFF1B3A57), size: 20),
+              Icon(Icons.people, color: unimetBlue, size: 20),
               SizedBox(width: 12),
               Text('Gestión de Usuarios'),
             ],
@@ -102,7 +101,7 @@ class _ProfilePageState extends State<ProfilePage> {
           value: 'materiales',
           child: Row(
             children: [
-              Icon(Icons.book, color: Color(0xFF1B3A57), size: 20),
+              Icon(Icons.book, color: unimetBlue, size: 20),
               SizedBox(width: 12),
               Text('Gestión de Material'),
             ],
@@ -114,34 +113,21 @@ class _ProfilePageState extends State<ProfilePage> {
     if (!context.mounted || value == null) return;
 
     if (value == 'dashboard') {
-      await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const _AdminDashboardShellFromProfile(),
-        ),
-      );
-      return;
+      await Navigator.push(context, MaterialPageRoute(builder: (_) => const _AdminDashboardShellFromProfile()));
     } else if (value == 'perfiles') {
-      await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => ChangeNotifierProvider(
-            create: (_) => AdminUserManagementViewModel(),
-            child: const AdminUserManagementPage(),
-          ),
+      await Navigator.push(context, MaterialPageRoute(
+        builder: (_) => ChangeNotifierProvider(
+          create: (_) => AdminUserManagementViewModel(),
+          child: const AdminUserManagementPage(),
         ),
-      );
-      return;
+      ));
     } else if (value == 'materiales') {
-      await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => ChangeNotifierProvider(
-            create: (_) => AdminMaterialViewModel(AdminMaterialService()),
-            child: const AdminMaterialManagementPage(),
-          ),
+      await Navigator.push(context, MaterialPageRoute(
+        builder: (_) => ChangeNotifierProvider(
+          create: (_) => AdminMaterialViewModel(AdminMaterialService()),
+          child: const AdminMaterialManagementPage(),
         ),
-      );
+      ));
     }
   }
 
@@ -177,24 +163,17 @@ class _ProfilePageState extends State<ProfilePage> {
               child: Text(
                 "Al usar BookLoop aceptas lo siguiente:\n\n"
                 "1) Acceso y verificación\n"
-                "• Solo se permite el uso de correos institucionales UNIMET (docente y estudiante).\n"
+                "• Solo se permite el uso de correos institucionales UNIMET.\n"
                 "• La cuenta es personal e intransferible.\n\n"
                 "2) Uso responsable\n"
                 "• Mantén un trato respetuoso en publicaciones y mensajes.\n"
-                "• Está prohibido publicar contenido ofensivo, engañoso o spam.\n"
-                "• BookLoop puede limitar o suspender cuentas ante evidencias de abuso.\n\n"
+                "• Está prohibido publicar contenido ofensivo o fraudulento.\n\n"
                 "3) Préstamos y devoluciones\n"
-                "• Al solicitar/aceptar un préstamo te comprometes a cumplir fecha, condiciones y lugar acordados.\n"
-                "• Quien recibe el material es responsable de cuidarlo y devolverlo en el estado acordado.\n"
-                "• En caso de pérdida o daño, las partes deben coordinar una solución (reposición o acuerdo).\n\n"
-                "4) Seguridad y reportes\n"
-                "• BookLoop puede limitar funciones (publicar/solicitar) si detecta patrones de incumplimiento.\n\n"
-                "5) Privacidad y datos\n"
+                "• Te comprometes a cumplir fecha y lugar acordados.\n"
+                "• Quien recibe el material debe cuidarlo y devolverlo en buen estado.\n\n"
+                "4) Privacidad y datos\n"
                 "• Se almacenan datos mínimos para operar la plataforma.\n"
-                "• No se publican datos sensibles.\n\n"
-                "6) Alcance del servicio\n"
-                "• BookLoop es una herramienta de coordinación; no garantiza la disponibilidad de material.\n"
-                "• La UNIMET y el equipo de BookLoop no se responsabilizan por acuerdos fuera de la plataforma.\n",
+                "• No se publican datos sensibles.",
                 style: TextStyle(fontSize: 14, height: 1.35),
               ),
             ),
@@ -202,8 +181,7 @@ class _ProfilePageState extends State<ProfilePage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text("Entendido",
-                  style: TextStyle(color: unimetOrange)),
+              child: const Text("Entendido", style: TextStyle(color: unimetOrange)),
             ),
           ],
         );
@@ -214,12 +192,11 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<ProfileViewModel>();
-    final String emailActual =
-        ((vm.email ?? FirebaseAuth.instance.currentUser?.email) ?? '')
-            .toLowerCase()
-            .trim();
+    final screenWidth = MediaQuery.of(context).size.width;
+    final bool isWide = screenWidth > 900;
+    
+    final String emailActual = ((vm.email ?? FirebaseAuth.instance.currentUser?.email) ?? '').toLowerCase().trim();
     final bool effectiveIsAdmin = emailActual.startsWith('admin');
-    final isWide = MediaQuery.of(context).size.width > 900;
 
     return Scaffold(
       body: Stack(
@@ -245,31 +222,29 @@ class _ProfilePageState extends State<ProfilePage> {
                   onProfile: () => Navigator.pushNamed(context, '/profile'),
                   onNotifications: () {
                     setState(() => _hasNewNotifications = false);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ChatListPage(isAdmin: effectiveIsAdmin),
-                      ),
-                    );
+                    Navigator.push(context, MaterialPageRoute(
+                      builder: (_) => ChatListPage(isAdmin: effectiveIsAdmin),
+                    ));
                   },
                   onCreate: () => Navigator.pushNamed(context, '/publish'),
                   onLogout: () => _handleLogout(context),
                   hasNewNotifications: _hasNewNotifications,
                   isAdmin: effectiveIsAdmin,
                   onAdminMenu: () => _mostrarMenuAdmin(context),
+                  isWide: isWide,
                 ),
                 Expanded(
-                  child: Align(
-                    alignment: Alignment.topCenter,
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxWidth: isWide ? 980 : double.infinity,
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 18),
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    padding: EdgeInsets.symmetric(horizontal: isWide ? 40 : 15),
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(maxWidth: isWide ? 980 : double.infinity),
                         child: _ProfileCard(
                           vm: vm,
                           onEdit: () => _openEdit(context),
+                          isWide: isWide,
                         ),
                       ),
                     ),
@@ -286,165 +261,105 @@ class _ProfilePageState extends State<ProfilePage> {
 }
 
 class _ProfileHeader extends StatelessWidget {
-  final VoidCallback onEdit;
-  final VoidCallback onHome;
-  final VoidCallback onProfile;
-  final VoidCallback onNotifications;
-  final VoidCallback onCreate;
-  final VoidCallback onLogout;
-  final bool hasNewNotifications;
-  final bool isAdmin;
-  final VoidCallback onAdminMenu;
-
-  static const Color unimetOrange = Color(0xFFF28B31);
+  final VoidCallback onEdit, onHome, onProfile, onNotifications, onCreate, onLogout, onAdminMenu;
+  final bool hasNewNotifications, isAdmin, isWide;
 
   const _ProfileHeader({
-    required this.onEdit,
-    required this.onHome,
-    required this.onProfile,
-    required this.onNotifications,
-    required this.onCreate,
-    required this.onLogout,
-    required this.hasNewNotifications,
-    required this.isAdmin,
-    required this.onAdminMenu,
+    required this.onEdit, required this.onHome, required this.onProfile,
+    required this.onNotifications, required this.onCreate, required this.onLogout,
+    required this.hasNewNotifications, required this.isAdmin, required this.onAdminMenu,
+    required this.isWide,
   });
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          // LOGO IZQUIERDA
           Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.menu_book, color: Colors.white, size: 30),
-              const SizedBox(width: 12),
+              
+              IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+                padding: EdgeInsets.zero,
+                visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints(),
+                onPressed: () => Navigator.pop(context),
+              ),
+              const SizedBox(width: 8),
+              
+              const Icon(Icons.menu_book, color: Colors.white, size: 24),
+              const SizedBox(width: 6),
               const Text(
-                "BookLoop",
+                "BookLoop", 
                 style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
+                  color: Colors.white, 
+                  fontSize: 18, 
                   fontWeight: FontWeight.bold,
-                ),
+                  letterSpacing: -0.5,
+                )
               ),
             ],
           ),
-          Row(
-            children: [
-              Container(
-                decoration: BoxDecoration(
-                  color: unimetOrange,
-                  borderRadius: BorderRadius.circular(14),
+          
+          // ICONOS DERECHA
+          Flexible(
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              alignment: WrapAlignment.end,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                _circleBtn(Icons.add, const Color(0xFFF28B31), onCreate),
+                _circleBtn(Icons.home_outlined, Colors.white.withOpacity(0.15), onHome),
+                Stack(
+                  children: [
+                    _circleBtn(Icons.notifications_none_outlined, Colors.white.withOpacity(0.15), onNotifications),
+                    if (hasNewNotifications)
+                      Positioned(right: 5, top: 5, child: CircleAvatar(radius: 4, backgroundColor: Colors.red)),
+                  ],
                 ),
-                child: IconButton(
-                  onPressed: onCreate,
-                  icon: const Icon(Icons.add, color: Colors.white),
-                  tooltip: 'Publicar material',
-                ),
-              ),
-              const SizedBox(width: 10),
-              IconButton(
-                icon: const Icon(Icons.home_outlined,
-                    color: Colors.white, size: 28),
-                onPressed: onHome,
-                tooltip: 'Inicio',
-              ),
-              const SizedBox(width: 10),
-              Stack(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.notifications_none_outlined,
-                        color: Colors.white, size: 28),
-                    onPressed: onNotifications,
-                    tooltip: 'Mis chats y notificaciones',
-                  ),
-                  if (hasNewNotifications)
-                    Positioned(
-                      right: 8,
-                      top: 8,
-                      child: Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                              color: const Color(0xFF1B3A57), width: 1.5),
-                        ),
-                        constraints: const BoxConstraints(
-                          minWidth: 12,
-                          minHeight: 12,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(width: 5),
-              IconButton(
-                icon: const Icon(Icons.person_outline,
-                    color: Colors.white, size: 28),
-                onPressed: () {},
-                tooltip: 'Ya estás en Perfil',
-              ),
-              if (isAdmin)
-                IconButton(
-                  icon: const Icon(
-                    Icons.settings_suggest,
-                    color: Colors.white,
-                    size: 28,
-                  ),
-                  onPressed: onAdminMenu,
-                  tooltip: 'Mostrar menú',
-                ),
-              PopupMenuButton<String>(
-                            
-                            icon: const Icon(Icons.more_vert, color: Colors.white, size: 28), 
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                            onSelected: (value) async {
-                              if (value == 'donate') {
-                                
-                                Navigator.push(
-                                  context, 
-                                  MaterialPageRoute(builder: (_) => const DonationScreen())
-                                );
-                              } else if (value == 'logout') {
-                                await FirebaseAuth.instance.signOut();
-                                if (context.mounted) {
-                  
-                                  Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false); 
-                                }
-                              }
-                            },
-                            itemBuilder: (context) => [
-                              // donaciones
-                              const PopupMenuItem(
-                                value: 'donate',
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.volunteer_activism, color: Color(0xFFF28B31)), 
-                                    SizedBox(width: 10),
-                                    Text('Realizar donación'),
-                                  ],
-                                ),
-                              ),
-                              // cerrar sesion
-                              const PopupMenuItem(
-                                value: 'logout',
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.logout, color: Color(0xFF1B3A57)), 
-                                    SizedBox(width: 10),
-                                    Text('Cerrar sesión'),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-            ],
+                if (isAdmin) _circleBtn(Icons.settings_suggest, Colors.white.withOpacity(0.15), onAdminMenu),
+                _moreMenu(context),
+              ],
+            ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _circleBtn(IconData icon, Color bg, VoidCallback tap) {
+    return Container(
+      width: 38, 
+      height: 38,
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10)),
+      child: IconButton(
+        padding: EdgeInsets.zero,
+        icon: Icon(icon, color: Colors.white, size: 20), 
+        onPressed: tap
+      ),
+    );
+  }
+
+  Widget _moreMenu(BuildContext context) {
+    return PopupMenuButton<String>(
+      icon: const Icon(Icons.more_vert, color: Colors.white, size: 24),
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 150),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      onSelected: (val) {
+        if (val == 'logout') onLogout();
+        if (val == 'donate') Navigator.push(context, MaterialPageRoute(builder: (_) => const DonationScreen()));
+      },
+      itemBuilder: (ctx) => [
+        const PopupMenuItem(value: 'donate', child: Row(children: [Icon(Icons.favorite, size: 18, color: Colors.orange), SizedBox(width: 8), Text("Donar")])),
+        const PopupMenuItem(value: 'logout', child: Row(children: [Icon(Icons.logout, size: 18, color: Colors.blueGrey), SizedBox(width: 8), Text("Cerrar sesión")])),
+      ],
     );
   }
 }
@@ -452,325 +367,157 @@ class _ProfileHeader extends StatelessWidget {
 class _ProfileCard extends StatelessWidget {
   final ProfileViewModel vm;
   final VoidCallback onEdit;
+  final bool isWide;
 
-  static const Color unimetBlue = Color(0xFF1B3A57);
-
-  const _ProfileCard({required this.vm, required this.onEdit});
+  const _ProfileCard({required this.vm, required this.onEdit, required this.isWide});
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: const EdgeInsets.only(top: 12, bottom: 18),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
+      elevation: 0,
+      color: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: Padding(
-        padding: const EdgeInsets.all(22),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _TopProfileRow(vm: vm, onEdit: onEdit),
-
-              StreamBuilder<DocumentSnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('usuarios')
-                    .doc(FirebaseAuth.instance.currentUser?.uid)
-                    .snapshots(),
-                builder: (context, snapshot) {
-                  if (!snapshot.hasData) return const SizedBox.shrink();
-                  final raw = snapshot.data!.data();
-                  if (raw == null) return const SizedBox.shrink();
-                  final data = raw as Map<String, dynamic>;
-                  final int exchanges = data['free_exchanges'] ?? 0;
-                  if (exchanges < 0) return const SizedBox.shrink();
-
-                  return Container(
-                    margin: const EdgeInsets.symmetric(vertical: 15),
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: exchanges > 2
-                          ? Colors.blue.shade50
-                          : Colors.red.shade50,
-                      borderRadius: BorderRadius.circular(15),
-                      border: Border.all(
-                        color: exchanges > 2
-                            ? Colors.blue.shade200
-                            : Colors.red.shade200,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          exchanges > 2
-                              ? Icons.info_outline
-                              : Icons.warning_amber_rounded,
-                          color: exchanges > 2
-                              ? Colors.blue.shade700
-                              : Colors.red.shade700,
-                        ),
-                        const SizedBox(width: 15),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                "Intercambios restantes: $exchanges",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                  color: exchanges > 2
-                                      ? Colors.blue.shade900
-                                      : Colors.red.shade900,
-                                ),
-                              ),
-                              const Text(
-                                "Al agotarse, deberás realizar una donación para continuar.",
-                                style: TextStyle(
-                                    fontSize: 12, color: Colors.black54),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-
-              const SizedBox(height: 18),
-              const _SectionTitle(title: "Datos personales"),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: [
-                  _ChipInfo(label: "Cédula", value: vm.cedula ?? "—"),
-                  _ChipInfo(label: "Carrera", value: vm.carrera ?? "—"),
-                ],
-              ),
-
-              const SizedBox(height: 22),
-              const _SectionTitle(title: "Mis Libros"),
-              const SizedBox(height: 10),
-              _MyBooksRow(
-                uid: FirebaseAuth.instance.currentUser?.uid,
-                email: vm.email,
-                username: vm.username,
-              ),
-
-              const SizedBox(height: 22),
-
-              // =====================
-              // SECCIONES (2x2)
-              // =====================
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Expanded(
-                    child: _LoanCardStream(
-                      kind: _LoanKind.bajoMiCuidado,
-                      title: "Bajo mi cuidado",
-                      emptyText: "Sin libros bajo tu cuidado",
-                      highlightColor: Color(0xFFBFD7F2),
-                      infoText:
-                          "Estos son los libros que has pedido prestados y actualmente están bajo tu cuidado.",
-                    ),
-                  ),
-                  SizedBox(width: 16),
-                  Expanded(
-                    child: _LoanCardStream(
-                      kind: _LoanKind.reservados,
-                      title: "Reservados",
-                      emptyText: "No has reservado ningún libro",
-                      highlightColor: Color(0xFFE5E5E5),
-                      infoText:
-                          "Estos son los libros que has pedido, pero el préstamo todavía no se ha concretado (está en negociación/confirmación).",
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 18),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Expanded(
-                    child: _LoanCardStream(
-                      kind: _LoanKind.misPrestamos,
-                      title: "Mis préstamos",
-                      emptyText: "No tienes préstamos activos",
-                      highlightColor: Color(0xFFF7D2A6),
-                      infoText:
-                          "Estos son los libros que tú has prestado a otra persona y están activos en este momento.",
-                    ),
-                  ),
-                  SizedBox(width: 16),
-                  Expanded(
-                    child: _LoanCardStream(
-                      kind: _LoanKind.historial,
-                      title: "Historial de Préstamos",
-                      emptyText: "Aún no hay historial",
-                      highlightColor: Color(0xFFF2C27A),
-                      infoText:
-                          "Estos son los libros que pediste prestado en el pasado y ya fueron devueltos.",
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 10),
-
-              if (vm.isLoading) ...[
-                const SizedBox(height: 14),
-                const Center(
-                  child: SizedBox(
-                    height: 18,
-                    width: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: unimetBlue,
-                    ),
-                  ),
-                ),
+        padding: EdgeInsets.all(isWide ? 26 : 18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _TopProfileRow(vm: vm, onEdit: onEdit, isWide: isWide),
+            const SizedBox(height: 20),
+            
+            Wrap(
+              spacing: 10, runSpacing: 10,
+              children: [
+                _ChipInfo(label: "Cédula", value: vm.cedula ?? "—"),
+                _ChipInfo(label: "Carrera", value: vm.carrera ?? "—"),
               ],
-              if (!vm.isLoading && vm.errorMessage != null) ...[
-                const SizedBox(height: 14),
-                Text(
-                  vm.errorMessage!,
-                  style: const TextStyle(color: Colors.red, fontSize: 12),
-                ),
-              ],
-            ],
-          ),
+            ),
+            
+            const SizedBox(height: 25),
+            const Text("Mis Libros", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1B3A57))),
+            const SizedBox(height: 10),
+            _MyBooksRow(uid: FirebaseAuth.instance.currentUser?.uid, email: vm.email, username: vm.username),
+
+            const SizedBox(height: 25),
+            _buildResponsiveLoanGrid(),
+          ],
         ),
       ),
     );
+  }
+
+  Widget _buildResponsiveLoanGrid() {
+    final sections = [
+      const _LoanCardStream(kind: _LoanKind.bajoMiCuidado, title: "Bajo mi cuidado", emptyText: "Sin libros", highlightColor: Color(0xFFBFD7F2)),
+      const _LoanCardStream(kind: _LoanKind.reservados, title: "Reservados", emptyText: "Sin reservas", highlightColor: Color(0xFFE5E5E5)),
+      const _LoanCardStream(kind: _LoanKind.misPrestamos, title: "Mis préstamos", emptyText: "Sin préstamos", highlightColor: Color(0xFFF7D2A6)),
+      const _LoanCardStream(kind: _LoanKind.historial, title: "Historial", emptyText: "Vacío", highlightColor: Color(0xFFF2C27A)),
+    ];
+
+    if (isWide) {
+      return Column(
+        children: [
+          Row(children: [Expanded(child: sections[0]), const SizedBox(width: 15), Expanded(child: sections[1])]),
+          const SizedBox(height: 15),
+          Row(children: [Expanded(child: sections[2]), const SizedBox(width: 15), Expanded(child: sections[3])]),
+        ],
+      );
+    } else {
+      return Column(
+        children: sections.map((s) => Padding(padding: const EdgeInsets.only(bottom: 15), child: s)).toList(),
+      );
+    }
   }
 }
 
 class _TopProfileRow extends StatelessWidget {
   final ProfileViewModel vm;
   final VoidCallback onEdit;
+  final bool isWide;
 
-  const _TopProfileRow({required this.vm, required this.onEdit});
+  const _TopProfileRow({required this.vm, required this.onEdit, required this.isWide});
 
   @override
   Widget build(BuildContext context) {
-    final email = (vm.email ?? "").trim();
-    final emailLower = email.toLowerCase();
-
-    final n = (vm.nombre ?? "").trim();
-    final a = (vm.apellido ?? "").trim();
-    String nombreMostrar;
-    if (n.isEmpty && a.isEmpty) {
-      nombreMostrar = "Nombre";
-    } else if (n.isEmpty) {
-      nombreMostrar = a;
-    } else if (a.isEmpty) {
-      nombreMostrar = n;
-    } else {
-      nombreMostrar = "$n $a";
-    }
-
-    String tipo;
-    if (emailLower.startsWith('admin')) {
-      tipo = "Administrador";
-    } else if (emailLower.endsWith('@unimet.edu.ve')) {
-      tipo = "Docente";
-    } else if (emailLower.endsWith('@correo.unimet.edu.ve')) {
-      tipo = "Estudiante";
-    } else {
-      tipo = "Usuario";
-    }
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
+    final nombre = "${vm.nombre ?? ''} ${vm.apellido ?? ''}".trim();
+    
+    final info = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: isWide ? CrossAxisAlignment.start : CrossAxisAlignment.center,
       children: [
-        CircleAvatar(
-          radius: 44,
-          backgroundColor: Colors.grey[200],
-          child: Text(
-            (vm.avatarEmoji ?? "🙂"),
-            style: const TextStyle(fontSize: 34),
-          ),
+        Text(
+          nombre.isEmpty ? "Usuario" : nombre, 
+          textAlign: isWide ? TextAlign.left : TextAlign.center,
+          style: TextStyle(
+            fontSize: isWide ? 28 : 24, 
+            fontWeight: FontWeight.bold, 
+            color: const Color(0xFF1B3A57)
+          )
         ),
-        const SizedBox(width: 18),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                nombreMostrar,
-                style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1B3A57).withAlpha(15),
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(
-                          color: const Color(0xFF1B3A57).withAlpha(31)),
-                    ),
-                    child: Text(
-                      "Usuario: ${vm.username}",
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF1B3A57),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              Text(
-                email.isEmpty ? "usuario@correo.unimet.edu.ve" : email,
-                style: const TextStyle(
-                    decoration: TextDecoration.underline, fontSize: 16),
-              ),
-              const SizedBox(height: 6),
-              Text(tipo,
-                  style: const TextStyle(fontSize: 14, color: Colors.black54)),
-              const SizedBox(height: 10),
-              ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const DonationScreen(),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.favorite, size: 16, color: Colors.white),
-                label: const Text("Realizar donación", style: TextStyle(color: Colors.white, fontSize: 12)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFF28B31),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  elevation: 0,
-                ),
-              ),
-            ],
-          ),
+        const SizedBox(height: 2),
+        Text(
+          vm.email ?? "", 
+          style: const TextStyle(color: Colors.black54, fontSize: 13),
+          textAlign: isWide ? TextAlign.left : TextAlign.center,
         ),
-        const SizedBox(width: 8),
-        TextButton.icon(
-          onPressed: onEdit,
-          icon: const Icon(Icons.edit, color: Colors.black54),
-          label: const Text("Editar perfil"),
-        ),
-        const SizedBox(width: 10),
-        TextButton.icon(
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const FavoritesListPage()),
-            );
-          },
-          icon: const Icon(Icons.favorite, color: Colors.black54),
-          label: const Text("Ver mis favoritos"),
+        const SizedBox(height: 16),
+        // BOTONES DE ACCIÓN: Siempre centrados en móvil
+        Row(
+          mainAxisAlignment: isWide ? MainAxisAlignment.start : MainAxisAlignment.center,
+          children: [
+            ActionChip(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              label: const Text("Editar Perfil", style: TextStyle(fontSize: 12)), 
+              avatar: const Icon(Icons.edit, size: 14), 
+              onPressed: onEdit
+            ),
+            const SizedBox(width: 8),
+            ActionChip(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              label: const Text("Favoritos", style: TextStyle(fontSize: 12)), 
+              avatar: const Icon(Icons.favorite, size: 14, color: Colors.red), 
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FavoritesListPage()))
+            ),
+          ],
         ),
       ],
     );
+
+    if (isWide) {
+      return Row(
+        children: [
+          CircleAvatar(
+            radius: 45, 
+            backgroundColor: const Color(0xFF1B3A57).withOpacity(0.05), 
+            child: Text(vm.avatarEmoji ?? "🙂", style: const TextStyle(fontSize: 40))
+          ),
+          const SizedBox(width: 25),
+          Expanded(child: info),
+        ],
+      );
+    } else {
+      // DISEÑO MÓVIL: Centrado perfecto
+      return Center(
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(4), 
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFF1B3A57).withOpacity(0.1), width: 2),
+              ),
+              child: CircleAvatar(
+                radius: 50, 
+                backgroundColor: const Color(0xFF1B3A57).withOpacity(0.05), 
+                child: Text(vm.avatarEmoji ?? "🙂", style: const TextStyle(fontSize: 45))
+              ),
+            ),
+            const SizedBox(height: 15),
+            info,
+          ],
+        ),
+      );
+    }
   }
 }
 
