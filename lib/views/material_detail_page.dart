@@ -173,10 +173,7 @@ class MaterialDetailPage extends StatelessWidget {
 
     final email = (FirebaseAuth.instance.currentUser?.email ?? '').toLowerCase().trim();
     final bool effectiveIsAdmin = isAdmin || email.startsWith('admin');
-    // ==============================
-    // Estado del material (RF-03)
-    // Disponible / Reservado / En préstamo
-    // ==============================
+  
     String _normStatus(String raw) {
       final s = raw.toLowerCase().trim();
       return s
@@ -193,7 +190,7 @@ class MaterialDetailPage extends StatelessWidget {
     final String statusRaw = (materialData['status'] ?? 'disponible').toString();
     final String status = _normStatus(statusRaw);
 
-    // Base flags: solo lo que dice el material, sin chats.
+   
     final bool baseIsAvailable = status == 'disponible';
     final bool baseIsReserved = <String>{
       'reservado',
@@ -216,7 +213,7 @@ class MaterialDetailPage extends StatelessWidget {
     return StreamBuilder<QuerySnapshot>(
       stream: chatsQ.snapshots(),
       builder: (context, chatSnap) {
-        // Derivamos el estado REAL del material a partir del chat más reciente.
+    
         String derivedStatus = '';
 
         if (chatSnap.hasData) {
@@ -239,9 +236,7 @@ class MaterialDetailPage extends StatelessWidget {
           }
         }
 
-        // Chat manda:
-        // - Reservados: pendiente / esperando_confirmacion
-        // - En préstamo: rentado / devolucion_pendiente
+        
         final bool chatSaysReserved = <String>{
           'pendiente',
           'esperando_confirmacion',
@@ -256,7 +251,7 @@ class MaterialDetailPage extends StatelessWidget {
           'prestamo',
         }.contains(derivedStatus);
 
-        // Si el chat dice reservado/en préstamo, eso sobre-escribe lo que diga el material.
+        
         final bool isReserved = chatSaysReserved || (!chatSaysOnLoan && baseIsReserved);
         final bool isOnLoan = chatSaysOnLoan || (!chatSaysReserved && baseIsOnLoan);
 
@@ -271,7 +266,7 @@ class MaterialDetailPage extends StatelessWidget {
             ? Colors.green
             : (isReserved ? const Color(0xFFF2C27A) : Colors.red);
 
-        // ---- UI original (Scaffold) ----
+    
         return Scaffold(
           body: Stack(
             children: [
@@ -280,23 +275,120 @@ class MaterialDetailPage extends StatelessWidget {
               SafeArea(
                 child: Column(
                   children: [
-                    _TopBar(
-                      isAdmin: effectiveIsAdmin,
-                      onBack: () => Navigator.pop(context),
-                      onHome: () {
-                        final route = effectiveIsAdmin ? '/home_admin' : '/home_page';
-                        Navigator.of(context).pushNamedAndRemoveUntil(route, (r) => false);
-                      },
-                      onPublish: () => Navigator.pushNamed(context, '/publish'),
-                      onProfile: () => Navigator.pushNamed(context, '/profile'),
-                      onNotifications: () {
-                        Navigator.push(context, MaterialPageRoute(builder: (context) => const ChatListPage()));
-                      },
-                      onMenuLogout: () {
-                        FirebaseAuth.instance.signOut();
-                        Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
-                      },
+                    
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.center, 
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.arrow_back, color: Colors.white, size: 28),
+                                onPressed: () => Navigator.pop(context),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                              ),
+                              const SizedBox(width: 12),
+                              const Icon(Icons.menu_book, color: Colors.white, size: 28),
+                              const SizedBox(width: 10), 
+                              const Text(
+                                "BookLoop",
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 22, 
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Flexible(
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerRight,
+                              child: Row(
+                                children: [
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF28B31), 
+                                      borderRadius: BorderRadius.circular(14), 
+                                    ),
+                                    child: IconButton(
+                                      icon: const Icon(Icons.add, color: Colors.white),
+                                      onPressed: () => Navigator.pushNamed(context, '/publish'),
+                                      tooltip: 'Publicar material',
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  IconButton(
+                                    icon: const Icon(Icons.home_outlined, color: Colors.white, size: 28),
+                                    onPressed: () {
+                                      final route = effectiveIsAdmin ? '/home_admin' : '/home_page';
+                                      Navigator.of(context).pushNamedAndRemoveUntil(route, (r) => false);
+                                    },
+                                    tooltip: 'Inicio',
+                                  ),
+                                  const SizedBox(width: 10),
+                                  IconButton(
+                                    icon: const Icon(Icons.notifications_none_outlined, color: Colors.white, size: 28),
+                                    onPressed: () {
+                                      Navigator.push(context, MaterialPageRoute(builder: (context) => const ChatListPage()));
+                                    }, 
+                                    tooltip: 'Notificaciones',
+                                  ),
+                                  const SizedBox(width: 5),
+                                  IconButton(
+                                    icon: const Icon(Icons.person_outline, color: Colors.white, size: 28),
+                                    onPressed: () => Navigator.pushNamed(context, '/profile'),
+                                    tooltip: 'Perfil',
+                                  ),
+                                  PopupMenuButton<String>(
+                                    icon: const Icon(Icons.more_vert, color: Colors.white, size: 28), 
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                                    offset: const Offset(0, 45),
+                                    onSelected: (value) async {
+                                      if (value == 'donate') {
+                                        Navigator.push(context, MaterialPageRoute(builder: (_) => const DonationScreen()));
+                                      } else if (value == 'logout') {
+                                        await FirebaseAuth.instance.signOut();
+                                        if (context.mounted) {
+                                          Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false); 
+                                        }
+                                      }
+                                    },
+                                    itemBuilder: (context) => [
+                                      const PopupMenuItem(
+                                        value: 'donate',
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.volunteer_activism, color: Color(0xFFF28B31)), 
+                                            SizedBox(width: 10),
+                                            Text('Realizar donación', style: TextStyle(color: Colors.black87)),
+                                          ],
+                                        ),
+                                      ),
+                                      const PopupMenuItem(
+                                        value: 'logout',
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.logout, color: Color(0xFF1B3A57)), 
+                                            SizedBox(width: 10),
+                                            Text('Cerrar sesión', style: TextStyle(color: Colors.black87)),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        ],
+                      ),
                     ),
+                   
+
                     Expanded(
                       child: Center(
                         child: SingleChildScrollView(
@@ -317,7 +409,7 @@ class MaterialDetailPage extends StatelessWidget {
                                       children: [
                                         _CoverCard(image: _buildImage(materialData['imageUrl'])),
                                         const SizedBox(height: 10),
-                                        // Aquí usamos el dato real que viene de Firebase ('rating')
+                                       
                                         _RatingRow(rating: (materialData['rating'] ?? 0.0).toDouble()), 
                                       ],
                                     );
@@ -377,7 +469,8 @@ class MaterialDetailPage extends StatelessWidget {
                                       isAdmin: effectiveIsAdmin,
                                       isReserved: isReserved,
                                       onEdit: () {
-                                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Editar material: Próximamente.')));
+                                        // Abrimos la ventanita flotante de edición
+                                        _mostrarDialogoEdicionRapida(context, materialId, materialData);
                                       },
                                       onReservedInfo: showReservedInfo,
                                     );
@@ -422,39 +515,39 @@ class MaterialDetailPage extends StatelessWidget {
                                                 elevation: 0,
                                               ),
                                               onPressed: isAvailable ? () async {
-                                                  if (user == null) return;
+                                                if (user == null) return;
 
-                                                  final userDoc = await FirebaseFirestore.instance.collection('usuarios').doc(currentUid).get();
-                                                  int exchanges = userDoc.data()?['free_exchanges'] ?? 0;
+                                                final userDoc = await FirebaseFirestore.instance.collection('usuarios').doc(currentUid).get();
+                                                int exchanges = userDoc.data()?['free_exchanges'] ?? 0;
 
-                                                  if (exchanges == 0) {
-                                                    if (context.mounted) {
-                                                      ScaffoldMessenger.of(context).showSnackBar(
-                                                        const SnackBar(
-                                                          content: Text('No tienes intercambios disponibles. ¡Publica un libro o realiza una donación!'),
-                                                          backgroundColor: Colors.red,
-                                                          behavior: SnackBarBehavior.floating,
-                                                        ),
-                                                      );
-                                                    }
-                                                    return; 
-                                                  }
-
-                                                  final chatService = ChatService();
-                                                  final String chatId = await chatService.getOrCreateChat(currentUid, ownerUid, materialId);
-                                                  final Map<String, dynamic> dataConId = Map.from(materialData);
-                                                  dataConId['id'] = materialId;
-
+                                                if (exchanges == 0) {
                                                   if (context.mounted) {
-                                                    Navigator.push(context, MaterialPageRoute(
-                                                      builder: (context) => IndividualChatPage(
-                                                        chatId: chatId,
-                                                        materialData: dataConId,
-                                                        receiverName: ownerNameFallback.isNotEmpty ? ownerNameFallback : 'Propietario',
+                                                    ScaffoldMessenger.of(context).showSnackBar(
+                                                      const SnackBar(
+                                                        content: Text('No tienes intercambios disponibles. ¡Publica un libro o realiza una donación!'),
+                                                        backgroundColor: Colors.red,
+                                                        behavior: SnackBarBehavior.floating,
                                                       ),
-                                                    ));
+                                                    );
                                                   }
-                                                } : null,
+                                                  return; 
+                                                }
+
+                                                final chatService = ChatService();
+                                                final String chatId = await chatService.getOrCreateChat(currentUid, ownerUid, materialId);
+                                                final Map<String, dynamic> dataConId = Map.from(materialData);
+                                                dataConId['id'] = materialId;
+
+                                                if (context.mounted) {
+                                                  Navigator.push(context, MaterialPageRoute(
+                                                    builder: (context) => IndividualChatPage(
+                                                      chatId: chatId,
+                                                      materialData: dataConId,
+                                                      receiverName: ownerNameFallback.isNotEmpty ? ownerNameFallback : 'Propietario',
+                                                    ),
+                                                  ));
+                                                }
+                                              } : null,
                                               child: Row(
                                                 mainAxisAlignment: MainAxisAlignment.center,
                                                 children: [
@@ -486,7 +579,7 @@ class MaterialDetailPage extends StatelessWidget {
                                         
                                         const SizedBox(width: 6),
                                         
-                                        // BOTÓN 2: Favoritos (Texto más corto y directo)
+                                        // BOTÓN 2: Favoritos 
                                         Expanded(
                                           flex: 9, 
                                           child: StreamBuilder<bool>(
@@ -772,7 +865,14 @@ class _DetailsCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Detalles del material', style: TextStyle(color: Color(0xFF1B3A57), fontSize: 28, fontWeight: FontWeight.w900)),
+              // Añadimos padding a la derecha SI es admin para que el texto no choque con el botón
+              Padding(
+                padding: EdgeInsets.only(right: isAdmin ? 110.0 : 0),
+                child: const Text(
+                  'Detalles del material', 
+                  style: TextStyle(color: Color(0xFF1B3A57), fontSize: 28, fontWeight: FontWeight.w900)
+                ),
+              ),
               const SizedBox(height: 14),
               _InfoLine(label: 'Título', value: title),
               _InfoLine(label: 'Autor', value: author),
@@ -784,23 +884,25 @@ class _DetailsCard extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    RichText(
-                      text: TextSpan(
-                        style: const TextStyle(
-                          color: Colors.black87,
-                          fontSize: 16,
-                          height: 1.25,
+                    Expanded(
+                      child: RichText(
+                        text: TextSpan(
+                          style: const TextStyle(
+                            color: Colors.black87,
+                            fontSize: 16,
+                            height: 1.25,
+                          ),
+                          children: [
+                            const TextSpan(
+                              text: 'Disponibilidad: ',
+                              style: TextStyle(fontWeight: FontWeight.w800),
+                            ),
+                            TextSpan(
+                              text: availabilityLabel,
+                              style: TextStyle(color: availabilityColor),
+                            ),
+                          ],
                         ),
-                        children: [
-                          const TextSpan(
-                            text: 'Disponibilidad: ',
-                            style: TextStyle(fontWeight: FontWeight.w800),
-                          ),
-                          TextSpan(
-                            text: availabilityLabel,
-                            style: TextStyle(color: availabilityColor),
-                          ),
-                        ],
                       ),
                     ),
                     if (isReserved) ...[
@@ -843,7 +945,13 @@ class _DetailsCard extends StatelessWidget {
               height: 42,
               child: ElevatedButton.icon(
                 onPressed: onEdit,
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1B3A57), foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), padding: const EdgeInsets.symmetric(horizontal: 14), elevation: 0),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFF28B31), // Naranja para el Admin
+                  foregroundColor: Colors.white, 
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), 
+                  padding: const EdgeInsets.symmetric(horizontal: 14), 
+                  elevation: 0
+                ),
                 icon: const Icon(Icons.edit, size: 18),
                 label: const Text('Editar', style: TextStyle(fontWeight: FontWeight.w800)),
               ),
@@ -924,4 +1032,84 @@ class _BlobPainter extends CustomPainter {
   }
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+void _mostrarDialogoEdicionRapida(BuildContext context, String materialId, Map<String, dynamic> libro) {
+  final titleCtrl = TextEditingController(text: libro['title']?.toString() ?? '');
+  final subjectCtrl = TextEditingController(text: libro['subject']?.toString() ?? '');
+  final authorCtrl = TextEditingController(text: libro['author']?.toString() ?? '');
+  final descCtrl = TextEditingController(text: libro['description']?.toString() ?? '');
+
+  showDialog(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Editar Material', 
+          style: TextStyle(color: Color(0xFF1B3A57), fontWeight: FontWeight.bold)
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: titleCtrl, 
+                decoration: const InputDecoration(labelText: 'Título', border: OutlineInputBorder())
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: authorCtrl, 
+                decoration: const InputDecoration(labelText: 'Autor', border: OutlineInputBorder())
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: subjectCtrl, 
+                decoration: const InputDecoration(labelText: 'Asignatura', border: OutlineInputBorder())
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: descCtrl, 
+                maxLines: 3, 
+                decoration: const InputDecoration(labelText: 'Descripción', border: OutlineInputBorder())
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context), 
+            child: const Text('Cancelar', style: TextStyle(color: Colors.grey))
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFF28B31), // Naranja admin
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))
+            ),
+            onPressed: () async {
+              // Actualiza los datos directamente en Firebase
+              await FirebaseFirestore.instance.collection('materials').doc(materialId).update({
+                'title': titleCtrl.text.trim(),
+                'author': authorCtrl.text.trim(),
+                'subject': subjectCtrl.text.trim(),
+                'description': descCtrl.text.trim(),
+              });
+              
+              if (context.mounted) {
+                Navigator.pop(context); // Cierra la ventanita
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Material actualizado con éxito ✅'), 
+                    backgroundColor: Colors.green,
+                    behavior: SnackBarBehavior.floating,
+                  )
+                );
+              }
+            },
+            child: const Text('Guardar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      );
+    },
+  );
 }

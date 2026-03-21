@@ -519,15 +519,59 @@ class _AdminTopHeader extends StatelessWidget {
     final value = await showMenu<String>(
       context: context,
       position: const RelativeRect.fromLTRB(1000, 80, 0, 0),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       items: const [
-        PopupMenuItem(value: 'perfiles', child: Text('Gestión de Usuarios')),
-        PopupMenuItem(value: 'materiales', child: Text('Gestión de Material')),
+        // 1. Nueva opción: Dashboard
+        PopupMenuItem(
+          value: 'dashboard', 
+          child: Row(
+            children: [
+              Icon(Icons.dashboard, color: Color(0xFF1B3A57), size: 20),
+              SizedBox(width: 12),
+              Text('Dashboard'),
+            ],
+          )
+        ),
+        // 2. Gestión de Usuarios
+        PopupMenuItem(
+          value: 'perfiles', 
+          child: Row(
+            children: [
+              Icon(Icons.people, color: Color(0xFF1B3A57), size: 20),
+              SizedBox(width: 12),
+              Text('Gestión de Usuarios'),
+            ],
+          )
+        ),
+        // 3. Gestión de Material
+        PopupMenuItem(
+          value: 'materiales', 
+          child: Row(
+            children: [
+              Icon(Icons.book, color: Color(0xFF1B3A57), size: 20),
+              SizedBox(width: 12),
+              Text('Gestión de Material'),
+            ],
+          )
+        ),
       ],
     );
-    if (value == 'perfiles') {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => ChangeNotifierProvider(create: (_) => AdminUserManagementViewModel(), child: const AdminUserManagementPage())));
+
+    if (!context.mounted || value == null) return;
+
+    if (value == 'dashboard') {
+      
+      onOpenDashboard();
+    } else if (value == 'perfiles') {
+      Navigator.push(
+        context, 
+        MaterialPageRoute(builder: (_) => ChangeNotifierProvider(create: (_) => AdminUserManagementViewModel(), child: const AdminUserManagementPage()))
+      );
     } else if (value == 'materiales') {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => ChangeNotifierProvider(create: (_) => AdminMaterialViewModel(AdminMaterialService()), child: const AdminMaterialManagementPage())));
+      Navigator.push(
+        context, 
+        MaterialPageRoute(builder: (_) => ChangeNotifierProvider(create: (_) => AdminMaterialViewModel(AdminMaterialService()), child: const AdminMaterialManagementPage()))
+      );
     }
   }
 

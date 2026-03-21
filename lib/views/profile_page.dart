@@ -288,12 +288,21 @@ class _ProfileHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10), // Ajusté a 16 para dar espacio a la flecha
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Row(
             children: [
+              // NUEVO: Flecha para volver atrás
+              IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.white, size: 28),
+                onPressed: () => Navigator.pop(context),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                tooltip: 'Volver',
+              ),
+              const SizedBox(width: 8),
               const Icon(Icons.menu_book, color: Colors.white, size: 30),
               const SizedBox(width: 12),
               const Text(

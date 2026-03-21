@@ -299,6 +299,7 @@ class _AdminMaterialManagementPageState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // No anulamos el comportamiento del teclado. Lo dejamos natural.
       body: Stack(
         children: [
           Container(
@@ -317,24 +318,16 @@ class _AdminMaterialManagementPageState
               children: [
                 _AdminTopHeader(
                   onBack: () => Navigator.pop(context),
-                  onOpenDashboard:
-                      () => Navigator.popUntil(context, (route) => route.isFirst),
+                  onOpenDashboard: () => Navigator.popUntil(context, (route) => route.isFirst),
                 ),
                 Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24.0,
-                    vertical: 10.0,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 10.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: const [
                       Text(
                         'Gestión de Materiales',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 26,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold),
                       ),
                       SizedBox(height: 6),
                       Text(
@@ -353,19 +346,28 @@ class _AdminMaterialManagementPageState
                         return LayoutBuilder(
                           builder: (context, constraints) {
                             final esCompacto = constraints.maxWidth < 800;
+                            
                             if (esCompacto) {
-                              return Column(
+                              // SOLUCIÓN: Usar ListView en móviles para permitir scroll
+                              // Esto evita que el teclado rompa la pantalla y elimina las franjas amarillas.
+                              return ListView(
+                                padding: const EdgeInsets.only(bottom: 20), // Margen inferior
                                 children: [
-                                  Expanded(flex: 4, child: _buildListPanel(vm)),
-                                  const SizedBox(height: 16),
-                                  if (vm.materialSeleccionado != null)
-                                    Expanded(
-                                      flex: 6,
-                                      child: _buildDetailPanel(vm, context),
-                                    ),
+                                  // Le damos una altura fija y segura a la lista para que tenga espacio
+                                  SizedBox(
+                                    height: 480, 
+                                    child: _buildListPanel(vm),
+                                  ),
+                                  // Si hay un libro seleccionado, se dibuja debajo (el usuario hace scroll para verlo)
+                                  if (vm.materialSeleccionado != null) ...[
+                                    const SizedBox(height: 16),
+                                    _buildDetailPanel(vm, context),
+                                  ],
                                 ],
                               );
                             }
+                            
+                            // Diseño original para Web o Tablets (Pantallas grandes)
                             return Row(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
@@ -373,24 +375,12 @@ class _AdminMaterialManagementPageState
                                 const SizedBox(width: 16),
                                 Expanded(
                                   flex: 6,
-                                  child:
-                                      vm.materialSeleccionado == null
-                                          ? Container(
-                                            decoration: BoxDecoration(
-                                              color: Colors.white,
-                                              borderRadius:
-                                                  BorderRadius.circular(24),
-                                            ),
-                                            child: const Center(
-                                              child: Text(
-                                                "Selecciona un libro para ver sus detalles",
-                                                style: TextStyle(
-                                                  color: Colors.grey,
-                                                ),
-                                              ),
-                                            ),
-                                          )
-                                          : _buildDetailPanel(vm, context),
+                                  child: vm.materialSeleccionado == null
+                                      ? Container(
+                                          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24)),
+                                          child: const Center(child: Text("Selecciona un libro para ver sus detalles", style: TextStyle(color: Colors.grey))),
+                                        )
+                                      : _buildDetailPanel(vm, context),
                                 ),
                               ],
                             );
@@ -410,23 +400,23 @@ class _AdminMaterialManagementPageState
   }
 
   Widget _buildListPanel(AdminMaterialViewModel vm) {
+    final bool isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
-          )
+          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 5))
         ],
       ),
       child: Column(
         children: [
-          _buildCategorySection(vm),
+          // Ocultamos la caja gigante de categorías si estamos buscando
+          if (!isKeyboardOpen) _buildCategorySection(vm),
+          
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+            padding: EdgeInsets.fromLTRB(16, isKeyboardOpen ? 16 : 4, 16, 16),
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
@@ -434,61 +424,46 @@ class _AdminMaterialManagementPageState
                 prefixIcon: const Icon(Icons.search, color: unimetBlue),
                 filled: true,
                 fillColor: Colors.grey.shade100,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(15),
-                  borderSide: BorderSide.none,
-                ),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
               ),
               onChanged: vm.filtrarMateriales,
             ),
           ),
           Expanded(
-            child:
-                vm.isLoading
-                    ? const Center(
-                      child: CircularProgressIndicator(color: adminOrange),
-                    )
-                    : ListView.separated(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 8,
-                      ),
-                      itemCount: vm.materiales.length,
-                      separatorBuilder:
-                          (_, __) => const Divider(
-                            height: 1,
-                            color: Color(0xFFF0F0F0),
-                          ),
-                      itemBuilder: (context, index) {
-                        final libro = vm.materiales[index];
-                        final esSeleccionado =
-                            vm.materialSeleccionado?['id'] == libro['id'];
+            child: vm.isLoading
+                ? const Center(child: CircularProgressIndicator(color: adminOrange))
+                : ListView.separated(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    itemCount: vm.materiales.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF0F0F0)),
+                    itemBuilder: (context, index) {
+                      final libro = vm.materiales[index];
+                      final esSeleccionado = vm.materialSeleccionado?['id'] == libro['id'];
 
-                        return ListTile(
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          leading: ClipRRect(
-                            borderRadius: BorderRadius.circular(6),
-                            child: _buildSafeImage(libro['imageUrl']),
-                          ),
-                          title: Text(
-                            libro['title'] ?? 'Sin título',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
-                          ),
-                          subtitle: Text(
-                            '${libro['author'] ?? 'Autor desconocido'} • ${libro['category'] ?? 'Sin categoría'}',
-                            style: const TextStyle(fontSize: 12),
-                          ),
-                          selected: esSeleccionado,
-                          selectedTileColor: adminOrange.withOpacity(0.1),
-                          onTap: () => vm.seleccionarMaterial(libro),
-                        );
-                      },
-                    ),
+                      return ListTile(
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        leading: ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: _buildSafeImage(libro['imageUrl']),
+                        ),
+                        title: Text(
+                          libro['title'] ?? 'Sin título',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        ),
+                        subtitle: Text(
+                          '${libro['author'] ?? 'Autor desconocido'} • ${libro['category'] ?? 'Sin categoría'}',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        selected: esSeleccionado,
+                        selectedTileColor: adminOrange.withOpacity(0.1),
+                        onTap: () {
+                          vm.seleccionarMaterial(libro);
+                          // Cierra el teclado automáticamente al seleccionar un material
+                          FocusScope.of(context).unfocus();
+                        },
+                      );
+                    },
+                  ),
           ),
         ],
       ),
@@ -1470,36 +1445,9 @@ class _AdminTopHeader extends StatelessWidget {
       position: const RelativeRect.fromLTRB(1000, 90, 20, 0),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       items: const [
-        PopupMenuItem(
-          value: 'dashboard',
-          child: Row(
-            children: [
-              Icon(Icons.dashboard, color: Color(0xFF1B3A57), size: 20),
-              SizedBox(width: 12),
-              Text('Dashboard'),
-            ],
-          ),
-        ),
-        PopupMenuItem(
-          value: 'perfiles',
-          child: Row(
-            children: [
-              Icon(Icons.people, color: Color(0xFF1B3A57), size: 20),
-              SizedBox(width: 12),
-              Text('Gestión de Usuarios'),
-            ],
-          ),
-        ),
-        PopupMenuItem(
-          value: 'materiales',
-          child: Row(
-            children: [
-              Icon(Icons.book, color: Color(0xFF1B3A57), size: 20),
-              SizedBox(width: 12),
-              Text('Gestión de Material'),
-            ],
-          ),
-        ),
+        PopupMenuItem(value: 'dashboard', child: Row(children: [Icon(Icons.dashboard, color: Color(0xFF1B3A57), size: 20), SizedBox(width: 12), Text('Dashboard')])),
+        PopupMenuItem(value: 'perfiles', child: Row(children: [Icon(Icons.people, color: Color(0xFF1B3A57), size: 20), SizedBox(width: 12), Text('Gestión de Usuarios')])),
+        PopupMenuItem(value: 'materiales', child: Row(children: [Icon(Icons.book, color: Color(0xFF1B3A57), size: 20), SizedBox(width: 12), Text('Gestión de Material')])),
       ],
     );
 
@@ -1507,134 +1455,75 @@ class _AdminTopHeader extends StatelessWidget {
 
     if (value == 'dashboard') {
       onOpenDashboard();
-      return;
     } else if (value == 'perfiles') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder:
-              (_) => ChangeNotifierProvider(
-                create: (_) => AdminUserManagementViewModel(),
-                child: const AdminUserManagementPage(),
-              ),
-        ),
-      );
+      Navigator.push(context, MaterialPageRoute(builder: (_) => ChangeNotifierProvider(create: (_) => AdminUserManagementViewModel(), child: const AdminUserManagementPage())));
     } else if (value == 'materiales') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder:
-              (_) => ChangeNotifierProvider(
-                create: (_) => AdminMaterialViewModel(AdminMaterialService()),
-                child: const AdminMaterialManagementPage(),
-              ),
-        ),
-      );
+      Navigator.push(context, MaterialPageRoute(builder: (_) => ChangeNotifierProvider(create: (_) => AdminMaterialViewModel(AdminMaterialService()), child: const AdminMaterialManagementPage())));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              IconButton(
-                onPressed: onBack,
-                icon: const Icon(Icons.arrow_back, color: Colors.white, size: 30),
-                tooltip: 'Volver',
-              ),
-              const SizedBox(width: 4),
-              const Icon(Icons.menu_book, color: Colors.white, size: 30),
-              const SizedBox(width: 12),
-              const Text(
-                'BookLoop ADMIN',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
+          // Lado Izquierdo: Permite que el texto se encoja si es necesario
+          Expanded(
+            child: Row(
+              children: [
+                IconButton(
+                  onPressed: onBack,
+                  icon: const Icon(Icons.arrow_back, color: Colors.white, size: 26),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
                 ),
-              ),
-            ],
+                const SizedBox(width: 4),
+                const Icon(Icons.menu_book, color: Colors.white, size: 24),
+                const SizedBox(width: 6),
+                const Expanded(
+                  child: Text(
+                    'BookLoop ADMIN',
+                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
           ),
-          Row(
-            children: [
-              Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1B3A57),
-                  borderRadius: BorderRadius.circular(14),
+          // Lado Derecho: Scroll horizontal invisible en caso de que los iconos no quepan
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 36, height: 36,
+                  decoration: BoxDecoration(color: const Color(0xFF1B3A57), borderRadius: BorderRadius.circular(10)),
+                  child: IconButton(
+                    padding: EdgeInsets.zero,
+                    onPressed: () => Navigator.pushNamed(context, '/publish'),
+                    icon: const Icon(Icons.add, color: Colors.white, size: 20),
+                  ),
                 ),
-                child: IconButton(
-                  onPressed: () => Navigator.pushNamed(context, '/publish'),
-                  icon: const Icon(Icons.add, color: Colors.white),
-                  tooltip: 'Publicar material',
+                const SizedBox(width: 4),
+                IconButton(
+                  padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                  icon: const Icon(Icons.notifications_none_outlined, color: Colors.white, size: 26),
+                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ChatListPage())),
                 ),
-              ),
-              const SizedBox(width: 10),
-              IconButton(
-                icon: const Icon(
-                  Icons.notifications_none_outlined,
-                  color: Colors.white,
-                  size: 28,
+                IconButton(
+                  padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                  icon: const Icon(Icons.person_outline, color: Colors.white, size: 26),
+                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ProfilePage())),
                 ),
-                onPressed: () {
-                  Navigator.of(
-                    context,
-                  ).push(MaterialPageRoute(builder: (_) => const ChatListPage()));
-                },
-                tooltip: 'Mis chats y notificaciones',
-              ),
-              const SizedBox(width: 5),
-              IconButton(
-                icon: const Icon(
-                  Icons.person_outline,
-                  color: Colors.white,
-                  size: 28,
+                IconButton(
+                  padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                  icon: const Icon(Icons.settings_suggest, color: Colors.white, size: 26),
+                  onPressed: () => _mostrarMenuAdmin(context),
                 ),
-                onPressed: () {
-                  Navigator.of(
-                    context,
-                  ).push(MaterialPageRoute(builder: (_) => const ProfilePage()));
-                },
-                tooltip: 'Mi perfil',
-              ),
-              IconButton(
-                icon: const Icon(
-                  Icons.settings_suggest,
-                  color: Colors.white,
-                  size: 28,
-                ),
-                onPressed: () => _mostrarMenuAdmin(context),
-                tooltip: 'Mostrar menú',
-              ),
-              PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert, color: Colors.white, size: 28),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                onSelected: (value) {
-                  if (value == 'logout') {
-                    _handleLogout(context);
-                  }
-                },
-                itemBuilder:
-                    (context) => const [
-                      PopupMenuItem(
-                        value: 'logout',
-                        child: Row(
-                          children: [
-                            Icon(Icons.logout, color: Color(0xFF1B3A57)),
-                            SizedBox(width: 10),
-                            Text('Cerrar sesión'),
-                          ],
-                        ),
-                      ),
-                    ],
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),

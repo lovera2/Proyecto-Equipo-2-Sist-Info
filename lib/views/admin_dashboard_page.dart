@@ -775,140 +775,99 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
 
   Widget _buildHeader(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              IconButton(
-                onPressed: widget.onBack,
-                icon: const Icon(
-                  Icons.arrow_back,
-                  color: Colors.white,
-                  size: 30,
+          // LADO IZQUIERDO: Título flexible
+          Expanded(
+            child: Row(
+              children: [
+                IconButton(
+                  onPressed: widget.onBack,
+                  icon: const Icon(Icons.arrow_back, color: Colors.white, size: 26),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  tooltip: 'Volver',
                 ),
-                tooltip: 'Volver',
-              ),
-              const SizedBox(width: 4),
-              const Icon(Icons.menu_book, color: Colors.white, size: 30),
-              const SizedBox(width: 12),
-              const Text(
-                'BookLoop ADMIN',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          Row(
-            children: [
-              Container(
-                decoration: BoxDecoration(
-                  color: unimetBlue,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: IconButton(
-                  onPressed: () => Navigator.pushNamed(context, '/publish'),
-                  icon: const Icon(Icons.add, color: Colors.white),
-                  tooltip: 'Publicar material',
-                ),
-              ),
-              const SizedBox(width: 10),
-              Stack(
-                children: [
-                  IconButton(
-                    icon: const Icon(
-                      Icons.notifications_none_outlined,
-                      color: Colors.white,
-                      size: 28,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _hasNewNotifications = false;
-                      });
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const ChatListPage(isAdmin: true),
-                        ),
-                      );
-                    },
-                    tooltip: 'Mis chats y notificaciones',
+                const SizedBox(width: 8),
+                const Icon(Icons.menu_book, color: Colors.white, size: 24),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'BookLoop ADMIN',
+                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  if (_hasNewNotifications)
-                    Positioned(
-                      right: 8,
-                      top: 8,
-                      child: Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: unimetBlue, width: 1.5),
-                        ),
-                        constraints: const BoxConstraints(
-                          minWidth: 12,
-                          minHeight: 12,
+                ),
+              ],
+            ),
+          ),
+          // LADO DERECHO: Scroll horizontal para los iconos si la pantalla es muy pequeña
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 36, height: 36,
+                  decoration: BoxDecoration(color: unimetBlue, borderRadius: BorderRadius.circular(12)),
+                  child: IconButton(
+                    padding: EdgeInsets.zero,
+                    onPressed: () => Navigator.pushNamed(context, '/publish'),
+                    icon: const Icon(Icons.add, color: Colors.white, size: 20),
+                    tooltip: 'Publicar material',
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    IconButton(
+                      padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                      icon: const Icon(Icons.notifications_none_outlined, color: Colors.white, size: 26),
+                      onPressed: () {
+                        setState(() => _hasNewNotifications = false);
+                        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ChatListPage(isAdmin: true)));
+                      },
+                      tooltip: 'Mis chats y notificaciones',
+                    ),
+                    if (_hasNewNotifications)
+                      Positioned(
+                        right: 8, top: 8,
+                        child: Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: BoxDecoration(color: Colors.red, shape: BoxShape.circle, border: Border.all(color: unimetBlue, width: 1.5)),
+                          constraints: const BoxConstraints(minWidth: 12, minHeight: 12),
                         ),
                       ),
+                  ],
+                ),
+                IconButton(
+                  padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                  icon: const Icon(Icons.person_outline, color: Colors.white, size: 26),
+                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ProfilePage())),
+                  tooltip: 'Mi perfil',
+                ),
+                IconButton(
+                  padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                  icon: const Icon(Icons.settings_suggest, color: Colors.white, size: 26),
+                  onPressed: () => _mostrarMenuAdmin(context),
+                  tooltip: 'Mostrar menú',
+                ),
+                PopupMenuButton<String>(
+                  padding: EdgeInsets.zero,
+                  icon: const Icon(Icons.more_vert, color: Colors.white, size: 26),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                  onSelected: (value) async { if (value == 'logout') await _handleLogout(context); },
+                  itemBuilder: (context) => const [
+                    PopupMenuItem(
+                      value: 'logout',
+                      child: Row(children: [Icon(Icons.logout, color: Color(0xFF1B3A57)), SizedBox(width: 10), Text('Cerrar sesión')]),
                     ),
-                ],
-              ),
-              const SizedBox(width: 5),
-              IconButton(
-                icon: const Icon(
-                  Icons.person_outline,
-                  color: Colors.white,
-                  size: 28,
+                  ],
                 ),
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const ProfilePage(),
-                    ),
-                  );
-                },
-                tooltip: 'Mi perfil',
-              ),
-              IconButton(
-                icon: const Icon(
-                  Icons.settings_suggest,
-                  color: Colors.white,
-                  size: 28,
-                ),
-                onPressed: () => _mostrarMenuAdmin(context),
-                tooltip: 'Mostrar menú',
-              ),
-              PopupMenuButton<String>(
-                icon: const Icon(
-                  Icons.more_vert,
-                  color: Colors.white,
-                  size: 28,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                onSelected: (value) async {
-                  if (value == 'logout') {
-                    await _handleLogout(context);
-                  }
-                },
-                itemBuilder: (context) => const [
-                  PopupMenuItem(
-                    value: 'logout',
-                    child: Row(
-                      children: [
-                        Icon(Icons.logout, color: Color(0xFF1B3A57)),
-                        SizedBox(width: 10),
-                        Text('Cerrar sesión'),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
@@ -942,10 +901,8 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
             ),
           ),
           const SizedBox(height: 12),
-          SizedBox(
-            height: 310,
-            child: child,
-          ),
+         
+          child, 
         ],
       ),
     );
@@ -1480,11 +1437,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
         children: [
           const Text(
             'Filtros',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
-            ),
+            style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 10),
           Wrap(
@@ -1498,9 +1451,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
               _chipPreset('ytd', 'Este año'),
               ActionChip(
                 label: const Text('Personalizado'),
-                backgroundColor: _preset == 'custom'
-                    ? unimetOrange
-                    : Colors.white,
+                backgroundColor: _preset == 'custom' ? unimetOrange : Colors.white,
                 side: BorderSide(color: Colors.white.withOpacity(0.65)),
                 labelStyle: TextStyle(
                   color: _preset == 'custom' ? Colors.white : unimetBlue,
@@ -1512,72 +1463,54 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(
-                    Icons.date_range,
-                    color: Colors.white70,
-                    size: 18,
-                  ),
+                  const Icon(Icons.date_range, color: Colors.white70, size: 18),
                   const SizedBox(width: 6),
                   Text(
                     rangeText,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700),
                   ),
                 ],
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Row(
+          const SizedBox(height: 16),
+          // AQUÍ ESTÁ EL FIX: Usar Wrap en lugar de Row para que el botón "Reiniciar" no desborde la pantalla
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            alignment: WrapAlignment.spaceBetween,
             children: [
-              const Icon(
-                Icons.filter_alt_outlined,
-                color: Colors.white70,
-                size: 18,
-              ),
-              const SizedBox(width: 8),
-              const Text(
-                'Categoría de libros:',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(width: 10),
-              DropdownButton<String>(
-                value: _materialCategory,
-                dropdownColor: const Color(0xFF274B6C),
-                underline: Container(height: 0),
-                iconEnabledColor: Colors.white,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                ),
-                items: [
-                  const DropdownMenuItem(
-                    value: 'Todas',
-                    child: Text('Todas'),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.filter_alt_outlined, color: Colors.white70, size: 18),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Categoría:', // Texto acortado un poco
+                    style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w600),
                   ),
-                  ...categoryOrder.map(
-                    (cat) => DropdownMenuItem(
-                      value: cat,
-                      child: Text(cat),
-                    ),
+                  const SizedBox(width: 10),
+                  DropdownButton<String>(
+                    value: _materialCategory,
+                    dropdownColor: const Color(0xFF274B6C),
+                    underline: Container(height: 0),
+                    iconEnabledColor: Colors.white,
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800),
+                    items: [
+                      const DropdownMenuItem(value: 'Todas', child: Text('Todas')),
+                      ...categoryOrder.map((cat) => DropdownMenuItem(value: cat, child: Text(cat))),
+                    ],
+                    onChanged: (v) {
+                      if (v == null) return;
+                      setState(() {
+                        _materialCategory = v;
+                        _future = _loadDashboard();
+                      });
+                    },
                   ),
                 ],
-                onChanged: (v) {
-                  if (v == null) return;
-                  setState(() {
-                    _materialCategory = v;
-                    _future = _loadDashboard();
-                  });
-                },
               ),
-              const Spacer(),
               TextButton.icon(
                 onPressed: () {
                   setState(() {
@@ -1585,17 +1518,10 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                     _applyPreset('30d');
                   });
                 },
-                icon: const Icon(
-                  Icons.refresh,
-                  color: Colors.white70,
-                  size: 18,
-                ),
+                icon: const Icon(Icons.refresh, color: Colors.white70, size: 18),
                 label: const Text(
                   'Reiniciar',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w700),
                 ),
               ),
             ],

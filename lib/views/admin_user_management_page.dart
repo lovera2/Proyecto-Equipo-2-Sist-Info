@@ -332,8 +332,9 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                               return SingleChildScrollView(
                                 child: Column(
                                   children: [
+                                    // Altura segura dentro de un Scroll para que no explote con el teclado
                                     SizedBox(
-                                      height: 520,
+                                      height: 450, 
                                       child: _UsersListPanel(
                                         searchController: _searchController,
                                         onSearchChanged: vm.setBusqueda,
@@ -341,12 +342,9 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                                     ),
                                     const SizedBox(height: 18),
                                     _UserDetailPanel(
-                                      onSuspender: () =>
-                                          _confirmarSuspension(context),
-                                      onReactivar: () =>
-                                          _confirmarReactivacion(context),
-                                      onEliminar: () =>
-                                          _confirmarEliminacion(context),
+                                      onSuspender: () => _confirmarSuspension(context),
+                                      onReactivar: () => _confirmarReactivacion(context),
+                                      onEliminar: () => _confirmarEliminacion(context),
                                     ),
                                   ],
                                 ),
@@ -1626,114 +1624,95 @@ class _AdminTopHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              IconButton(
-                onPressed: onBack,
-                icon: const Icon(
-                  Icons.arrow_back,
-                  color: Colors.white,
-                  size: 30,
+          
+          Flexible(
+            flex: 4,
+            child: Row(
+              children: [
+                IconButton(
+                  onPressed: onBack,
+                  icon: const Icon(Icons.arrow_back, color: Colors.white, size: 24),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  tooltip: 'Volver',
                 ),
-                tooltip: 'Volver',
-              ),
-              const SizedBox(width: 4),
-              const Icon(Icons.menu_book, color: Colors.white, size: 30),
-              const SizedBox(width: 12),
-              const Text(
-                'BookLoop ADMIN',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
+                const SizedBox(width: 6),
+                const Icon(Icons.menu_book, color: Colors.white, size: 24),
+                const SizedBox(width: 6),
+                const Flexible(
+                  child: Text(
+                    'BookLoop ADMIN',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    overflow: TextOverflow.ellipsis, 
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-          Row(
-            children: [
-              Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1B3A57),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: IconButton(
-                  onPressed: () => Navigator.pushNamed(context, '/publish'),
-                  icon: const Icon(Icons.add, color: Colors.white),
-                  tooltip: 'Publicar material',
-                ),
-              ),
-              const SizedBox(width: 10),
-              IconButton(
-                icon: const Icon(
-                  Icons.notifications_none_outlined,
-                  color: Colors.white,
-                  size: 28,
-                ),
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const ChatListPage(isAdmin: true),
+          
+          Flexible(
+            flex: 6,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              reverse: true, 
+              child: Row(
+                children: [
+                  Container(
+                    width: 36, height: 36,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1B3A57),
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                  );
-                },
-                tooltip: 'Mis chats y notificaciones',
-              ),
-              const SizedBox(width: 5),
-              IconButton(
-                icon: const Icon(
-                  Icons.person_outline,
-                  color: Colors.white,
-                  size: 28,
-                ),
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const ProfilePage()),
-                  );
-                },
-                tooltip: 'Mi perfil',
-              ),
-              IconButton(
-                icon: const Icon(
-                  Icons.settings_suggest,
-                  color: Colors.white,
-                  size: 28,
-                ),
-                onPressed: () => _mostrarMenuAdmin(context),
-                tooltip: 'Mostrar menú',
-              ),
-              PopupMenuButton<String>(
-                icon: const Icon(
-                  Icons.more_vert,
-                  color: Colors.white,
-                  size: 28,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                onSelected: (value) {
-                  if (value == 'logout') {
-                    _handleLogout(context);
-                  }
-                },
-                itemBuilder: (context) => const [
-                  PopupMenuItem(
-                    value: 'logout',
-                    child: Row(
-                      children: [
-                        Icon(Icons.logout, color: Color(0xFF1B3A57)),
-                        SizedBox(width: 10),
-                        Text('Cerrar sesión'),
-                      ],
+                    child: IconButton(
+                      padding: EdgeInsets.zero,
+                      onPressed: () => Navigator.pushNamed(context, '/publish'),
+                      icon: const Icon(Icons.add, color: Colors.white, size: 20),
                     ),
+                  ),
+                  const SizedBox(width: 4),
+                  IconButton(
+                    icon: const Icon(Icons.notifications_none_outlined, color: Colors.white, size: 26),
+                    onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ChatListPage(isAdmin: true))),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.person_outline, color: Colors.white, size: 26),
+                    onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ProfilePage())),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.settings_suggest, color: Colors.white, size: 26),
+                    onPressed: () => _mostrarMenuAdmin(context),
+                  ),
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert, color: Colors.white, size: 26),
+                    padding: EdgeInsets.zero,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                    onSelected: (value) {
+                      if (value == 'logout') _handleLogout(context);
+                    },
+                    itemBuilder: (context) => const [
+                      PopupMenuItem(
+                        value: 'logout',
+                        child: Row(
+                          children: [
+                            Icon(Icons.logout, color: Color(0xFF1B3A57)),
+                            SizedBox(width: 10),
+                            Text('Cerrar sesión'),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
+            ),
           ),
         ],
       ),
@@ -1882,6 +1861,7 @@ class _AdminDashboardShellFromUsers extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false, // <--- ¡AQUÍ ESTÁ LA MAGIA!
       body: Stack(
         children: [
           Container(
