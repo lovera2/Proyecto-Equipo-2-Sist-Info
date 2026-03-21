@@ -14,6 +14,7 @@ import 'profile_page.dart';
 import 'admin_material_management_page.dart';
 import '../viewmodels/admin_material_viewmodel.dart';
 import '../services/admin_material_service.dart';
+import 'donation_screen.dart'; 
 
 
 class HomeAdminPage extends StatefulWidget {
@@ -97,14 +98,13 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
     );
   }
 
- @override
   @override
   Widget build(BuildContext context) {
     final homeVM = context.watch<HomeViewModel>();
     final double screenHeight = MediaQuery.of(context).size.height;
     final double screenWidth = MediaQuery.of(context).size.width;
     
-    // 1. DEFINIMOS SI ES PC O CELULAR (Esto evita el error)
+    // 1. DEFINIMOS SI ES PC O CELULAR
     final bool isWide = screenWidth > 850; 
 
     return Scaffold(
@@ -148,20 +148,19 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
                           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                           child: Center(
                             child: SizedBox(
-                              // En PC mide 600, en celular ocupa todo el ancho
                               width: isWide ? 600 : double.infinity,
                               child: _buildSearchBar(homeVM),
                             ),
                           ),
                         ),
 
-                        // 2. LLAMAMOS AL FILTRO (Asegúrate de que la función acepte isWide)
+                        // Llamamos al filtro y le pasamos isWide
                         _buildCategoryFilter(homeVM, isWide), 
                         const SizedBox(height: 15),
 
                         Container(
                           width: double.infinity,
-                          // 3. MARGEN DINÁMICO: Si es PC 200, si es Celular 15
+                          // Margen dinámico para que no se ponga el texto en vertical
                           margin: EdgeInsets.symmetric(horizontal: isWide ? 200 : 15),
                           constraints: BoxConstraints(minHeight: screenHeight * 0.65),
                           decoration: BoxDecoration(
@@ -203,15 +202,13 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
                                   return GridView.builder(
                                     shrinkWrap: true,
                                     physics: const NeverScrollableScrollPhysics(),
-                                    // Padding que se ajusta al dispositivo
                                     padding: EdgeInsets.symmetric(horizontal: isWide ? 40 : 15, vertical: 20),
                                     gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                                      crossAxisCount: isWide ? 4 : 2,
-                                      
-                                      childAspectRatio: isWide ? 0.65 : 0.48, 
-                                      crossAxisSpacing: isWide ? 40 : 15,
-                                      mainAxisSpacing: isWide ? 40 : 15,  
-                                    ),
+                                    crossAxisCount: isWide ? 4 : 2,
+                                    childAspectRatio: isWide ? 0.65 : 0.58, 
+                                    crossAxisSpacing: 16,
+                                    mainAxisSpacing: 16,  
+                                  ),
                                     itemCount: docs.length,
                                     itemBuilder: (context, index) {
                                       final doc = docs[index];
@@ -248,7 +245,6 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
     );
   }
 
-
   Widget _buildSearchBar(HomeViewModel vm) {
     return Container(
       decoration: BoxDecoration(
@@ -276,9 +272,7 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
     );
   }
 
-  
   Widget _buildCategoryFilter(HomeViewModel vm, bool isWide) {
-    // 1. Lógica para limpiar categorías y quitar duplicados
     final categories = ["TODO", ...vm.categorias];
     final categoriasSinDuplicados = <String>[];
     final categoriasNormalizadas = <String>{};
@@ -300,7 +294,6 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
       }
     }
 
-    // 2. Creamos la lista de widgets (chips)
     final chips = categoriasSinDuplicados.asMap().entries.map((entry) {
       final String cat = entry.value;
       final int i = entry.key;
@@ -340,7 +333,6 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
               ),
             ),
           ),
-          // Separador visual después del primer botón ("Todo")
           if (i == 0)
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 6),
@@ -352,177 +344,142 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
       );
     }).toList();
 
-    // 3. El retorno con el margen responsivo
     return Container(
       width: double.infinity,
-      // Aquí usamos el isWide que pasamos por parámetro
       margin: EdgeInsets.symmetric(horizontal: isWide ? 200 : 15), 
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
-          children: chips, // <--- Ahora 'chips' sí existe
+          children: chips, 
         ),
       ),
     );
   }
 
-Widget _buildBookCard(String materialId, Map<String, dynamic> data) {
-  String _normStatus(String raw) {
-    final s = raw.toLowerCase().trim();
-    return s
-        .replaceAll('á', 'a')
-        .replaceAll('é', 'e')
-        .replaceAll('í', 'i')
-        .replaceAll('ó', 'o')
-        .replaceAll('ú', 'u')
-        .replaceAll('ñ', 'n')
-        .replaceAll('-', '_')
-        .replaceAll(' ', '_');
-  }
+  Widget _buildBookCard(String materialId, Map<String, dynamic> data) {
+    String _normStatus(String raw) => raw.toLowerCase().trim().replaceAll('á', 'a').replaceAll('é', 'e').replaceAll('í', 'i').replaceAll('ó', 'o').replaceAll('ú', 'u').replaceAll('ñ', 'n');
 
-  ({String label, Color color}) _mapStatus(String statusNorm) {
-    final bool isDisponible = statusNorm == 'disponible';
-
-    final bool isReservado = <String>{
-      'reservado',
-      'pendiente',
-      'esperando_confirmacion',
-      'solicitado',
-    }.contains(statusNorm);
-
-    final bool isPrestamo = <String>{
-      'rentado',
-      'devolucion_pendiente',
-      'en_prestamo',
-    }.contains(statusNorm);
-
-    final String label = isDisponible
-        ? 'Disponible'
-        : (isReservado
-            ? 'Reservado'
-            : (isPrestamo ? 'En préstamo' : 'No disponible'));
-
-    final Color color =
-        isDisponible ? Colors.green : (isReservado ? Colors.amber : Colors.red);
-
-    return (label: label, color: color);
-  }
-
-  Widget _statusChip(String effectiveStatusNorm) {
-    final mapped = _mapStatus(effectiveStatusNorm);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-      decoration: BoxDecoration(
-        color: mapped.color,
-        borderRadius: BorderRadius.circular(999),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.18),
-            blurRadius: 6,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Text(
-        mapped.label,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
-
-  final String statusMaterialNorm = _normStatus((data['status'] ?? 'disponible').toString());
-  final String title = (data['title'] ?? 'Sin título').toString();
-  final String author = (data['author'] ?? 'Autor desconocido').toString();
-  final String materia = (data['subject'] ?? '').toString();
-  final dynamic rawImage = data['imageUrl'];
-  final String? imageBase64 = rawImage is String ? rawImage : null;
-
-  Widget imageWidget = const Center(child: Icon(Icons.book, size: 50, color: Colors.grey));
-  try {
-    if (imageBase64 != null && imageBase64.isNotEmpty) {
-      final cleanBase64 = imageBase64.contains(',') ? imageBase64.split(',').last : imageBase64;
-      imageWidget = Image.memory(base64Decode(cleanBase64), fit: BoxFit.cover, width: double.infinity);
+    ({String label, Color color}) _mapStatus(String statusNorm) {
+      if (statusNorm == 'disponible') return (label: 'Disponible', color: const Color(0xFF4CAF50)); // El verde del usuario normal
+      if (<String>{'reservado', 'pendiente', 'esperando_confirmacion', 'solicitado'}.contains(statusNorm)) return (label: 'Reservado', color: Colors.amber);
+      return (label: 'En préstamo', color: Colors.red);
     }
-  } catch (e) { imageWidget = const Icon(Icons.broken_image); }
 
-  return Container(
-    decoration: BoxDecoration(
-      color: cardBrown,
-      borderRadius: BorderRadius.circular(16),
-      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.14), blurRadius: 8, offset: const Offset(0, 4))],
-    ),
-    child: Column(
-      children: [
-        // IMAGEN: Bajamos el flex de 9 a 7 para dar espacio abajo
-        Expanded(
-          flex: 7, 
-          child: ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+    final String statusMaterialNorm = _normStatus((data['status'] ?? 'disponible').toString());
+    final mappedStatus = _mapStatus(statusMaterialNorm);
+    final String title = (data['title'] ?? 'Sin título').toString();
+    final String author = (data['author'] ?? 'Autor desconocido').toString();
+    final String materia = (data['subject'] ?? '').toString();
+    final dynamic rawImage = data['imageUrl'];
+    final String? imageBase64 = rawImage is String ? rawImage : null;
+
+    Widget imageWidget = const Center(child: Icon(Icons.book, size: 40, color: Colors.grey));
+    try {
+      if (imageBase64 != null && imageBase64.isNotEmpty) {
+        final cleanBase64 = imageBase64.contains(',') ? imageBase64.split(',').last : imageBase64;
+        imageWidget = Image.memory(base64Decode(cleanBase64), fit: BoxFit.cover, width: double.infinity, height: double.infinity);
+      }
+    } catch (e) {
+      imageWidget = const Center(child: Icon(Icons.broken_image, color: Colors.grey));
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: cardBrown.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: cardBrown, width: 10.0), 
+      ),
+      child: Column(
+        children: [
+          // PARTE SUPERIOR: IMAGEN + CHIP SUPERPUESTO
+          Expanded(
+            flex: 11, // La imagen es ligeramente más grande que el texto
             child: Stack(
-              fit: StackFit.expand,
+              clipBehavior: Clip.none, // Permite que el botón flote fuera del límite
               children: [
-                imageWidget,
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(13)),
+                  child: Container(
+                    width: double.infinity,
+                    color: Colors.white,
+                    child: imageWidget,
+                  ),
+                ),
+                // Botón "Disponible" flotando en el medio
                 Positioned(
-                  right: 5, bottom: 5,
-                  child: _statusChip(statusMaterialNorm), // Simplificado para ahorrar espacio
+                  bottom: -12,
+                  left: 0, right: 0,
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: mappedStatus.color,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        mappedStatus.label,
+                        style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
           ),
-        ),
-        
-        // TEXTO: Subimos el flex de 4 a 5 para que respire
-        Expanded(
-          flex: 5,
-          child: Padding(
-            padding: const EdgeInsets.all(8.0), // Padding más pequeño y uniforme
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  title,
-                  maxLines: 2,
-                  textAlign: TextAlign.center,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14, // Bajamos de 16 a 14
-                    color: Colors.black87,
+          
+          // PARTE INFERIOR: TEXTO Y MATERIA
+          Expanded(
+            flex: 9, 
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const SizedBox(height: 15), // Espacio para que el botón no tape el texto
+                  Text(
+                    title,
+                    maxLines: 2,
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black87, height: 1.1),
                   ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  author,
-                  maxLines: 1,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 12, // Bajamos de 13 a 12
-                    fontStyle: FontStyle.italic,
-                    color: Colors.black54,
-                  ),
-                ),
-                if (materia.isNotEmpty) ...[
                   const SizedBox(height: 2),
                   Text(
-                    materia,
+                    author,
                     maxLines: 1,
                     textAlign: TextAlign.center,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 11, color: Colors.blueGrey),
+                    style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: Colors.black54),
                   ),
+                  
+                  const Spacer(),
+                  
+                  // La "pastillita" de la materia (ej. "matematicas")
+                  if (materia.isNotEmpty) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.white, // Fondo blanco
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: cardBrown, width: 1.5), // Borde marrón
+                      ),
+                      child: Text(
+                        materia,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 10, color: Colors.black87, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 8),
                 ],
-              ],
+              ),
             ),
           ),
-        ),
-      ],
-    ),
-  );
-}
+        ],
+      ),
+    );
+  }
 
   Widget _buildEmptyState() {
     return Center(
@@ -539,7 +496,6 @@ Widget _buildBookCard(String materialId, Map<String, dynamic> data) {
       ),
     );
   }
-
 }
 
 class _AdminTopHeader extends StatelessWidget {
@@ -553,52 +509,25 @@ class _AdminTopHeader extends StatelessWidget {
     required this.onRefreshCategorias,
   });
 
-  // Función para cerrar sesión
   Future<void> _handleLogout(BuildContext context) async {
     await FirebaseAuth.instance.signOut();
     if (!context.mounted) return;
     Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
   }
 
-  // Función para el menú
   Future<void> _mostrarMenuAdmin(BuildContext context) async {
     final value = await showMenu<String>(
       context: context,
       position: const RelativeRect.fromLTRB(1000, 80, 0, 0),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       items: const [
-        PopupMenuItem(value: 'dashboard', child: Text('Dashboard')),
         PopupMenuItem(value: 'perfiles', child: Text('Gestión de Usuarios')),
         PopupMenuItem(value: 'materiales', child: Text('Gestión de Material')),
       ],
     );
-
-    if (!context.mounted || value == null) return;
-
-    if (value == 'dashboard') {
-      onOpenDashboard();
-    } else if (value == 'perfiles') {
-      
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => ChangeNotifierProvider(
-            create: (_) => AdminUserManagementViewModel(),
-            child: const AdminUserManagementPage(),
-          ),
-        ),
-      );
+    if (value == 'perfiles') {
+      Navigator.push(context, MaterialPageRoute(builder: (_) => ChangeNotifierProvider(create: (_) => AdminUserManagementViewModel(), child: const AdminUserManagementPage())));
     } else if (value == 'materiales') {
-      
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => ChangeNotifierProvider(
-            create: (_) => AdminMaterialViewModel(AdminMaterialService()),
-            child: const AdminMaterialManagementPage(),
-          ),
-        ),
-      );
+      Navigator.push(context, MaterialPageRoute(builder: (_) => ChangeNotifierProvider(create: (_) => AdminMaterialViewModel(AdminMaterialService()), child: const AdminMaterialManagementPage())));
     }
   }
 
@@ -607,45 +536,100 @@ class _AdminTopHeader extends StatelessWidget {
     final bool isWide = MediaQuery.of(context).size.width > 750;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
+          // 1. PARTE IZQUIERDA: Logo y texto
           Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              IconButton(onPressed: onBack, icon: const Icon(Icons.arrow_back, color: Colors.white)),
-              const Icon(Icons.menu_book, color: Colors.white),
-              if (isWide) const Text(' BookLoop ADMIN', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              IconButton(
+                onPressed: onBack, 
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(), // Quita el margen extra invisible
+              ),
+              const SizedBox(width: 4),
+              const Icon(Icons.menu_book, color: Colors.white, size: 22),
+              const SizedBox(width: 4),
+              const Text('BookLoop', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              if (isWide) const Text(' ADMIN', style: TextStyle(color: Colors.white70, fontSize: 16, fontWeight: FontWeight.bold)),
             ],
           ),
-          Wrap(
-            spacing: 5,
-            children: [
-              _circleBtn(context, Icons.add, const Color(0xFF1B3A57), () => Navigator.pushNamed(context, '/publish')),
-              _circleBtn(context, Icons.notifications_none, null, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatListPage()))),
-              _circleBtn(context, Icons.person_outline, null, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfilePage()))),
-              _circleBtn(context, Icons.settings_suggest, null, () => _mostrarMenuAdmin(context)),
-              
-              PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert, color: Colors.white),
-                onSelected: (v) => v == 'logout' ? _handleLogout(context) : null,
-                itemBuilder: (ctx) => [const PopupMenuItem(value: 'logout', child: Text('Salir'))],
+
+          // 2. PARTE DERECHA: FittedBox fuerza que todo quepa en una sola línea
+          Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown, // <- El secreto: "encoge" proporcionalmente si falta espacio
+              alignment: Alignment.centerRight,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const SizedBox(width: 8), 
+                  _circleBtn(context, Icons.add, const Color(0xFF1B3A57), () => Navigator.pushNamed(context, '/publish')),
+                  const SizedBox(width: 4),
+                  _circleBtn(context, Icons.notifications_none, null, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatListPage()))),
+                  const SizedBox(width: 4),
+                  _circleBtn(context, Icons.person_outline, null, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfilePage()))),
+                  const SizedBox(width: 4),
+                  _circleBtn(context, Icons.settings_suggest, null, () => _mostrarMenuAdmin(context)),
+                  const SizedBox(width: 4),
+                  // 3. MENÚ DE LOS 3 PUNTITOS
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert, color: Colors.white),
+                    padding: EdgeInsets.zero,
+                    color: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    offset: const Offset(0, 45),
+                    onSelected: (v) {
+                      if (v == 'logout') _handleLogout(context);
+                      if (v == 'donar') Navigator.push(context, MaterialPageRoute(builder: (_) => const DonationScreen()));
+                    },
+                    itemBuilder: (ctx) => [
+                      const PopupMenuItem(
+                        value: 'donar',
+                        child: Row(
+                          children: [
+                            Icon(Icons.favorite, color: Colors.orange, size: 20),
+                            SizedBox(width: 10),
+                            Text('Donar', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'logout',
+                        child: Row(
+                          children: [
+                            Icon(Icons.logout_outlined, color: Colors.blueGrey, size: 20),
+                            SizedBox(width: 10),
+                            Text('Cerrar sesión', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ],
       ),
     );
   }
 
+  // Mantenemos tu diseño original (cuadrados redondeados de 34x34)
   Widget _circleBtn(BuildContext context, IconData icon, Color? bg, VoidCallback onTap) {
     return Container(
-      width: 36, height: 36,
+      width: 34, height: 34,
       decoration: BoxDecoration(
         color: bg ?? Colors.white.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(10), // Tu forma original intacta
       ),
-      child: IconButton(padding: EdgeInsets.zero, icon: Icon(icon, color: Colors.white, size: 20), onPressed: onTap),
+      child: IconButton(padding: EdgeInsets.zero, icon: Icon(icon, color: Colors.white, size: 18), onPressed: onTap),
     );
   }
 }
