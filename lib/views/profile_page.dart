@@ -231,7 +231,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   hasNewNotifications: _hasNewNotifications,
                   isAdmin: effectiveIsAdmin,
                   onAdminMenu: () => _mostrarMenuAdmin(context),
-                  isWide: isWide,
+                  
                 ),
                 Expanded(
                   child: SingleChildScrollView(
@@ -261,105 +261,161 @@ class _ProfilePageState extends State<ProfilePage> {
 }
 
 class _ProfileHeader extends StatelessWidget {
-  final VoidCallback onEdit, onHome, onProfile, onNotifications, onCreate, onLogout, onAdminMenu;
-  final bool hasNewNotifications, isAdmin, isWide;
+  final VoidCallback onEdit;
+  final VoidCallback onHome;
+  final VoidCallback onProfile;
+  final VoidCallback onNotifications;
+  final VoidCallback onCreate;
+  final VoidCallback onLogout;
+  final bool hasNewNotifications;
+  final bool isAdmin;
+  final VoidCallback onAdminMenu;
+
+  static const Color unimetOrange = Color(0xFFF28B31);
 
   const _ProfileHeader({
-    required this.onEdit, required this.onHome, required this.onProfile,
-    required this.onNotifications, required this.onCreate, required this.onLogout,
-    required this.hasNewNotifications, required this.isAdmin, required this.onAdminMenu,
-    required this.isWide,
+    required this.onEdit,
+    required this.onHome,
+    required this.onProfile,
+    required this.onNotifications,
+    required this.onCreate,
+    required this.onLogout,
+    required this.hasNewNotifications,
+    required this.isAdmin,
+    required this.onAdminMenu,
   });
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // LOGO IZQUIERDA
           Row(
-            mainAxisSize: MainAxisSize.min,
             children: [
-              
-              IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
-                padding: EdgeInsets.zero,
-                visualDensity: VisualDensity.compact,
-                constraints: const BoxConstraints(),
-                onPressed: () => Navigator.pop(context),
-              ),
-              const SizedBox(width: 8),
-              
-              const Icon(Icons.menu_book, color: Colors.white, size: 24),
-              const SizedBox(width: 6),
+              const Icon(Icons.menu_book, color: Colors.white, size: 30),
+              const SizedBox(width: 12),
               const Text(
-                "BookLoop", 
+                "BookLoop",
                 style: TextStyle(
-                  color: Colors.white, 
-                  fontSize: 18, 
+                  color: Colors.white,
+                  fontSize: 22,
                   fontWeight: FontWeight.bold,
-                  letterSpacing: -0.5,
-                )
+                ),
               ),
             ],
           ),
           
-          // ICONOS DERECHA
+          // === AQUÍ ESTÁ EL TRUCO: Flexible + FittedBox ===
+          // Esto obliga a que la Fila de íconos NUNCA baje a otra línea.
           Flexible(
-            child: Wrap(
-              spacing: 6,
-              runSpacing: 4,
-              alignment: WrapAlignment.end,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                _circleBtn(Icons.add, const Color(0xFFF28B31), onCreate),
-                _circleBtn(Icons.home_outlined, Colors.white.withOpacity(0.15), onHome),
-                Stack(
-                  children: [
-                    _circleBtn(Icons.notifications_none_outlined, Colors.white.withOpacity(0.15), onNotifications),
-                    if (hasNewNotifications)
-                      Positioned(right: 5, top: 5, child: CircleAvatar(radius: 4, backgroundColor: Colors.red)),
-                  ],
-                ),
-                if (isAdmin) _circleBtn(Icons.settings_suggest, Colors.white.withOpacity(0.15), onAdminMenu),
-                _moreMenu(context),
-              ],
+            child: FittedBox(
+              fit: BoxFit.scaleDown, // Se hace más pequeñito si la pantalla es muy fina
+              alignment: Alignment.centerRight, // Se alinea a la derecha como antes
+              child: Row(
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      color: unimetOrange,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: IconButton(
+                      onPressed: onCreate,
+                      icon: const Icon(Icons.add, color: Colors.white),
+                      tooltip: 'Publicar material',
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  IconButton(
+                    icon: const Icon(Icons.home_outlined, color: Colors.white, size: 28),
+                    onPressed: onHome,
+                    tooltip: 'Inicio',
+                  ),
+                  const SizedBox(width: 10),
+                  Stack(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.notifications_none_outlined, color: Colors.white, size: 28),
+                        onPressed: onNotifications,
+                        tooltip: 'Mis chats y notificaciones',
+                      ),
+                      if (hasNewNotifications)
+                        Positioned(
+                          right: 8,
+                          top: 8,
+                          child: Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: const Color(0xFF1B3A57), width: 1.5),
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 12,
+                              minHeight: 12,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(width: 5),
+                  IconButton(
+                    icon: const Icon(Icons.person_outline, color: Colors.white, size: 28),
+                    onPressed: () {},
+                    tooltip: 'Ya estás en Perfil',
+                  ),
+                  if (isAdmin)
+                    IconButton(
+                      icon: const Icon(Icons.settings_suggest, color: Colors.white, size: 28),
+                      onPressed: onAdminMenu,
+                      tooltip: 'Mostrar menú',
+                    ),
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert, color: Colors.white, size: 28), 
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                    onSelected: (value) async {
+                      if (value == 'donate') {
+                        Navigator.push(
+                          context, 
+                          MaterialPageRoute(builder: (_) => const DonationScreen())
+                        );
+                      } else if (value == 'logout') {
+                        await FirebaseAuth.instance.signOut();
+                        if (context.mounted) {
+                          Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false); 
+                        }
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'donate',
+                        child: Row(
+                          children: [
+                            Icon(Icons.volunteer_activism, color: Color(0xFFF28B31)), 
+                            SizedBox(width: 10),
+                            Text('Realizar donación'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'logout',
+                        child: Row(
+                          children: [
+                            Icon(Icons.logout, color: Color(0xFF1B3A57)), 
+                            SizedBox(width: 10),
+                            Text('Cerrar sesión'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _circleBtn(IconData icon, Color bg, VoidCallback tap) {
-    return Container(
-      width: 38, 
-      height: 38,
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10)),
-      child: IconButton(
-        padding: EdgeInsets.zero,
-        icon: Icon(icon, color: Colors.white, size: 20), 
-        onPressed: tap
-      ),
-    );
-  }
-
-  Widget _moreMenu(BuildContext context) {
-    return PopupMenuButton<String>(
-      icon: const Icon(Icons.more_vert, color: Colors.white, size: 24),
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(minWidth: 150),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      onSelected: (val) {
-        if (val == 'logout') onLogout();
-        if (val == 'donate') Navigator.push(context, MaterialPageRoute(builder: (_) => const DonationScreen()));
-      },
-      itemBuilder: (ctx) => [
-        const PopupMenuItem(value: 'donate', child: Row(children: [Icon(Icons.favorite, size: 18, color: Colors.orange), SizedBox(width: 8), Text("Donar")])),
-        const PopupMenuItem(value: 'logout', child: Row(children: [Icon(Icons.logout, size: 18, color: Colors.blueGrey), SizedBox(width: 8), Text("Cerrar sesión")])),
-      ],
     );
   }
 }
@@ -373,6 +429,11 @@ class _ProfileCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Detectamos si es admin para cambiar el color de "Mis Libros"
+    final String emailActual = ((vm.email ?? FirebaseAuth.instance.currentUser?.email) ?? '').toLowerCase().trim();
+    final bool isAdmin = emailActual.startsWith('admin');
+    final Color titleColor = isAdmin ? const Color(0xFFF28B31) : const Color(0xFF1B3A57);
+
     return Card(
       elevation: 0,
       color: Colors.white,
@@ -394,7 +455,8 @@ class _ProfileCard extends StatelessWidget {
             ),
             
             const SizedBox(height: 25),
-            const Text("Mis Libros", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1B3A57))),
+            // El título ahora cambia a naranja si eres admin
+            Text("Mis Libros", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: titleColor)),
             const SizedBox(height: 10),
             _MyBooksRow(uid: FirebaseAuth.instance.currentUser?.uid, email: vm.email, username: vm.username),
 
@@ -441,6 +503,16 @@ class _TopProfileRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final nombre = "${vm.nombre ?? ''} ${vm.apellido ?? ''}".trim();
     
+    
+    final String emailActual = ((vm.email ?? FirebaseAuth.instance.currentUser?.email) ?? '').toLowerCase().trim();
+    final bool isAdmin = emailActual.startsWith('admin');
+    
+    final Color primaryColor = isAdmin ? const Color(0xFFF28B31) : const Color(0xFF1B3A57);
+    
+  
+    final Color avatarBorderColor = const Color(0xFF1B3A57).withOpacity(0.1);
+    final double avatarBorderWidth = 2.0; 
+    
     final info = Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: isWide ? CrossAxisAlignment.start : CrossAxisAlignment.center,
@@ -451,7 +523,7 @@ class _TopProfileRow extends StatelessWidget {
           style: TextStyle(
             fontSize: isWide ? 28 : 24, 
             fontWeight: FontWeight.bold, 
-            color: const Color(0xFF1B3A57)
+            color: primaryColor 
           )
         ),
         const SizedBox(height: 2),
@@ -461,14 +533,13 @@ class _TopProfileRow extends StatelessWidget {
           textAlign: isWide ? TextAlign.left : TextAlign.center,
         ),
         const SizedBox(height: 16),
-        // BOTONES DE ACCIÓN: Siempre centrados en móvil
         Row(
           mainAxisAlignment: isWide ? MainAxisAlignment.start : MainAxisAlignment.center,
           children: [
             ActionChip(
               padding: const EdgeInsets.symmetric(horizontal: 8),
               label: const Text("Editar Perfil", style: TextStyle(fontSize: 12)), 
-              avatar: const Icon(Icons.edit, size: 14), 
+              avatar: Icon(Icons.edit, size: 14, color: primaryColor), 
               onPressed: onEdit
             ),
             const SizedBox(width: 8),
@@ -486,17 +557,23 @@ class _TopProfileRow extends StatelessWidget {
     if (isWide) {
       return Row(
         children: [
-          CircleAvatar(
-            radius: 45, 
-            backgroundColor: const Color(0xFF1B3A57).withOpacity(0.05), 
-            child: Text(vm.avatarEmoji ?? "🙂", style: const TextStyle(fontSize: 40))
+          Container(
+            padding: const EdgeInsets.all(4), 
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: avatarBorderColor, width: avatarBorderWidth),
+            ),
+            child: CircleAvatar(
+              radius: 45, 
+              backgroundColor: primaryColor.withOpacity(0.08), 
+              child: Text(vm.avatarEmoji ?? "🙂", style: const TextStyle(fontSize: 40))
+            ),
           ),
           const SizedBox(width: 25),
           Expanded(child: info),
         ],
       );
     } else {
-      // DISEÑO MÓVIL: Centrado perfecto
       return Center(
         child: Column(
           children: [
@@ -504,11 +581,11 @@ class _TopProfileRow extends StatelessWidget {
               padding: const EdgeInsets.all(4), 
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(color: const Color(0xFF1B3A57).withOpacity(0.1), width: 2),
+                border: Border.all(color: avatarBorderColor, width: avatarBorderWidth), 
               ),
               child: CircleAvatar(
                 radius: 50, 
-                backgroundColor: const Color(0xFF1B3A57).withOpacity(0.05), 
+                backgroundColor: primaryColor.withOpacity(0.08), 
                 child: Text(vm.avatarEmoji ?? "🙂", style: const TextStyle(fontSize: 45))
               ),
             ),

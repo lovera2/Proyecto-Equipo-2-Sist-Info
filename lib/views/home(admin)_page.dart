@@ -560,10 +560,10 @@ class _AdminTopHeader extends StatelessWidget {
             ],
           ),
 
-          // 2. PARTE DERECHA: FittedBox fuerza que todo quepa en una sola línea
+          
           Flexible(
             child: FittedBox(
-              fit: BoxFit.scaleDown, // <- El secreto: "encoge" proporcionalmente si falta espacio
+              fit: BoxFit.scaleDown, 
               alignment: Alignment.centerRight,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -580,23 +580,23 @@ class _AdminTopHeader extends StatelessWidget {
                   const SizedBox(width: 4),
                   // 3. MENÚ DE LOS 3 PUNTITOS
                   PopupMenuButton<String>(
-                    icon: const Icon(Icons.more_vert, color: Colors.white),
+                    icon: const Icon(Icons.more_vert, color: Colors.white), 
                     padding: EdgeInsets.zero,
                     color: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                     offset: const Offset(0, 45),
                     onSelected: (v) {
                       if (v == 'logout') _handleLogout(context);
-                      if (v == 'donar') Navigator.push(context, MaterialPageRoute(builder: (_) => const DonationScreen()));
+                      if (v == 'donate') Navigator.push(context, MaterialPageRoute(builder: (_) => const DonationScreen()));
                     },
                     itemBuilder: (ctx) => [
                       const PopupMenuItem(
-                        value: 'donar',
+                        value: 'donate',
                         child: Row(
                           children: [
-                            Icon(Icons.favorite, color: Colors.orange, size: 20),
+                            Icon(Icons.volunteer_activism, color: Color(0xFFF28B31)), // Ícono de las manos con el corazón
                             SizedBox(width: 10),
-                            Text('Donar', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w600)),
+                            Text('Realizar donación', style: TextStyle(color: Colors.black87)),
                           ],
                         ),
                       ),
@@ -604,9 +604,9 @@ class _AdminTopHeader extends StatelessWidget {
                         value: 'logout',
                         child: Row(
                           children: [
-                            Icon(Icons.logout_outlined, color: Colors.blueGrey, size: 20),
+                            Icon(Icons.logout, color: Color(0xFF1B3A57)), // Ícono de salir azul marino
                             SizedBox(width: 10),
-                            Text('Cerrar sesión', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w600)),
+                            Text('Cerrar sesión', style: TextStyle(color: Colors.black87)),
                           ],
                         ),
                       ),

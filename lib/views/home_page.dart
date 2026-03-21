@@ -282,18 +282,53 @@ class _HomePageState extends State<HomePage> {
               _headerCircleBtn(Icons.person_outline, () => Navigator.pushNamed(context, '/profile')),
               
               PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert, color: Colors.white, size: 24),
-                padding: EdgeInsets.zero,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                onSelected: (value) {
-                  if (value == 'donate') Navigator.push(context, MaterialPageRoute(builder: (_) => const DonationScreen()));
-                  if (value == 'logout') _handleLogout(context);
-                },
-                itemBuilder: (context) => [
-                  const PopupMenuItem(value: 'donate', child: Text("Donar")),
-                  const PopupMenuItem(value: 'logout', child: Text("Cerrar sesión")),
-                ],
-              ),
+              icon: const Icon(Icons.more_vert, color: Colors.white, size: 28),
+              padding: EdgeInsets.zero,
+              color: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+              offset: const Offset(0, 45), // Desplaza el menú hacia abajo para no tapar el icono
+              onSelected: (value) {
+                if (value == 'donate') {
+                  Navigator.push(
+                    context, 
+                    MaterialPageRoute(builder: (_) => const DonationScreen())
+                  );
+                }
+                if (value == 'logout') {
+                  _handleLogout(context);
+                }
+              },
+              itemBuilder: (context) => [
+                // Opción de Donar
+                const PopupMenuItem(
+                  value: 'donate',
+                  child: Row(
+                    children: [
+                      Icon(Icons.volunteer_activism, color: Color(0xFFF28B31)), // Naranja Unimet
+                      SizedBox(width: 10),
+                      Text(
+                        'Realizar donación', 
+                        style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w500)
+                      ),
+                    ],
+                  ),
+                ),
+                // Opción de Cerrar Sesión
+                const PopupMenuItem(
+                  value: 'logout',
+                  child: Row(
+                    children: [
+                      Icon(Icons.logout, color: Color(0xFF1B3A57)), // Azul Marino Unimet
+                      SizedBox(width: 10),
+                      Text(
+                        'Cerrar sesión', 
+                        style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w500)
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            )
             ],
           ),
         ],
@@ -642,7 +677,7 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
 
-          // Texto + chip (Ajustado para no dar Overflow)
+          // Texto + chip 
           Expanded(
             flex: 5,
             child: Padding(
@@ -659,7 +694,7 @@ class _HomePageState extends State<HomePage> {
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontWeight: FontWeight.w800,
-                          fontSize: 14, // Tamaño ajustado
+                          fontSize: 14, 
                           color: Colors.black87,
                           height: 1.1,
                         ),
@@ -667,11 +702,11 @@ class _HomePageState extends State<HomePage> {
                       const SizedBox(height: 2),
                       Text(
                         autor.isEmpty ? '—' : autor,
-                        maxLines: 1, // Una sola línea para ahorrar espacio
+                        maxLines: 1, 
                         textAlign: TextAlign.center,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          fontSize: 12, // Tamaño ajustado
+                          fontSize: 12, 
                           fontStyle: FontStyle.italic,
                           color: Colors.black87,
                         ),
@@ -694,7 +729,7 @@ class _HomePageState extends State<HomePage> {
                         textAlign: TextAlign.center,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          fontSize: 10, // Tamaño ajustado
+                          fontSize: 10, 
                           fontWeight: FontWeight.w700,
                           color: Colors.black87,
                         ),
